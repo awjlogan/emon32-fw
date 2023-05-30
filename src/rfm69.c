@@ -223,39 +223,23 @@ rfm_send(RFMPkt_t *pPkt)
             {
                 crc16_update(&crc, writeByte);
             }
-<<<<<<< HEAD
-            spiWriteByte(SERCOM_SPI_DATA, 0x0u, writeByte);
-=======
             rfmWriteReg(REG_FIFO, writeByte);
->>>>>>> fw-generic
         }
     }
 
     /* Pad FIFO out to minimum 17 bytes */
     while (txState < 17u)
     {
-<<<<<<< HEAD
-        spiWriteByte(SERCOM_SPI_DATA, 0x0u, 0xAAu);
-=======
         rfmWriteReg(REG_FIFO, 0xAAu);
->>>>>>> fw-generic
         txState++;
     }
 
     writeByte = (pPkt->rf_pwr & 0x1F) | 0x80;
-<<<<<<< HEAD
-    spiWriteByte(SERCOM_SPI_DATA, 0x11u, writeByte);
-
-    tempRecv = spiReadByte(SERCOM_SPI_DATA, 0x1u);
-    tempRecv = (tempRecv & 0xE3) | 0xC;
-    spiWriteByte(SERCOM_SPI_DATA, 0x1u, tempRecv);
-=======
     rfmWriteReg(0x11u, writeByte);
 
     tempRecv = rfmReadReg(REG_OPMODE);
     tempRecv = (tempRecv & 0xE3) | 0xC;
     rfmWriteReg(REG_OPMODE, tempRecv);
->>>>>>> fw-generic
 
     rfm_sleep();
     return success;
