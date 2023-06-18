@@ -9,7 +9,7 @@ eicSetup()
                         | GCLK_CLKCTRL_CLKEN;
 
     EIC->CONFIG[0].reg |=   PULSE_EIC_FILTER
-                       | PULSE_EIC_RISING;
+                          | PULSE_EIC_RISING;
 }
 
 void

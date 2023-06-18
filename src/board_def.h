@@ -28,10 +28,11 @@
 #define F_TC1               F_PERIPH / 8
 #define F_TC2               F_PERIPH / 8
 
-/* Analog comparator (AC) for zero crossing detection. Uncomment if the AC is
- * being used for zero crossing. If not present, a software routine is used
+/* Oversampling
+ * There will be a fixed anti-aliasing filter on the board. This should be the
+ * target oversampling ratio at the ADC
  */
-/* #define ZERO_CROSSING_HW */
+#define OVERSAMPLING_RATIO  2
 
 /* EEPROM */
 /* Top of EEPROM address, not including R/W bit */
