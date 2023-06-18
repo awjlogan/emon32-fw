@@ -16,6 +16,10 @@ sercomSetup()
     uart_dbg_cfg.port_grp   = GRP_SERCOM_UART_DBG;
     uart_dbg_cfg.pin_tx     = PIN_UART_DBG_TX;
     uart_dbg_cfg.pin_rx     = PIN_UART_DBG_RX;
+    uart_dbg_cfg.dmaChannel = DMA_CHAN_UART_DBG;
+    uart_dbg_cfg.dmaCfg.ctrlb =   DMAC_CHCTRLB_LVL(1u)
+                                | DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DBG_DMAC_ID_TX)
+                                | DMAC_CHCTRLB_TRIGACT_BEAT;
     sercomSetupUART(&uart_dbg_cfg);
 
     /*****************
@@ -115,6 +119,9 @@ sercomSetupUART(const UART_Cfg_t *pCfg)
     /* Enable requires synchronisation (25.6.6) */
     pCfg->sercom->USART.CTRLA.reg |= SERCOM_USART_CTRLA_ENABLE;
     while (pCfg->sercom->USART.STATUS.reg & SERCOM_USART_SYNCBUSY_ENABLE);
+
+    /* Configure DMA */
+    dmacChannelConfigure(pCfg->dmaChannel, &pCfg->dmaCfg);
 }
 
 void

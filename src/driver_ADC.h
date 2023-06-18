@@ -3,9 +3,7 @@
 
 #include <stdint.h>
 
-/*! @brief Configure the ADC for the board
- *  TODO Make this a configurable function
- */
+/*! @brief Configure the ADC for the board */
 void adcSetup();
 
 /*! @brief Starts the DMAC transfer from the ADC

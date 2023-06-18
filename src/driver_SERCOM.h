@@ -37,6 +37,8 @@ typedef struct UART_Cfg_ {
     uint8_t         port_grp;
     uint8_t         pin_tx;
     uint8_t         pin_rx;
+    uint8_t         dmaChannel;
+    DMACCfgCh_t     dmaCfg;
 } UART_Cfg_t;
 
 /* @brief configure the serial communication module. This function starts the
@@ -139,7 +141,6 @@ uint8_t i2cDataRead(Sercom *sercom);
  */
 void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
 
-/* TODO: use DMA for transfer */
 /*! @brief Write a set of bytes to a configured SPI channel.
  *  @param [in] sercom : SERCOM instance
  *  @param [in] pBuf : pointer to data buffer

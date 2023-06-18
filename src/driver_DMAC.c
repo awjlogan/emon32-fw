@@ -15,19 +15,6 @@ dmacSetup()
     DMAC->CTRL.reg =   DMAC_CTRL_DMAENABLE
                      | DMAC_CTRL_LVLEN(0xFu);
 
-    /* TODO Make the init for ADC and DMA independent from the DMAC driver */
-    /* UART DMA */
-    DMAC->CHID.reg = DMA_CHAN_UART_DBG;
-    DMAC->CHCTRLB.reg =   DMAC_CHCTRLB_LVL(1u)
-                        | DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DBG_DMAC_ID_TX)
-                        | DMAC_CHCTRLB_TRIGACT_BEAT;
-
-    /* ADC DMA */
-    DMAC->CHID.reg = DMA_CHAN_ADC;
-    DMAC->CHCTRLB.reg =   DMAC_CHCTRLB_LVL(0u)
-                        | DMAC_CHCTRLB_TRIGSRC(ADC_DMAC_ID_RESRDY)
-                        | DMAC_CHCTRLB_TRIGACT_BEAT;
-
     /* CRC module - CRC16-CCITT byte wise access from IO */
     DMAC->CRCCTRL.reg = DMAC_CRCCTRL_CRCSRC_IO;
 
