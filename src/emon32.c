@@ -12,6 +12,8 @@
 static volatile uint32_t    evtPend;
 static volatile EmonState_t emonState = EMON_STATE_IDLE;
 
+static unsigned int         lastStoredWh;
+
 /*************************************
  * Function prototypes
  *************************************/
@@ -19,10 +21,11 @@ static volatile EmonState_t emonState = EMON_STATE_IDLE;
 static void     loadConfiguration(Emon32Config_t *pCfg);
 static uint32_t totalEnergy(const ECMSet_t *pData);
 static void     loadCumulative(eepromPktWL_t *pPkt, ECMSet_t *pData);
+static void     processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, const unsigned int whDeltaStore);
 static void     storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData);
 static void     evtKiloHertz();
 static uint32_t evtPending(INTSRC_t evt);
-static void     dgbPutBoard();
+static void     dbgPutBoard();
 static void     setup_uc();
 
 /*************************************
@@ -98,10 +101,9 @@ loadConfiguration(Emon32Config_t *pCfg)
     unsigned int    seconds     = 3u;
     uint32_t        key         = 0u;
 
-    /* Load configuration key from "static" part of EEPROM. If the key does
-     * not match CONFIG_NVM_KEY, write the default configuration to the
-     * EEPROM, and zero wear levelled portion. Otherwise, read configuration
-     * from EEPROM.
+    /* Load 32bit key from "static" part of EEPROM. If the key does not match
+     * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
+     * wear levelled portion. Otherwise, read configuration from EEPROM.
      */
     eepromRead(0, (void *)&key, 4u);
 
@@ -212,6 +214,32 @@ storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData)
     timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB);
 }
 
+static void
+processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, const unsigned int whDeltaStore)
+{
+    int         energyOverflow;
+    uint32_t    latestWh;
+    uint32_t    deltaWh;
+
+    /* Store cumulative values if over threshold */
+    latestWh = totalEnergy(pData);
+
+    /* Catch overflow of energy. This corresponds to ~4 MWh(!), so
+     * unlikely to happen, but handle safely.
+     */
+    energyOverflow = (latestWh < lastStoredWh) ? 1u : 0;
+    if (0 != energyOverflow)
+    {
+        uartPutsBlocking(SERCOM_UART_DBG, "\r\n> Cumulative energy overflowed counter!");
+    }
+    deltaWh = latestWh - lastStoredWh;
+    if ((deltaWh > whDeltaStore) || energyOverflow)
+    {
+        storeCumulative(pPkt, pData);
+        lastStoredWh = latestWh;
+    }
+}
+
 /*! @brief This function is called when the 1 ms timer overflows (SYSTICK).
  *         Latency is not guaranteed, so only non-timing critical things
  *         should be done here (UI update, watchdog etc)
@@ -225,7 +253,6 @@ evtKiloHertz()
     wdtFeed();
 }
 
-
 /*! @brief Check if an event source is active
  *  @param [in] : event source to check
  *  @return : 1 if pending, 0 otherwise
@@ -237,7 +264,7 @@ evtPending(INTSRC_t evt)
 }
 
 static void
-dgbPutBoard()
+dbgPutBoard()
 {
     char        wr_buf[8];
     const int   board_id = BOARD_ID;
@@ -292,11 +319,7 @@ main()
     ECMSet_t            dataset;
     eepromPktWL_t       eepromPkt;
     RFMPkt_t            rfmPkt;
-    uint32_t            lastStoredWh;
-    uint32_t            latestWh;
-    uint32_t            deltaWh;
     char                txBuffer[64]; /* TODO Check size of buffer */
-    uint32_t            pulseTimeSince = 0;
 
     setup_uc();
 
@@ -305,7 +328,7 @@ main()
     uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
     uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
 
-    dgbPutBoard();
+    dbgPutBoard();
 
     /* Load stored values (configuration and accumulated energy) from
      * non-volatile memory (NVM). If the NVM has not been used before then
@@ -331,6 +354,7 @@ main()
         rfmPkt.rf_pwr       = 0u;
         rfmPkt.threshold    = 0u;
         rfmPkt.timeout      = 1000u;
+        rfmPkt.n            = 23u;
         rfm_init(RF12_868MHz);
     }
     else
@@ -348,7 +372,7 @@ main()
         sercomSetupUART(&uart_dbg_cfg);
     }
 
-    /* Set up buffers for ADC data, and configure energy monitor */
+    /* Set up buffers for ADC data, and configure energy processing */
     emon32StateSet(EMON_STATE_ACTIVE);
     ecmInit(&e32Config);
     adcStartDMAC((uint32_t)ecmDataBuffer());
@@ -365,10 +389,6 @@ main()
             if (evtPending(EVT_SYSTICK_1KHz))
             {
                 evtKiloHertz();
-                if (0 != pulseTimeSince)
-                {
-                    pulseTimeSince--;
-                }
                 emon32ClrEvent(EVT_SYSTICK_1KHz);
             }
 
@@ -379,53 +399,36 @@ main()
                 emon32ClrEvent(EVT_ECM_CYCLE_CMPL);
             }
 
-            /* Pulse count interrupt */
-            if (evtPending(EVT_EIC_PULSE))
-            {
-                if (0 == pulseTimeSince)
-                {
-                    dataset.pulseCnt++;
-                }
-            }
-
-            /* Report period elapsed; generate, pack, and send. This is echoed
-             * on the debug UART.
-             * If the energy used since the last storage is greater than the
-             * configured energy delta (baseCfg.whDeltaStore), then save the
-             * accumulated energy in NVM.
+            /* Report period elapsed; generate, pack, and send through the
+             * configured channel. Echo on debug console
              */
             if (evtPending(EVT_ECM_SET_CMPL))
             {
-                rfmPkt.n = 23u;
-                rfm_send(&rfmPkt);
-
                 unsigned int pktLength;
-                unsigned int energyOverflow;
 
                 ecmProcessSet(&dataset);
                 pktLength = dataPackage(&dataset, txBuffer);
+
+                if (DATATX_RFM69 == e32Config.baseCfg.dataTx)
+                {
+                    rfm_send(&rfmPkt);
+                }
+                else
+                {
+                    uartPutsNonBlocking(DMA_CHAN_UART_DATA, txBuffer, pktLength);
+                }
                 uartPutsNonBlocking(DMA_CHAN_UART_DBG, txBuffer, pktLength);
 
-                /* Store cumulative values if over threshold */
-                latestWh = totalEnergy(&dataset);
-
-                /* Catch overflow of energy. This corresponds to ~4 MWh(!), so
-                 * unlikely to happen, but handle safely.
+                /* If the energy used since the last storage is greater than the
+                 * configured energy delta (baseCfg.whDeltaStore), then save the
+                 * accumulated energy in NVM.
                  */
-                energyOverflow = (latestWh < lastStoredWh) ? 1u : 0;
-                if (0 != energyOverflow)
-                {
-                    uartPutsBlocking(SERCOM_UART_DBG, "\r\n> Cumulative energy overflowed counter!");
-                }
-                deltaWh = latestWh - lastStoredWh;
-                if ((deltaWh > e32Config.baseCfg.whDeltaStore) || energyOverflow)
-                {
-                    storeCumulative(&eepromPkt, &dataset);
-                    lastStoredWh = latestWh;
-                }
+                processCumulative(&eepromPkt, &dataset, e32Config.baseCfg.whDeltaStore);
+
                 emon32ClrEvent(EVT_ECM_SET_CMPL);
             }
         }
+        /* Enter WFI until woken by an interrupt */
         __WFI();
     };
 }
