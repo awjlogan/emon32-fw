@@ -26,18 +26,25 @@ adcSetup()
     ADC->REFCTRL.reg =   ADC_REFCTRL_REFCOMP
                        | ADC_REFCTRL_REFSEL_AREFA;
 
-    /* Differential mode, /8 prescale of F_PERIPH, left adjust
-     * Requires synchronisation after write (30.6.13)
+    /* Differential mode, /8 prescale of F_PERIPH, right aligned, enable
+     * averaging. Requires synchronisation after write (30.6.13)
      */
     ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV8
-                     | ADC_CTRLB_LEFTADJ
-                     | ADC_CTRLB_DIFFMODE;
+                     | ADC_CTRLB_DIFFMODE
+                     | ADC_CTRLB_RESSEL_16BIT;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
-    /* Setup 15 us conversion time - allows up to ~65 ksps @ 1 MHz CLK
-     * SAMPLEN = (2T / T_clk) - 1 = 29
+    /* Setup 3 us conversion time - allows up to ~333 ksps @ 1 MHz CLK
+     * SAMPLEN = (2T / T_clk) - 1 = 5
      */
-    ADC->SAMPCTRL.reg = 0x1Du;
+    ADC->SAMPCTRL.reg = 0x5u;
+
+    /* Setup 4X oversampling. This can be used for up to 16 V/CT channels at
+     * 4.8 kHz sampling (4.8 * 16 * 4 = 307 kHz). The intermediate 14 bit
+     * result is right shifted by 2 to provide the final 12 bit result.
+     */
+    ADC->AVGCTRL.reg =   ADC_AVGCTRL_SAMPLENUM(2)
+                       | ADC_AVGCTRL_ADJRES(2);
 
     /* Input control - requires synchronisation (30.6.13) */
     ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXPOS_PIN2
