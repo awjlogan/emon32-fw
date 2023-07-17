@@ -2,17 +2,17 @@
 #define BOARD_DEF_H
 
 /* This file contains defines specific to the board that is being used. To
- * extend this, the base SAMD10 configuration can be bracketed in IFDEF
+ * extend this, the base SAMD11 configuration can be bracketed in IFDEF
  */
 
-/* Board identification number. Uncomment the line corresponding to the board
- * in use. If a custom board is used, then this can be quoted in "dbgPutBoard"
+/* Board identification number. If a custom board is used, this should be
+ * added to "dbgPutBoard" in emon32.c
   */
 #define BOARD_ID_LC         0
 #define BOARD_ID_STANDARD   1
 #define BOARD_ID_DEV        255
 /* LC */
-#define BOARD_ID            BOARD_ID_DEV
+#define BOARD_ID            BOARD_ID_LC
 
 /* Online configuration takes around 2.5 KB of flash. Comment out this define to
  * save space, with only RO access to configuration values.
@@ -80,11 +80,20 @@
 
 /* Pin assignments (nb. logical, not physical) */
 #if (BOARD_ID == BOARD_ID_DEV)
+
+#define GRP_PIN             0u
 #define PIN_EXTINT          24u
 #define PIN_GEN_STATUS      25u
-#define PIN_LED             16u
+#define PIN_LED_STATUS      16u
 #define PIN_SW              15u
-#endif /* BOARD_ID_DEV */
+
+#elif (BOARD_ID == BOARD_ID_LC)
+
+#define GRP_PIN             0u
+#define PIN_LED_STATUS      16u
+#define PIN_LED_PROG        17u
+
+#endif /* BOARD_ID */
 
 /* I2C related defines */
 #define GRP_SERCOM_I2C      0u

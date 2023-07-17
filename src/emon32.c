@@ -15,18 +15,20 @@ static volatile EmonState_t emonState = EMON_STATE_IDLE;
 static unsigned int         lastStoredWh;
 
 /*************************************
- * Function prototypes
+ * Static function prototypes
  *************************************/
 
-static void     loadConfiguration(Emon32Config_t *pCfg);
-static uint32_t totalEnergy(const ECMSet_t *pData);
-static void     loadCumulative(eepromPktWL_t *pPkt, ECMSet_t *pData);
-static void     processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, const unsigned int whDeltaStore);
-static void     storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData);
+static void     dbgPutBoard();
 static void     evtKiloHertz();
 static uint32_t evtPending(INTSRC_t evt);
-static void     dbgPutBoard();
+static void     ledOn();
+static void     ledToggle();
+static void     loadConfiguration(Emon32Config_t *pCfg);
+static void     loadCumulative(eepromPktWL_t *pPkt, ECMSet_t *pData);
+static void     processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, const unsigned int whDeltaStore);
 static void     setup_uc();
+static void     storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData);
+static uint32_t totalEnergy(const ECMSet_t *pData);
 
 /*************************************
  * Functions
@@ -91,6 +93,18 @@ emon32DefaultConfiguration(Emon32Config_t *pCfg)
     }
 }
 
+static void
+ledOn()
+{
+    portPinDrv(GRP_PIN, PIN_LED_STATUS, PIN_DRV_CLR);
+}
+
+static void
+ledToggle()
+{
+    portPinDrv(GRP_PIN, PIN_LED_STATUS, PIN_DRV_TGL);
+}
+
 /*! @brief This function handles loading of configuration data
  *  @param [in] pCfg : pointer to the configuration struct
  */
@@ -144,11 +158,13 @@ loadConfiguration(Emon32Config_t *pCfg)
             /* Countdown every second, tick every 1/4 second to debug UART */
             if (0 == (systickCnt & 0x3FF))
             {
+                ledToggle();
                 uartPutcBlocking(SERCOM_UART_DBG, '0' + seconds);
                 seconds--;
             }
             else if (0 == (systickCnt & 0xFF))
             {
+                ledToggle();
                 uartPutcBlocking(SERCOM_UART_DBG, '.');
             }
         }
@@ -322,6 +338,7 @@ main()
     char                txBuffer[64]; /* TODO Check size of buffer */
 
     setup_uc();
+    ledOn();
 
     /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
     uartConfigureDMA();
