@@ -1,7 +1,7 @@
 #ifndef DRIVER_DMAC_H
 #define DRIVER_DMAC_H
 
-#include "samd10.h"
+#include "samd11.h"
 
 typedef struct {
     uint32_t    ctrlb;

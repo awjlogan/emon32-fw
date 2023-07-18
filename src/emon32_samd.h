@@ -1,7 +1,7 @@
 #ifndef EMON32_SAMD_H
 #define EMON32_SAMD_H
 
-#include "samd10.h"
+#include "samd11.h"
 
 #include "board_def.h"
 #include "emon32.h"

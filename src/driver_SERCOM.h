@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "samd10.h"
+#include "samd11.h"
 
 typedef enum {
     I2CM_ACK    = 0u,
