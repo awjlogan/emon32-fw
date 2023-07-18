@@ -1,13 +1,18 @@
+#include <string.h>
+
 #include "data.h"
 #include "qfpio.h"
 
 unsigned int
-dataPackage_n(const ECMSet_t *pData, char *pDst, unsigned int n)
+dataPackageESP_n(const ECMSet_t *pData, char *pDst, unsigned int n)
 {
-    unsigned int charCnt = 0;
-    char tmpBuf[16];
-    unsigned int cursor = 0u;
-    unsigned int insLen;
+    unsigned int    charCnt = 0;
+    char            tmpBuf[16];
+    unsigned int    cursor = 0u;
+    unsigned int    insLen;
+
+    /* Clear destination buffer */
+    memset(pDst, 0, n);
 
     /* Message number */
     charCnt += 4;

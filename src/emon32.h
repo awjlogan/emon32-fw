@@ -8,6 +8,7 @@
 #define VERSION_FW_MIN      1u
 
 #define NODE_ID             17u
+#define TX_BUFFER_W         64u
 
 /* UI timing */
 #define SW_TIME_RESET       2048u   /* time in ms to press switch to reset */
@@ -34,6 +35,9 @@
 /* Pulse count setup */
 #define NUM_PULSECOUNT      1
 
+/* Temperature sensor setup */
+#define NUM_TEMP            0
+
 /* Precalculate the size of the EEPROM storage required to capture cumulative
  * energy and pulse count values. 2 bytes for CRC, 1 for valid
  */
@@ -55,7 +59,7 @@ typedef int32_t     q31_t;
 /* Configurable options. All the structs are packed to allow simple write to
  * EEPROM as a contiguous set.
  */
-typedef enum {
+typedef enum __attribute__ ((__packed__)) {
     DATATX_RFM69    = 0,
     DATATX_UART     = 1
 } DataTx_t;

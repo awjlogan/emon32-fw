@@ -17,15 +17,17 @@ typedef struct _RFMPkt {
     unsigned int    timeout;
 } RFMPkt_t;
 
+RFMPkt_t *rfmGetHandle();
+
 /*! @brief Initialise the RFM69 module
  *  @param [in] freq : RFM operating frequency
  */
-void rfm_init(RFM_Freq_t freq);
+void rfmInit(RFM_Freq_t freq);
 
 /*! @brief Send a packet through the RFM69 module
  *  @param [in] : Pointer to the RFM packet
  *  @return : 0 for success, -1 for failure
  */
-int rfm_send(RFMPkt_t *pPkt);
+int rfmSend(const void *pData);
 
 #endif

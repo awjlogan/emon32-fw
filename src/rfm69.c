@@ -21,6 +21,8 @@ typedef enum {
     REG_AESKEY1         = 0x3E
 } RFM_register_t;
 
+static RFMPkt_t     rfmPkt;
+
 /* Alias to SPI functions */
 static void
 rfmWriteReg(const RFM_register_t addr, const uint8_t data)
@@ -60,7 +62,7 @@ crc16_update(uint16_t *crc, const uint8_t d)
 }
 
 static void
-rfm_sleep()
+rfmSleep()
 {
     uint8_t tempRecv;
 
@@ -75,8 +77,14 @@ rfm_sleep()
     rfmWriteReg(REG_OPMODE, tempRecv);
 }
 
+RFMPkt_t *
+rfmGetHandle()
+{
+    return &rfmPkt;
+}
+
 void
-rfm_init(RFM_Freq_t freq)
+rfmInit(RFM_Freq_t freq)
 {
     /* Configuration parameters */
     const uint8_t config[][2] =
@@ -121,16 +129,16 @@ rfm_init(RFM_Freq_t freq)
         rfmWriteReg(config[idxCfg][0], config[idxCfg][1]);
     }
 
-    rfm_sleep();
+    rfmSleep();
 }
 
 int
-rfm_send(RFMPkt_t *pPkt)
+rfmSend(const void *pData)
 {
     unsigned int    txState = 0;
     int             success = 0;
     uint16_t        crc     = ~0;
-    uint8_t         *data   = (uint8_t *)pPkt->data;
+    const uint8_t   *data   = (uint8_t *)pData;
     uint8_t         tempRecv;
     uint8_t         writeByte;
 
@@ -139,7 +147,7 @@ rfm_send(RFMPkt_t *pPkt)
      * 2. Listen until below threshold
      * 3. If over time, then return with failure. Otherwise proceed
      */
-    if (0 != pPkt->timeout)
+    if (0 != rfmPkt.timeout)
     {
         success = -1;
 
@@ -148,7 +156,7 @@ rfm_send(RFMPkt_t *pPkt)
 
         /* Non-blocking timer was busy */
         timedOut = 0;
-        if (-1 == timerDelayNB_us(pPkt->timeout, &setTimedOut))
+        if (-1 == timerDelayNB_us(rfmPkt.timeout, &setTimedOut))
         {
             return -1;
         }
@@ -163,7 +171,7 @@ rfm_send(RFMPkt_t *pPkt)
             while (0 == (rfmReadReg(0x23u) & 0x02u));
 
             /* REG_RSSI_VALUE */
-            if (rfmReadReg(0x24u) > (pPkt->threshold * -2))
+            if (rfmReadReg(0x24u) > (rfmPkt.threshold * -2))
             {
                 success = 0;
                 break;
@@ -187,7 +195,7 @@ rfm_send(RFMPkt_t *pPkt)
      * 2. Send at specified RF power
      * 3. Enter sleep mode
      */
-    crc16_update(&crc, pPkt->grp);
+    crc16_update(&crc, rfmPkt.grp);
     while (txState < 5)
     {
         if (0 == (rfmReadReg(REG_IRQFLAGS2) & 0x80u))
@@ -195,17 +203,17 @@ rfm_send(RFMPkt_t *pPkt)
             switch (txState)
             {
                 case 0:
-                    writeByte = pPkt->node & 0x1F;
+                    writeByte = rfmPkt.node & 0x1F;
                     txState++;
                     break;
                 case 1:
-                    writeByte = pPkt->n;
+                    writeByte = rfmPkt.n;
                     txState++;
                     break;
                 case 2:
                     writeByte = *data++;
-                    pPkt->n--;
-                    if (0 == pPkt->n)
+                    rfmPkt.n--;
+                    if (0 == rfmPkt.n)
                     {
                         txState++;
                     }
@@ -234,13 +242,13 @@ rfm_send(RFMPkt_t *pPkt)
         txState++;
     }
 
-    writeByte = (pPkt->rf_pwr & 0x1F) | 0x80;
+    writeByte = (rfmPkt.rf_pwr & 0x1F) | 0x80;
     rfmWriteReg(0x11u, writeByte);
 
     tempRecv = rfmReadReg(REG_OPMODE);
     tempRecv = (tempRecv & 0xE3) | 0xC;
     rfmWriteReg(REG_OPMODE, tempRecv);
 
-    rfm_sleep();
+    rfmSleep();
     return success;
 }

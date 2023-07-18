@@ -18,6 +18,7 @@ static unsigned int         lastStoredWh;
  * Static function prototypes
  *************************************/
 
+static void     dbgPut(const char *s);
 static void     dbgPutBoard();
 static void     evtKiloHertz();
 static uint32_t evtPending(INTSRC_t evt);
@@ -123,14 +124,14 @@ loadConfiguration(Emon32Config_t *pCfg)
 
     if (CONFIG_NVM_KEY != key)
     {
-        uartPutsBlocking(SERCOM_UART_DBG, "> Initialising NVM... ");
+        dbgPut("> Initialising NVM... ");
         eepromWrite(0, pCfg, sizeof(Emon32Config_t));
         while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
         {
             timerDelay_us(EEPROM_WR_TIME);
         }
         (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
-        uartPutsBlocking(SERCOM_UART_DBG, "Done\r\n");
+        dbgPut("Done\r\n");
     }
     else
     {
@@ -138,7 +139,7 @@ loadConfiguration(Emon32Config_t *pCfg)
     }
 
     /* Wait for 3 s, if a key is pressed then enter interactive configuration */
-    uartPutsBlocking(SERCOM_UART_DBG, "\r\n> Hit any key to enter configuration ");
+    dbgPut("\r\n> Hit any key to enter configuration ");
     while (systickCnt < 4095)
     {
         if (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC)
@@ -169,7 +170,7 @@ loadConfiguration(Emon32Config_t *pCfg)
             }
         }
     }
-    uartPutsBlocking(SERCOM_UART_DBG, "\r\n");
+    dbgPut("\r\n");
 }
 
 /*! @brief Total energy across all CTs
@@ -246,7 +247,7 @@ processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, const unsigned int
     energyOverflow = (latestWh < lastStoredWh) ? 1u : 0;
     if (0 != energyOverflow)
     {
-        uartPutsBlocking(SERCOM_UART_DBG, "\r\n> Cumulative energy overflowed counter!");
+        dbgPut("\r\n> Cumulative energy overflowed counter!");
     }
     deltaWh = latestWh - lastStoredWh;
     if ((deltaWh > whDeltaStore) || energyOverflow)
@@ -280,33 +281,39 @@ evtPending(INTSRC_t evt)
 }
 
 static void
+dbgPut(const char *s)
+{
+    uartPutsBlocking(SERCOM_UART_DBG, s);
+}
+
+static void
 dbgPutBoard()
 {
     char        wr_buf[8];
     const int   board_id = BOARD_ID;
 
-    uartPutsBlocking(SERCOM_UART_DBG, "\033c== Energy Monitor 32 ==\r\n");
-    uartPutsBlocking(SERCOM_UART_DBG, "Board:    ");
+    dbgPut("\033c== Energy Monitor 32 ==\r\n");
+    dbgPut("Board:    ");
     switch (board_id)
     {
         case (BOARD_ID_LC):
-            uartPutsBlocking(SERCOM_UART_DBG, "emon32 Low Cost");
+            dbgPut("emon32 Low Cost");
             break;
         case (BOARD_ID_STANDARD):
-            uartPutsBlocking(SERCOM_UART_DBG, "emon32 Standard");
+            dbgPut("emon32 Standard");
             break;
         default:
-            uartPutsBlocking(SERCOM_UART_DBG, "Unknown");
+            dbgPut("Unknown");
     }
-    uartPutsBlocking(SERCOM_UART_DBG, "\r\n");
+    dbgPut("\r\n");
 
-    uartPutsBlocking(SERCOM_UART_DBG, "Firmware: ");
+    dbgPut("Firmware: ");
     (void)utilItoa(wr_buf, VERSION_FW_MAJ, ITOA_BASE10);
-    uartPutsBlocking(SERCOM_UART_DBG, wr_buf);
+    dbgPut(wr_buf);
     uartPutcBlocking(SERCOM_UART_DBG, '.');
     (void)utilItoa(wr_buf, VERSION_FW_MIN, ITOA_BASE10);
-    uartPutsBlocking(SERCOM_UART_DBG, wr_buf);
-    uartPutsBlocking(SERCOM_UART_DBG, "\r\n");
+    dbgPut(wr_buf);
+    dbgPut("\r\n");
 }
 
 
@@ -331,14 +338,13 @@ setup_uc()
 int
 main()
 {
-    Emon32Config_t      e32Config;
-    ECMSet_t            dataset;
-    eepromPktWL_t       eepromPkt;
-    RFMPkt_t            rfmPkt;
-    char                txBuffer[64]; /* TODO Check size of buffer */
+    Emon32Config_t  e32Config;
+    ECMSet_t        dataset;
+    eepromPktWL_t   eepromPkt;
+    RFMPkt_t        *rfmPkt;
+    char            txBuffer[TX_BUFFER_W];
 
     setup_uc();
-    ledOn();
 
     /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
     uartConfigureDMA();
@@ -350,7 +356,7 @@ main()
     /* Load stored values (configuration and accumulated energy) from
      * non-volatile memory (NVM). If the NVM has not been used before then
      * store default configuration and 0 energy accumulator area.
-     * REVISIT add check that firmware version matches stored config
+     * REVISIT add check that firmware version matches stored config.
      */
     eepromPkt.addr_base     = EEPROM_WL_OFFSET;
     eepromPkt.blkCnt        = EEPROM_WL_NUM_BLK;
@@ -366,13 +372,14 @@ main()
     if (DATATX_RFM69 == e32Config.baseCfg.dataTx)
     {
         sercomSetupSPI();
-        rfmPkt.node         = e32Config.baseCfg.nodeID;
-        rfmPkt.grp          = 210u; /* Fixed for OEM */
-        rfmPkt.rf_pwr       = 0u;
-        rfmPkt.threshold    = 0u;
-        rfmPkt.timeout      = 1000u;
-        rfmPkt.n            = 23u;
-        rfm_init(RF12_868MHz);
+        rfmPkt              = rfmGetHandle();
+        rfmPkt->node        = e32Config.baseCfg.nodeID;
+        rfmPkt->grp         = 210u; /* Fixed for OpenEnergyMonitor */
+        rfmPkt->rf_pwr      = 0u;
+        rfmPkt->threshold   = 0u;
+        rfmPkt->timeout     = 1000u;
+        rfmPkt->n           = 23u;
+        rfmInit(RF12_868MHz);
     }
     else
     {
@@ -390,10 +397,11 @@ main()
     }
 
     /* Set up buffers for ADC data, and configure energy processing */
+    ledOn();
     emon32StateSet(EMON_STATE_ACTIVE);
     ecmInit(&e32Config);
     adcStartDMAC((uint32_t)ecmDataBuffer());
-    uartPutsBlocking(SERCOM_UART_DBG, "> Start monitoring...\r\n");
+    dbgPut("> Start monitoring...\r\n");
 
     for (;;)
     {
@@ -417,18 +425,24 @@ main()
             }
 
             /* Report period elapsed; generate, pack, and send through the
-             * configured channel. Echo on debug console
+             * configured channel. Echo on debug console.
              */
             if (evtPending(EVT_ECM_SET_CMPL))
             {
                 unsigned int pktLength;
 
                 ecmProcessSet(&dataset);
-                pktLength = dataPackage(&dataset, txBuffer);
+                pktLength = dataPackageESP_n(&dataset, txBuffer, TX_BUFFER_W);
+
+                if (pktLength >= TX_BUFFER_W)
+                {
+                    dbgPut("TX buffer overflowed!\r\n");
+                }
 
                 if (DATATX_RFM69 == e32Config.baseCfg.dataTx)
                 {
-                    rfm_send(&rfmPkt);
+                    /* TODO Data into RFM compatible format */
+                    rfmSend(&dataset);
                 }
                 else
                 {
