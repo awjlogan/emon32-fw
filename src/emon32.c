@@ -21,7 +21,7 @@ static unsigned int         lastStoredWh;
 static void     dbgPut(const char *s);
 static void     dbgPutBoard();
 static void     evtKiloHertz();
-static uint32_t evtPending(INTSRC_t evt);
+static uint32_t evtPending(EVTSRC_t evt);
 static void     ledOn();
 static void     ledToggle();
 static void     loadConfiguration(Emon32Config_t *pCfg);
@@ -36,7 +36,7 @@ static uint32_t totalEnergy(const ECMSet_t *pData);
  *************************************/
 
 void
-emon32SetEvent(INTSRC_t evt)
+emon32SetEvent(EVTSRC_t evt)
 {
     /* Disable interrupts during RMW update of event status */
     uint32_t evtDecode = (1u << evt);
@@ -46,7 +46,7 @@ emon32SetEvent(INTSRC_t evt)
 }
 
 void
-emon32ClrEvent(INTSRC_t evt)
+emon32ClrEvent(EVTSRC_t evt)
 {
     /* Disable interrupts during RMW update of event status */
     uint32_t evtDecode = ~(1u << evt);
@@ -215,6 +215,8 @@ loadCumulative(eepromPktWL_t *pPkt, ECMSet_t *pData)
 static void
 storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData)
 {
+    int timerStatus;
+
     Emon32Cumulative_t data;
     pPkt->pData = &data;
 
@@ -228,7 +230,13 @@ storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData)
     data.crc = crc16_ccitt(&data.report, sizeof(Emon32Report_t));
 
     eepromWriteWL(pPkt);
-    timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB);
+    /* If the timer is in use, then add a pending event to finish the EEPROM
+     * save if required */
+    timerStatus = timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB);
+    if (-1 == timerStatus)
+    {
+        emon32SetEvent(EVT_EEPROM_TMR);
+    }
 }
 
 static void
@@ -275,7 +283,7 @@ evtKiloHertz()
  *  @return : 1 if pending, 0 otherwise
  */
 static uint32_t
-evtPending(INTSRC_t evt)
+evtPending(EVTSRC_t evt)
 {
     return (evtPend & (1u << evt)) ? 1u : 0;
 }
@@ -457,6 +465,15 @@ main()
                 processCumulative(&eepromPkt, &dataset, e32Config.baseCfg.whDeltaStore);
 
                 emon32ClrEvent(EVT_ECM_SET_CMPL);
+            }
+
+            /* If timer for EEPROM was not available, then retry until it is free */
+            if (evtPending(EVT_EEPROM_TMR))
+            {
+                if (0 == timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB))
+                {
+                    emon32ClrEvent(EVT_EEPROM_TMR);
+                }
             }
         }
         /* Enter WFI until woken by an interrupt */

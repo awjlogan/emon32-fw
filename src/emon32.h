@@ -108,7 +108,7 @@ typedef enum {
     EMON_STATE_CONFIG   /* If configuration state */
 } EmonState_t;
 
-/* INTSRC_t contains all the event/interrupts sources. This value is shifted
+/* EVTSRC_t contains all the event/interrupts sources. This value is shifted
  * to provide a vector of set events as bits.
  */
 typedef enum {
@@ -124,8 +124,9 @@ typedef enum {
     EVT_SAVE_RESET      = 9u,
     EVT_DMAC_I2C_CMPL   = 10u,
     EVT_TIMER_MC        = 11u,
-    EVT_EIC_PULSE       = 12u
-} INTSRC_t;
+    EVT_EIC_PULSE       = 12u,
+    EVT_EEPROM_TMR      = 13u
+} EVTSRC_t;
 
 /* SingleSampleSet_t contains a single set of V + CT ADC samples */
 typedef struct __attribute__((__packed__)) SingleSampleSet {
@@ -158,12 +159,12 @@ void emon32DefaultConfiguration(Emon32Config_t *pCfg);
  *         within an ISR
  *  @param [in] evt : Event source in enum
  */
-void emon32SetEvent(INTSRC_t evt);
+void emon32SetEvent(EVTSRC_t evt);
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled
  *  @param [in] Event source in enum
  */
-void emon32ClrEvent(INTSRC_t evt);
+void emon32ClrEvent(EVTSRC_t evt);
 
 /*! @brief Set the state of the emon32 system
  *  @param [in] state : state to set

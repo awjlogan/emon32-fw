@@ -9,7 +9,7 @@ void timerSetup();
 /*! @brief  Non-blocking delay.
  *  @param [in] delay : period in us
  *  @param [in] cb : pointer to function for callback
- *  @return : -1 if the timer is already in use.
+ *  @return : -1 if the timer is already in use, 0 for success
  */
 int timerDelayNB_us(uint32_t delay, void (*cb)());
 
