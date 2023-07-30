@@ -18,7 +18,6 @@ static unsigned int         lastStoredWh;
  * Static function prototypes
  *************************************/
 
-static void     dbgPut(const char *s);
 static void     dbgPutBoard();
 static void     evtKiloHertz();
 static uint32_t evtPending(EVTSRC_t evt);
@@ -34,6 +33,12 @@ static uint32_t totalEnergy(const ECMSet_t *pData);
 /*************************************
  * Functions
  *************************************/
+
+void
+dbgPuts(const char *s)
+{
+    uartPutsBlocking(SERCOM_UART_DBG, s);
+}
 
 void
 emon32SetEvent(EVTSRC_t evt)
@@ -124,14 +129,14 @@ loadConfiguration(Emon32Config_t *pCfg)
 
     if (CONFIG_NVM_KEY != key)
     {
-        dbgPut("> Initialising NVM... ");
+        dbgPuts("> Initialising NVM... ");
         eepromWrite(0, pCfg, sizeof(Emon32Config_t));
         while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
         {
             timerDelay_us(EEPROM_WR_TIME);
         }
         (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
-        dbgPut("Done\r\n");
+        dbgPuts("Done\r\n");
     }
     else
     {
@@ -139,7 +144,7 @@ loadConfiguration(Emon32Config_t *pCfg)
     }
 
     /* Wait for 3 s, if a key is pressed then enter interactive configuration */
-    dbgPut("\r\n> Hit any key to enter configuration ");
+    dbgPuts("\r\n> Hit any key to enter configuration ");
     while (systickCnt < 4095)
     {
         if (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC)
@@ -170,7 +175,7 @@ loadConfiguration(Emon32Config_t *pCfg)
             }
         }
     }
-    dbgPut("\r\n");
+    dbgPuts("\r\n");
 }
 
 /*! @brief Total energy across all CTs
@@ -255,7 +260,7 @@ processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, const unsigned int
     energyOverflow = (latestWh < lastStoredWh) ? 1u : 0;
     if (0 != energyOverflow)
     {
-        dbgPut("\r\n> Cumulative energy overflowed counter!");
+        dbgPuts("\r\n> Cumulative energy overflowed counter!");
     }
     deltaWh = latestWh - lastStoredWh;
     if ((deltaWh > whDeltaStore) || energyOverflow)
@@ -289,39 +294,33 @@ evtPending(EVTSRC_t evt)
 }
 
 static void
-dbgPut(const char *s)
-{
-    uartPutsBlocking(SERCOM_UART_DBG, s);
-}
-
-static void
 dbgPutBoard()
 {
     char        wr_buf[8];
     const int   board_id = BOARD_ID;
 
-    dbgPut("\033c== Energy Monitor 32 ==\r\n");
-    dbgPut("Board:    ");
+    dbgPuts("\033c== Energy Monitor 32 ==\r\n");
+    dbgPuts("Board:    ");
     switch (board_id)
     {
         case (BOARD_ID_LC):
-            dbgPut("emon32 Low Cost");
+            dbgPuts("emon32 Low Cost");
             break;
         case (BOARD_ID_STANDARD):
-            dbgPut("emon32 Standard");
+            dbgPuts("emon32 Standard");
             break;
         default:
-            dbgPut("Unknown");
+            dbgPuts("Unknown");
     }
-    dbgPut("\r\n");
+    dbgPuts("\r\n");
 
-    dbgPut("Firmware: ");
+    dbgPuts("Firmware: ");
     (void)utilItoa(wr_buf, VERSION_FW_MAJ, ITOA_BASE10);
-    dbgPut(wr_buf);
+    dbgPuts(wr_buf);
     uartPutcBlocking(SERCOM_UART_DBG, '.');
     (void)utilItoa(wr_buf, VERSION_FW_MIN, ITOA_BASE10);
-    dbgPut(wr_buf);
-    dbgPut("\r\n");
+    dbgPuts(wr_buf);
+    dbgPuts("\r\n");
 }
 
 
@@ -409,7 +408,7 @@ main()
     emon32StateSet(EMON_STATE_ACTIVE);
     ecmInit(&e32Config);
     adcStartDMAC((uint32_t)ecmDataBuffer());
-    dbgPut("> Start monitoring...\r\n");
+    dbgPuts("> Start monitoring...\r\n");
 
     for (;;)
     {
@@ -444,7 +443,7 @@ main()
 
                 if (pktLength >= TX_BUFFER_W)
                 {
-                    dbgPut("TX buffer overflowed!\r\n");
+                    dbgPuts("> TX buffer overflowed!\r\n");
                 }
 
                 if (DATATX_RFM69 == e32Config.baseCfg.dataTx)

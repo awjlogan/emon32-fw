@@ -230,9 +230,10 @@ eepromWriteWL(eepromPktWL_t *pPktWr)
     /* Check for correct indexing, find if not yet set; this is indicated by
      * idxNextWrite == -1. Write output to new levelled position.
      */
-    uint8_t     validByte;
-    int8_t      idxWr;
-    uint16_t    addrWr;
+    uint8_t             validByte;
+    int8_t              idxWr;
+    uint16_t            addrWr;
+    eepromWrStatus_t    wrStatus;
 
     if (-1 == pPktWr->idxNextWrite) wlFindLast(pPktWr);
 
@@ -240,7 +241,11 @@ eepromWriteWL(eepromPktWL_t *pPktWr)
     addrWr = pPktWr->addr_base + (pPktWr->idxNextWrite * pPktWr->dataSize);
     eepromRead((addrWr - pPktWr->dataSize), &validByte, 1u);
 
-    (void)eepromWrite(addrWr, pPktWr->pData, pPktWr->dataSize);
+    wrStatus = eepromWrite(addrWr, pPktWr->pData, pPktWr->dataSize);
+    if (wrStatus != (EEPROM_WR_PEND || EEPROM_WR_COMPLETE))
+    {
+        dbgPuts(">  EEPROM write failed!\r\n");
+    }
 
     idxWr = pPktWr->idxNextWrite + 1u;
     if (idxWr == pPktWr->blkCnt)

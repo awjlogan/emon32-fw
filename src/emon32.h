@@ -175,4 +175,9 @@ void emon32StateSet(EmonState_t state);
  */
 EmonState_t emon32StateGet();
 
+/*! @brief Output a string to the debug destination
+ *  @param [in] s: pointer to null terminated string s
+ */
+void dbgPuts(const char *s);
+
 #endif

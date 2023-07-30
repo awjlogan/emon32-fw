@@ -79,7 +79,7 @@ static void
 putString(const char *s)
 {
     #ifndef HOSTED
-        uartPutsBlocking(SERCOM_UART_DBG, s);
+        dbgPuts(s);
     #else
         printf("%s", s);
     #endif
