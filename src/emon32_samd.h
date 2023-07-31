@@ -18,10 +18,10 @@
 #include "driver_WDT.h"
 
 #include "configuration.h"
-#include "data.h"
+#include "data_pack.h"
 #include "eeprom.h"
 #include "emon_CM.h"
-#include "rfm69.h"
+#include "periph_rfm69.h"
 #include "util.h"
 
 #endif
