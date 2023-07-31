@@ -9,10 +9,10 @@ sercomSetup()
     UART_Cfg_t uart_dbg_cfg;
     uart_dbg_cfg.sercom     = SERCOM_UART_DBG;
     uart_dbg_cfg.baud       = UART_DBG_BAUD;
-    uart_dbg_cfg.glck_id    = SERCOM_UART_DBG_GCLK_ID;
+    uart_dbg_cfg.gclk_id    = SERCOM_UART_DBG_GCLK_ID;
     uart_dbg_cfg.gclk_gen   = 3u;
     uart_dbg_cfg.pad_tx     = UART_DBG_PAD_TX;
-    uart_dbg_cfg.pad_rx     = UART_DBG_PAD_TX;
+    uart_dbg_cfg.pad_rx     = UART_DBG_PAD_RX;
     uart_dbg_cfg.port_grp   = GRP_SERCOM_UART_DBG;
     uart_dbg_cfg.pin_tx     = PIN_UART_DBG_TX;
     uart_dbg_cfg.pin_rx     = PIN_UART_DBG_RX;
@@ -98,7 +98,7 @@ sercomSetupUART(const UART_Cfg_t *pCfg)
 
     /* Configure clocks - runs from the OSC8M clock on gen 3 */
     PM->APBCMASK.reg |= SERCOM_UART_DBG_APBCMASK;
-    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(pCfg->glck_id)
+    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(pCfg->gclk_id)
                         | GCLK_CLKCTRL_GEN(pCfg->gclk_gen)
                         | GCLK_CLKCTRL_CLKEN;
 

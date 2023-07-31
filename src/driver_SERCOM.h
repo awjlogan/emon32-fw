@@ -30,7 +30,7 @@ typedef enum {
 typedef struct UART_Cfg_ {
     Sercom          *sercom;
     UART_BAUD_t     baud;
-    uint8_t         glck_id;
+    uint8_t         gclk_id;
     uint8_t         gclk_gen;
     uint8_t         pad_tx;
     uint8_t         pad_rx;

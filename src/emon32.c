@@ -390,17 +390,17 @@ main()
     }
     else
     {
-        UART_Cfg_t uart_dbg_cfg;
-        uart_dbg_cfg.sercom     = SERCOM_UART_DATA;
-        uart_dbg_cfg.baud       = UART_DBG_BAUD;
-        uart_dbg_cfg.glck_id    = SERCOM_UART_DBG_GCLK_ID;
-        uart_dbg_cfg.gclk_gen   = 3u;
-        uart_dbg_cfg.pad_tx     = UART_DBG_PAD_TX;
-        uart_dbg_cfg.pad_rx     = UART_DBG_PAD_TX;
-        uart_dbg_cfg.port_grp   = GRP_SERCOM_UART_DATA;
-        uart_dbg_cfg.pin_tx     = PIN_UART_DBG_TX;
-        uart_dbg_cfg.pin_rx     = PIN_UART_DBG_RX;
-        sercomSetupUART(&uart_dbg_cfg);
+        UART_Cfg_t uart_data_cfg;
+        uart_data_cfg.sercom    = SERCOM_UART_DATA;
+        uart_data_cfg.baud      = UART_DATA_BAUD;
+        uart_data_cfg.gclk_id   = SERCOM_UART_DATA_GCLK_ID;
+        uart_data_cfg.gclk_gen  = 3u;
+        uart_data_cfg.pad_tx    = UART_DATA_PAD_TX;
+        uart_data_cfg.pad_rx    = UART_DATA_PAD_RX;
+        uart_data_cfg.port_grp  = GRP_SERCOM_UART_DATA;
+        uart_data_cfg.pin_tx    = PIN_UART_DATA_TX;
+        uart_data_cfg.pin_rx    = PIN_UART_DATA_RX;
+        sercomSetupUART(&uart_data_cfg);
     }
 
     /* Set up buffers for ADC data, and configure energy processing */

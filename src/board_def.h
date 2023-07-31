@@ -118,6 +118,8 @@
 
 /* Data UART related defines */
 #define GRP_SERCOM_UART_DATA 0u
+#define PIN_UART_DATA_RX    21u
+#define PIN_UART_DATA_TX    22u
 #define UART_DATA_PAD_RX    3u
 #define UART_DATA_PAD_TX    1u
 #define UART_DATA_BAUD      115200u
