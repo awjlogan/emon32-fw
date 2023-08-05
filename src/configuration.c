@@ -204,13 +204,13 @@ menuReset()
 
         if ('0' == c)
         {
-            while ('Y' != c && 'N' != c)
+            while ('y' != c && 'n' != c)
             {
-                putString("Restore default configuration? (Y/N)\r\n");
+                putString("Restore default configuration? (y/n)\r\n");
                 c = waitForChar();
             }
 
-            if ('Y' == c)
+            if ('y' == c)
             {
                 valChanged = 1u;
                 emon32DefaultConfiguration(pCfg);
@@ -218,13 +218,13 @@ menuReset()
         }
         else if ('1' == c)
         {
-            while ('Y' != c && 'N' != c)
+            while ('y' != c && 'n' != c)
             {
-                putString("Clear stored energy accumulators? (Y/N)\r\n");
+                putString("Clear stored energy accumulators? (y/n)\r\n");
                 c = waitForChar();
             }
 
-            if ('Y' == c)
+            if ('y' == c)
             {
                 (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
             }
@@ -471,17 +471,14 @@ menuBase()
         putString("  1: Configuration\r\n");
         putString("  2: Voltage\r\n");
         putString("  3: CT\r\n");
-        putString("  9: Reset device");
-        putString("\r\nEnter number, or (e)xit");
+        putString("  9: Reset device\r\n");
+        putString("Enter number, or (e)xit");
 
         if (valChanged)
         {
-            putString(" do not save, or (s)ave and exit.\r\n");
+            putString(" do not save, or (s)ave and exit.");
         }
-        else
-        {
-            putString("\r\n");
-        }
+        putString("\r\n");
 
         c = waitForChar();
 
@@ -512,7 +509,9 @@ menuBase()
         }
     }
 
-    /* Warn if the changes are going to be discarded */
+    /* Warn if the changes are going to be discarded. If yes is selected,
+     * then just exit, otherwise save.
+     */
     if ((0 != valChanged) && ('e' == c))
     {
         putString("Discard changes? (y/n)\r\n");
@@ -532,7 +531,7 @@ menuBase()
         eepromInitConfig(pCfg, sizeof(Emon32Config_t));
         #endif
     }
-    emon32StateSet(EMON_STATE_ACTIVE);
+    emon32StateSet(EMON_STATE_IDLE);
 }
 
 void
