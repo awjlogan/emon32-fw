@@ -60,4 +60,11 @@ void eepromReadWL(eepromPktWL_t *pPktRd);
  */
 int eepromInitBlocking(uint16_t startAddr, const uint8_t val, unsigned int n);
 
+/*! @brief Store values at address 0
+ *  @param [in] pCfg : pointer to the data source
+ *  @param [in] n : number of bytes to write
+ */
+void eepromInitConfig(const void *pSrc, const unsigned int n);
+
+
 #endif

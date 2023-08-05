@@ -29,6 +29,7 @@ static void     processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, co
 static void     setup_uc();
 static void     storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData);
 static uint32_t totalEnergy(const ECMSet_t *pData);
+static void     putConfig(const Emon32Config_t *pCfg);
 
 /*************************************
  * Functions
@@ -83,20 +84,22 @@ emon32DefaultConfiguration(Emon32Config_t *pCfg)
     pCfg->baseCfg.mainsFreq     = 50u;  /* Mains frequency */
     pCfg->baseCfg.reportCycles  = 500u; /* 10 s @ 50 Hz */
     pCfg->baseCfg.whDeltaStore  = DELTA_WH_STORE; /* 200 */
-    pCfg->baseCfg.dataTx        = DATATX_RFM69;
+    pCfg->baseCfg.dataTx        = DATATX_UART;
 
     for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
     {
         pCfg->voltageCfg[idxV].voltageCal = 268.97;
     }
 
-    /* 4.2 degree shift @ 50 Hz, 4 CTs */
+    /* 4.2 degree shift @ 50 Hz */
     for (unsigned int idxCT = 0u; idxCT < NUM_CT; idxCT++)
     {
         pCfg->ctCfg[idxCT].ctCal    = 90.91;
         pCfg->ctCfg[idxCT].phaseX   = 13495;
         pCfg->ctCfg[idxCT].phaseY   = 19340;
     }
+
+    pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
 }
 
 static void
@@ -120,6 +123,8 @@ loadConfiguration(Emon32Config_t *pCfg)
     unsigned int    systickCnt  = 0u;
     unsigned int    seconds     = 3u;
     uint32_t        key         = 0u;
+    uint32_t        cfgSize     = sizeof(Emon32Config_t);
+    uint16_t        crc16_ccitt;
 
     /* Load 32bit key from "static" part of EEPROM. If the key does not match
      * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
@@ -130,21 +135,29 @@ loadConfiguration(Emon32Config_t *pCfg)
     if (CONFIG_NVM_KEY != key)
     {
         dbgPuts("> Initialising NVM... ");
-        eepromWrite(0, pCfg, sizeof(Emon32Config_t));
-        while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
-        {
-            timerDelay_us(EEPROM_WR_TIME);
-        }
+        eepromInitConfig(pCfg, cfgSize);
         (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
         dbgPuts("Done\r\n");
     }
     else
     {
-        eepromRead(0, (void *)pCfg, sizeof(Emon32Config_t));
+        dbgPuts("> Reading configuration from NVM... ");
+        eepromRead(0, (void *)pCfg, cfgSize);
+        putConfig(pCfg);
+        dbgPuts("Done\r\n");
+
+        /* Check the CRC and raise a warning if no matched. -2 from the base
+         * size to account for the stored 16 bit CRC.
+         */
+        crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
+        if (crc16_ccitt != pCfg->crc16_ccitt)
+        {
+            dbgPuts("> CRC mismatch, NVM may be corrupt.\r\n");
+        }
     }
 
     /* Wait for 3 s, if a key is pressed then enter interactive configuration */
-    dbgPuts("\r\n> Hit any key to enter configuration ");
+    dbgPuts("> Press any key to enter configuration ");
     while (systickCnt < 4095)
     {
         if (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC)
@@ -232,7 +245,7 @@ storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData)
     }
     data.report.pulseCnt = pData->pulseCnt;
 
-    data.crc = crc16_ccitt(&data.report, sizeof(Emon32Report_t));
+    data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Report_t));
 
     eepromWriteWL(pPkt);
     /* If the timer is in use, then add a pending event to finish the EEPROM
@@ -324,6 +337,92 @@ dbgPutBoard()
 }
 
 
+static void
+putConfig(const Emon32Config_t *pCfg)
+{
+    char txBuffer[2] = {0};
+    uint8_t *p = (uint8_t *)pCfg;
+
+    for (uint8_t i = 0; i < sizeof(Emon32Config_t); i++)
+    {
+        (void)utilItoa(txBuffer, *p++, ITOA_BASE16);
+        dbgPuts(txBuffer);
+    }
+
+    // char txBuffer[16] = {0};
+    // char tmpBuf[16] = {0};
+    // unsigned int insLen = 0;
+
+    // dbgPuts(" - struct size : ");
+    // insLen = utilItoa(tmpBuf, sizeof(Emon32Config_t), ITOA_BASE10) - 1u;
+    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    // dbgPuts(txBuffer);
+
+    // dbgPuts(" - Node ID : ");
+    // insLen = utilItoa(tmpBuf, pCfg->baseCfg.nodeID, ITOA_BASE10) - 1u;
+    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    // dbgPuts(txBuffer);
+
+    // dbgPuts("\r\n - mainsFreq : ");
+    // memset(txBuffer, 0, 16);
+    // insLen = utilItoa(tmpBuf, pCfg->baseCfg.mainsFreq, ITOA_BASE10) - 1u;
+    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    // dbgPuts(txBuffer);
+
+    // dbgPuts("\r\n - reportCycles : ");
+    // memset(txBuffer, 0, 16);
+    // insLen = utilItoa(tmpBuf, pCfg->baseCfg.reportCycles, ITOA_BASE10) - 1u;
+    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    // dbgPuts(txBuffer);
+
+    // dbgPuts("\r\n - whDeltaStore : ");
+    // memset(txBuffer, 0, 16);
+    // insLen = utilItoa(tmpBuf, pCfg->baseCfg.whDeltaStore, ITOA_BASE10) - 1u;
+    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    // dbgPuts(txBuffer);
+
+    // dbgPuts("\r\n - dataTx : ");
+    // memset(txBuffer, 0, 16);
+    // insLen = utilItoa(tmpBuf, (uint8_t)pCfg->baseCfg.dataTx, ITOA_BASE10) - 1u;
+    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    // dbgPuts(txBuffer);
+
+    // dbgPuts("\r\n - voltageCal : ");
+    // memset(txBuffer, 0, 16);
+    // insLen = utilItoa(tmpBuf, (uint32_t)pCfg->voltageCfg[0].voltageCal, ITOA_BASE10) - 1u;
+    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    // dbgPuts(txBuffer);
+
+    // for (unsigned int i = 0; i < NUM_CT; i++)
+    // {
+    //     dbgPuts("\r\n - ctCal : ");
+    //     memset(txBuffer, 0, 16);
+    //     insLen = utilItoa(tmpBuf, (uint32_t)pCfg->ctCfg[i].ctCal, ITOA_BASE10) - 1u;
+    //     (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    //     dbgPuts(txBuffer);
+
+    //     dbgPuts("\r\n - phaseX : ");
+    //     memset(txBuffer, 0, 16);
+    //     insLen = utilItoa(tmpBuf, (uint32_t)pCfg->ctCfg[i].phaseX, ITOA_BASE10) - 1u;
+    //     (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    //     dbgPuts(txBuffer);
+
+    //     dbgPuts("\r\n - phaseY : ");
+    //     memset(txBuffer, 0, 16);
+    //     insLen = utilItoa(tmpBuf, (uint32_t)pCfg->ctCfg[i].phaseY, ITOA_BASE10) - 1u;
+    //     (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    //     dbgPuts(txBuffer);
+    // }
+
+    // dbgPuts("\r\n - CRC : ");
+    // memset(txBuffer, 0, 16);
+    // insLen = utilItoa(tmpBuf, (uint32_t)pCfg->crc16_ccitt, ITOA_BASE10) - 1u;
+    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
+    // dbgPuts(txBuffer);
+
+    dbgPuts("\r\n");
+}
+
 /*! @brief Setup the microcontoller. This function must be called first. An
  *         implementation must provide all the functions that are called.
  *         These can be empty if they are not used.
@@ -339,7 +438,7 @@ setup_uc()
     adcSetup();
     evsysSetup();
     eicSetup();
-    wdtSetup(WDT_PER_4K);
+    // wdtSetup(WDT_PER_4K);
 }
 
 int
@@ -349,7 +448,7 @@ main()
     ECMSet_t        dataset;
     eepromPktWL_t   eepromPkt;
     RFMPkt_t        *rfmPkt;
-    char            txBuffer[TX_BUFFER_W];
+    char            txBuffer[TX_BUFFER_W] = {0};
 
     setup_uc();
 
@@ -371,6 +470,7 @@ main()
     eepromPkt.idxNextWrite  = -1;
 
     emon32DefaultConfiguration(&e32Config);
+    putConfig(&e32Config);
     loadConfiguration(&e32Config);
     loadCumulative(&eepromPkt, &dataset);
     lastStoredWh = totalEnergy(&dataset);
@@ -386,7 +486,8 @@ main()
         rfmPkt->threshold   = 0u;
         rfmPkt->timeout     = 1000u;
         rfmPkt->n           = 23u;
-        rfmInit(RF12_868MHz);
+        /* REVISIT handle this gracefully if not using RFM */
+        // rfmInit(RF12_868MHz);
     }
     else
     {

@@ -310,3 +310,15 @@ eepromInitBlocking(uint16_t startAddr, const uint8_t val, unsigned int n)
     }
     return 0;
 }
+
+void
+eepromInitConfig(const void *pSrc, const unsigned int n)
+{
+    const uint8_t *p = (uint8_t *)pSrc;
+
+    eepromWrite(0, p, n);
+    while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
+    {
+        timerDelay_us(EEPROM_WR_TIME);
+    }
+}

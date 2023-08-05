@@ -23,7 +23,7 @@
  */
 #define DELTA_WH_STORE      200u    /* Threshold to store to non-volatile */
 #define NUM_V               1u
-#define NUM_CT              4u
+#define NUM_CT              2u
 #define VCT_TOTAL           NUM_V + NUM_CT
 #define SAMPLE_RATE         4800u
 #define SAMPLES_IN_SET      2u
@@ -87,6 +87,7 @@ typedef struct __attribute__((__packed__)) {
     BaseCfg_t       baseCfg;
     VoltageCfg_t    voltageCfg[NUM_V];
     CTCfg_t         ctCfg[NUM_CT];
+    uint16_t        crc16_ccitt;
 } Emon32Config_t;
 
 typedef struct __attribute__((__packed__)) {

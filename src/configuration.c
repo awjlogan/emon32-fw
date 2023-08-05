@@ -204,7 +204,7 @@ menuReset()
 
         if ('0' == c)
         {
-            while ('Y' != c && 'N' == c)
+            while ('Y' != c && 'N' != c)
             {
                 putString("Restore default configuration? (Y/N)\r\n");
                 c = waitForChar();
@@ -218,7 +218,7 @@ menuReset()
         }
         else if ('1' == c)
         {
-            while ('Y' != c && 'N' == c)
+            while ('Y' != c && 'N' != c)
             {
                 putString("Clear stored energy accumulators? (Y/N)\r\n");
                 c = waitForChar();
@@ -528,11 +528,8 @@ menuBase()
     if ('s' == c)
     {
         #ifndef HOSTED
-        eepromWrite(EEPROM_BASE_ADDR, pCfg, sizeof(Emon32Config_t));
-        while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
-        {
-            timerDelay_us(EEPROM_WR_TIME);
-        }
+        pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
+        eepromInitConfig(pCfg, sizeof(Emon32Config_t));
         #endif
     }
     emon32StateSet(EMON_STATE_ACTIVE);

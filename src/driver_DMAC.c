@@ -113,21 +113,26 @@ irq_handler_dmac()
 }
 
 uint16_t
-crc16_ccitt(const void *pData, unsigned int n)
+calcCRC16_ccitt(const void *pData, unsigned int n)
 {
-    uint8_t *pD = (uint8_t *)pData;
+    const uint8_t *pD = (uint8_t *)pData;
 
-    /* CCITT is 0xFFFF initial value */
-    DMAC->CRCDATAIN.reg = 0xFFu;
-    while (DMAC->CRCSTATUS.reg & DMAC_CRCSTATUS_CRCBUSY);
-    DMAC->CRCDATAIN.reg = 0xFFu;
-    while (DMAC->CRCSTATUS.reg & DMAC_CRCSTATUS_CRCBUSY);
+    /* CCITT is 0xFFFF initial value (nb. ASF only sets this for CRC32) */
+    DMAC->CRCCHKSUM.reg = 0xFFFF;
+    DMAC->CTRL.reg |= DMAC_CTRL_CRCENABLE;
 
-    /* Input into CRC data byte wise */
+    /* Input into CRC data byte wise. Byte beats convert in a single cycle, so
+     * using a DSB to ensure the previous store is complete is sufficient.
+     */
     while (n--)
     {
         DMAC->CRCDATAIN.reg = *pD++;
-        while (DMAC->CRCSTATUS.reg & DMAC_CRCSTATUS_CRCBUSY);
+        __DSB();
     }
+
+    /* Clear status and disable CRC module before returning CRC */
+    DMAC->CRCSTATUS.reg = DMAC_CRCSTATUS_CRCBUSY;
+    DMAC->CTRL.reg &= ~DMAC_CTRL_CRCENABLE;
+
     return DMAC->CRCCHKSUM.reg;
 }
