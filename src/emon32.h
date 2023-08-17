@@ -98,8 +98,17 @@ typedef struct __attribute__((__packed__)) {
 typedef struct __attribute__((__packed__)) {
     uint8_t         valid;  /* Valid byte for wear levelling */
     Emon32Report_t  report;
-    uint16_t        crc;    /* CRC16 of data - polynomial is IMPDEF */
+    uint16_t        crc;    /* CRC16-CCITT of data */
 } Emon32Cumulative_t;
+
+typedef struct __attribute__((__packed__)) {
+    uint32_t        msg;
+    int16_t         V[NUM_V];
+    int16_t         P[NUM_CT];
+    int32_t         E[NUM_CT];
+    // int16_t         T[NUM_TEMP];
+    uint32_t        pulse;
+} PackedData_t;
 
 /* Contains the states that are available to emon32 */
 typedef enum {
@@ -114,7 +123,7 @@ typedef enum {
  */
 typedef enum {
     EVT_DMA             = 0u,
-    EVT_SYSTICK_1KHz    = 1u,
+    EVT_SYSTICK_100Hz   = 1u,
     EVT_TCC             = 2u,
     EVT_UART            = 3u,
     EVT_ADC             = 4u,

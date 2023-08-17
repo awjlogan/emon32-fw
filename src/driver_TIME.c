@@ -5,11 +5,11 @@ void (*tc2_cb)();
 void
 timerSetup()
 {
-    /* SysTick is used as the general purpose 1 kHz timer. The tick value is
+    /* SysTick is used as the general purpose 100 Hz timer. The tick value is
      * reloaded on underflow SysTick is part of CMSIS so should be portable
      * across Cortex-M cores
      */
-    const uint32_t tickkHz = (F_CORE / 1000u) - 1u;
+    const uint32_t tickkHz = (F_CORE / 100u) - 1u;
     SysTick_Config(tickkHz);
 
     /* TC1 is used to trigger ADC sampling at constant rate */
@@ -148,7 +148,7 @@ timerElapsedStop()
 void
 irq_handler_sys_tick()
 {
-    emon32SetEvent(EVT_SYSTICK_1KHz);
+    emon32SetEvent(EVT_SYSTICK_100Hz);
 
     /* Clear the watchdog if in the configuration state, as the normal 1 kHz
      * tick event will not be serviced.

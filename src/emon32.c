@@ -158,7 +158,7 @@ loadConfiguration(Emon32Config_t *pCfg)
 
     /* Wait for 3 s, if a key is pressed then enter interactive configuration */
     dbgPuts("> Press any key to enter configuration ");
-    while (systickCnt < 4095)
+    while (systickCnt < 400)
     {
         if (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC)
         {
@@ -168,20 +168,20 @@ loadConfiguration(Emon32Config_t *pCfg)
             break;
         }
 
-        if (evtPend & (1u << EVT_SYSTICK_1KHz))
+        if (evtPend & (1u << EVT_SYSTICK_100Hz))
         {
             wdtFeed();
-            emon32ClrEvent(EVT_SYSTICK_1KHz);
+            emon32ClrEvent(EVT_SYSTICK_100Hz);
             systickCnt++;
 
-            /* Countdown every second, tick every 1/4 second to debug UART */
-            if (0 == (systickCnt & 0x3FF))
+            /* Countdown every second, tick every 200 ms to debug UART */
+            if (0 == (systickCnt % 100))
             {
                 ledToggle();
                 uartPutcBlocking(SERCOM_UART_DBG, '0' + seconds);
                 seconds--;
             }
-            else if (0 == (systickCnt & 0xFF))
+            else if (0 == (systickCnt % 20))
             {
                 ledToggle();
                 uartPutcBlocking(SERCOM_UART_DBG, '.');
@@ -348,78 +348,6 @@ putConfig(const Emon32Config_t *pCfg)
         (void)utilItoa(txBuffer, *p++, ITOA_BASE16);
         dbgPuts(txBuffer);
     }
-
-    // char txBuffer[16] = {0};
-    // char tmpBuf[16] = {0};
-    // unsigned int insLen = 0;
-
-    // dbgPuts(" - struct size : ");
-    // insLen = utilItoa(tmpBuf, sizeof(Emon32Config_t), ITOA_BASE10) - 1u;
-    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    // dbgPuts(txBuffer);
-
-    // dbgPuts(" - Node ID : ");
-    // insLen = utilItoa(tmpBuf, pCfg->baseCfg.nodeID, ITOA_BASE10) - 1u;
-    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    // dbgPuts(txBuffer);
-
-    // dbgPuts("\r\n - mainsFreq : ");
-    // memset(txBuffer, 0, 16);
-    // insLen = utilItoa(tmpBuf, pCfg->baseCfg.mainsFreq, ITOA_BASE10) - 1u;
-    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    // dbgPuts(txBuffer);
-
-    // dbgPuts("\r\n - reportCycles : ");
-    // memset(txBuffer, 0, 16);
-    // insLen = utilItoa(tmpBuf, pCfg->baseCfg.reportCycles, ITOA_BASE10) - 1u;
-    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    // dbgPuts(txBuffer);
-
-    // dbgPuts("\r\n - whDeltaStore : ");
-    // memset(txBuffer, 0, 16);
-    // insLen = utilItoa(tmpBuf, pCfg->baseCfg.whDeltaStore, ITOA_BASE10) - 1u;
-    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    // dbgPuts(txBuffer);
-
-    // dbgPuts("\r\n - dataTx : ");
-    // memset(txBuffer, 0, 16);
-    // insLen = utilItoa(tmpBuf, (uint8_t)pCfg->baseCfg.dataTx, ITOA_BASE10) - 1u;
-    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    // dbgPuts(txBuffer);
-
-    // dbgPuts("\r\n - voltageCal : ");
-    // memset(txBuffer, 0, 16);
-    // insLen = utilItoa(tmpBuf, (uint32_t)pCfg->voltageCfg[0].voltageCal, ITOA_BASE10) - 1u;
-    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    // dbgPuts(txBuffer);
-
-    // for (unsigned int i = 0; i < NUM_CT; i++)
-    // {
-    //     dbgPuts("\r\n - ctCal : ");
-    //     memset(txBuffer, 0, 16);
-    //     insLen = utilItoa(tmpBuf, (uint32_t)pCfg->ctCfg[i].ctCal, ITOA_BASE10) - 1u;
-    //     (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    //     dbgPuts(txBuffer);
-
-    //     dbgPuts("\r\n - phaseX : ");
-    //     memset(txBuffer, 0, 16);
-    //     insLen = utilItoa(tmpBuf, (uint32_t)pCfg->ctCfg[i].phaseX, ITOA_BASE10) - 1u;
-    //     (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    //     dbgPuts(txBuffer);
-
-    //     dbgPuts("\r\n - phaseY : ");
-    //     memset(txBuffer, 0, 16);
-    //     insLen = utilItoa(tmpBuf, (uint32_t)pCfg->ctCfg[i].phaseY, ITOA_BASE10) - 1u;
-    //     (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    //     dbgPuts(txBuffer);
-    // }
-
-    // dbgPuts("\r\n - CRC : ");
-    // memset(txBuffer, 0, 16);
-    // insLen = utilItoa(tmpBuf, (uint32_t)pCfg->crc16_ccitt, ITOA_BASE10) - 1u;
-    // (void)utilStrInsert(txBuffer, tmpBuf, 0, insLen);
-    // dbgPuts(txBuffer);
-
     dbgPuts("\r\n");
 }
 
@@ -438,7 +366,7 @@ setup_uc()
     adcSetup();
     evsysSetup();
     eicSetup();
-    // wdtSetup(WDT_PER_4K);
+    wdtSetup(WDT_PER_4K);
 }
 
 int
@@ -449,6 +377,7 @@ main()
     eepromPktWL_t   eepromPkt;
     RFMPkt_t        *rfmPkt;
     char            txBuffer[TX_BUFFER_W] = {0};
+    PackedData_t    packedData;
 
     setup_uc();
 
@@ -519,10 +448,10 @@ main()
         while(0 != evtPend)
         {
             /* 1 ms timer flag */
-            if (evtPending(EVT_SYSTICK_1KHz))
+            if (evtPending(EVT_SYSTICK_100Hz))
             {
                 evtKiloHertz();
-                emon32ClrEvent(EVT_SYSTICK_1KHz);
+                emon32ClrEvent(EVT_SYSTICK_100Hz);
             }
 
             /* A full mains cycle has completed. Calculate power/energy */
@@ -549,8 +478,8 @@ main()
 
                 if (DATATX_RFM69 == e32Config.baseCfg.dataTx)
                 {
-                    /* TODO Data into RFM compatible format */
-                    rfmSend(&dataset);
+                    dataPackagePacked(&dataset, &packedData);
+                    rfmSend(&packedData);
                 }
                 else
                 {
