@@ -29,7 +29,6 @@ static void     processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, co
 static void     setup_uc();
 static void     storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData);
 static uint32_t totalEnergy(const ECMSet_t *pData);
-static void     putConfig(const Emon32Config_t *pCfg);
 
 /*************************************
  * Functions
@@ -73,35 +72,6 @@ emon32StateGet()
     return emonState;
 }
 
-/*! @brief The default configuration state of the system */
-void
-emon32DefaultConfiguration(Emon32Config_t *pCfg)
-{
-    pCfg->key = CONFIG_NVM_KEY;
-
-    /* Default configuration: single phase, 50 Hz, 240 VAC */
-    pCfg->baseCfg.nodeID        = NODE_ID;  /* Node ID to transmit */
-    pCfg->baseCfg.mainsFreq     = 50u;  /* Mains frequency */
-    pCfg->baseCfg.reportCycles  = 500u; /* 10 s @ 50 Hz */
-    pCfg->baseCfg.whDeltaStore  = DELTA_WH_STORE; /* 200 */
-    pCfg->baseCfg.dataTx        = DATATX_UART;
-
-    for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
-    {
-        pCfg->voltageCfg[idxV].voltageCal = 268.97;
-    }
-
-    /* 4.2 degree shift @ 50 Hz */
-    for (unsigned int idxCT = 0u; idxCT < NUM_CT; idxCT++)
-    {
-        pCfg->ctCfg[idxCT].ctCal    = 90.91;
-        pCfg->ctCfg[idxCT].phaseX   = 13495;
-        pCfg->ctCfg[idxCT].phaseY   = 19340;
-    }
-
-    pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
-}
-
 static void
 ledOn()
 {
@@ -122,39 +92,8 @@ loadConfiguration(Emon32Config_t *pCfg)
 {
     unsigned int    systickCnt  = 0u;
     unsigned int    seconds     = 3u;
-    uint32_t        key         = 0u;
-    uint32_t        cfgSize     = sizeof(Emon32Config_t);
-    uint16_t        crc16_ccitt;
 
-    /* Load 32bit key from "static" part of EEPROM. If the key does not match
-     * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
-     * wear levelled portion. Otherwise, read configuration from EEPROM.
-     */
-    eepromRead(0, (void *)&key, 4u);
-
-    if (CONFIG_NVM_KEY != key)
-    {
-        dbgPuts("> Initialising NVM... ");
-        eepromInitConfig(pCfg, cfgSize);
-        (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
-        dbgPuts("Done\r\n");
-    }
-    else
-    {
-        dbgPuts("> Reading configuration from NVM... ");
-        eepromRead(0, (void *)pCfg, cfgSize);
-        putConfig(pCfg);
-        dbgPuts("Done\r\n");
-
-        /* Check the CRC and raise a warning if no matched. -2 from the base
-         * size to account for the stored 16 bit CRC.
-         */
-        crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
-        if (crc16_ccitt != pCfg->crc16_ccitt)
-        {
-            dbgPuts("> CRC mismatch, NVM may be corrupt.\r\n");
-        }
-    }
+    configLoadFromNVM(pCfg);
 
     /* Wait for 3 s, if a key is pressed then enter interactive configuration */
     dbgPuts("> Press any key to enter configuration ");
@@ -337,20 +276,6 @@ dbgPutBoard()
 }
 
 
-static void
-putConfig(const Emon32Config_t *pCfg)
-{
-    char txBuffer[2] = {0};
-    uint8_t *p = (uint8_t *)pCfg;
-
-    for (uint8_t i = 0; i < sizeof(Emon32Config_t); i++)
-    {
-        (void)utilItoa(txBuffer, *p++, ITOA_BASE16);
-        dbgPuts(txBuffer);
-    }
-    dbgPuts("\r\n");
-}
-
 /*! @brief Setup the microcontoller. This function must be called first. An
  *         implementation must provide all the functions that are called.
  *         These can be empty if they are not used.
@@ -398,8 +323,6 @@ main()
     eepromPkt.dataSize      = sizeof(Emon32Cumulative_t);
     eepromPkt.idxNextWrite  = -1;
 
-    emon32DefaultConfiguration(&e32Config);
-    putConfig(&e32Config);
     loadConfiguration(&e32Config);
     loadCumulative(&eepromPkt, &dataset);
     lastStoredWh = totalEnergy(&dataset);

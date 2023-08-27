@@ -9,4 +9,15 @@
 
 void configEnter(Emon32Config_t *pCfg);
 
+/*! @brief Load the default configuration
+ *  @param [out] pCfg : pointer to emon32 configuration struct
+ */
+void configDefault(Emon32Config_t *pCfg);
+
+/*! @brief This functions loads the default configuration and, if available,
+ *         the saved configuration from NVM
+ *  @param [out] pCfg : pointer to emon32 configuration struct
+ */
+void configLoadFromNVM(Emon32Config_t *pCfg);
+
 #endif

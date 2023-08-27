@@ -38,12 +38,6 @@
         (void)state;
     }
 
-    void
-    emon32DefaultConfiguration(Emon32Config_t *pCfg)
-    {
-        (void)pCfg;
-    }
-
 #else
 
     #include "qfplib.h"
@@ -213,7 +207,7 @@ menuReset()
             if ('y' == c)
             {
                 valChanged = 1u;
-                emon32DefaultConfiguration(pCfg);
+                configDefault(pCfg);
             }
         }
         else if ('1' == c)
@@ -539,4 +533,70 @@ configEnter(Emon32Config_t *pConfig)
 {
     pCfg = pConfig;
     menuBase();
+}
+
+void
+configLoadFromNVM(Emon32Config_t *pCfg)
+{
+    uint32_t    key         = 0u;
+    uint32_t    cfgSize     = sizeof(Emon32Config_t);
+    uint16_t    crc16_ccitt;
+
+    /* Load 32bit key from "static" part of EEPROM. If the key does not match
+     * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
+     * wear levelled portion. Otherwise, read configuration from EEPROM.
+     */
+    eepromRead(0, (void *)&key, 4u);
+
+    if (CONFIG_NVM_KEY != key)
+    {
+        dbgPuts("> Initialising NVM... ");
+        configDefault(pCfg);
+        eepromInitConfig(pCfg, cfgSize);
+        (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
+        dbgPuts("Done\r\n");
+    }
+    else
+    {
+        dbgPuts("> Reading configuration from NVM... ");
+        eepromRead(0, (void *)pCfg, cfgSize);
+        dbgPuts("Done\r\n");
+
+        /* Check the CRC and raise a warning if no matched. -2 from the base
+         * size to account for the stored 16 bit CRC.
+         */
+        crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
+        if (crc16_ccitt != pCfg->crc16_ccitt)
+        {
+            dbgPuts("> CRC mismatch, NVM may be corrupt.\r\n");
+        }
+    }
+}
+
+void
+configDefault(Emon32Config_t *pCfg)
+{
+    pCfg->key = CONFIG_NVM_KEY;
+
+    /* Default configuration: single phase, 50 Hz, 240 VAC */
+    pCfg->baseCfg.nodeID        = NODE_ID;  /* Node ID to transmit */
+    pCfg->baseCfg.mainsFreq     = 50u;  /* Mains frequency */
+    pCfg->baseCfg.reportCycles  = 500u; /* 10 s @ 50 Hz */
+    pCfg->baseCfg.whDeltaStore  = DELTA_WH_STORE; /* 200 */
+    pCfg->baseCfg.dataTx        = DATATX_UART;
+
+    for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
+    {
+        pCfg->voltageCfg[idxV].voltageCal = 268.97;
+    }
+
+    /* 4.2 degree shift @ 50 Hz */
+    for (unsigned int idxCT = 0u; idxCT < NUM_CT; idxCT++)
+    {
+        pCfg->ctCfg[idxCT].ctCal    = 90.91;
+        pCfg->ctCfg[idxCT].phaseX   = 13495;
+        pCfg->ctCfg[idxCT].phaseY   = 19340;
+    }
+
+    pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
 }
