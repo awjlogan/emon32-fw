@@ -105,13 +105,13 @@ emon32DefaultConfiguration(Emon32Config_t *pCfg)
 static void
 ledOn()
 {
-    portPinDrv(GRP_PIN, PIN_LED_STATUS, PIN_DRV_CLR);
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_CLR);
 }
 
 static void
 ledToggle()
 {
-    portPinDrv(GRP_PIN, PIN_LED_STATUS, PIN_DRV_TGL);
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_TGL);
 }
 
 /*! @brief This function handles loading of configuration data

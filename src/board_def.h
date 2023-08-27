@@ -10,6 +10,7 @@
   */
 #define BOARD_ID_LC         0
 #define BOARD_ID_STANDARD   1
+#define BOARD_ID_EMONPI     2
 #define BOARD_ID_DEV        255
 /* LC */
 #define BOARD_ID            BOARD_ID_LC
@@ -49,6 +50,8 @@
 #define EEPROM_WL_OFFSET    (EEPROM_SIZE_BYTES - EEPROM_WL_SIZE)
 
 /* SERCOM peripheral defines */
+#if (BOARD_ID == BOARD_ID_LC)
+
 #define SERCOM_UART_DBG             SERCOM0
 #define SERCOM_I2CM                 SERCOM1
 #define SERCOM_UART_DATA            SERCOM2
@@ -63,11 +66,37 @@
 #define SERCOM_UART_DATA_GCLK_ID    SERCOM2_GCLK_ID_CORE
 
 #define SERCOM_UART_DBG_DMAC_ID_TX  SERCOM0_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_TX      SERCOM2_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_RX      SERCOM2_DMAC_ID_RX
+#define SERCOM_I2CM_DMAC_ID_TX      SERCOM1_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_RX      SERCOM1_DMAC_ID_RX
 #define SERCOM_UART_DATA_DMAC_ID_TX SERCOM2_DMAC_ID_TX
 
 #define SERCOM_UART_DBG_NVIC_IRQn   SERCOM0_IRQn
+
+#elif (BOARD_ID == BOARD_ID_EMONPI)
+
+#define SERCOM_UART_DBG             SERCOM2
+#define SERCOM_I2CM                 SERCOM3
+#define SERCOM_UART_DATA            SERCOM2
+#define SERCOM_SPI_DATA             SERCOM4
+#define SERCOM_I2CM_EXT             SERCOM5
+
+#define SERCOM_UART_DBG_APBCMASK    PM_APBCMASK_SERCOM2
+#define SERCOM_I2CM_APBCMASK        PM_APBCMASK_SERCOM3
+#define SERCOM_SPI_APBCMASK         PM_APBCMASK_SERCOM4
+#define SERCOM_UART_DATA_APBCMASK   PM_APBCMASK_SERCOM2
+
+#define SERCOM_UART_DBG_GCLK_ID     SERCOM0_GCLK_ID_CORE
+#define SERCOM_I2CM_GCLK_ID         SERCOM1_GCLK_ID_CORE
+#define SERCOM_UART_DATA_GCLK_ID    SERCOM2_GCLK_ID_CORE
+
+#define SERCOM_UART_DBG_DMAC_ID_TX  SERCOM0_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_TX      SERCOM1_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_RX      SERCOM1_DMAC_ID_RX
+#define SERCOM_UART_DATA_DMAC_ID_TX SERCOM2_DMAC_ID_TX
+
+#define SERCOM_UART_DBG_NVIC_IRQn   SERCOM0_IRQn
+
+#endif /* BOARD_ID */
 
 /* Pulse counting */
 #define PULSE_MIN_PERIOD_MS         100u    /* Minimum period between pulses */
@@ -79,19 +108,20 @@
 #define PULSE_EIC_INTENCLR          EIC_INTENCLR_EXTINT3
 
 /* Pin assignments (nb. logical, not physical) */
-#if (BOARD_ID == BOARD_ID_DEV)
+#if (BOARD_ID == BOARD_ID_LC)
 
 #define GRP_PIN             0u
-#define PIN_EXTINT          24u
-#define PIN_GEN_STATUS      25u
-#define PIN_LED_STATUS      16u
-#define PIN_SW              15u
-
-#elif (BOARD_ID == BOARD_ID_LC)
-
-#define GRP_PIN             0u
+#define GRP_LED_STATUS      0u
 #define PIN_LED_STATUS      16u
 #define PIN_LED_PROG        17u
+
+#elif (BOARD_ID == BOARD_ID_EMONPI)
+
+#define GRP_PINA            0u
+#define GRP_PINB            1u
+#define GRP_LED_STATUS      1u
+#define PIN_LED_STATUS      23u
+#define PIN_LED_PROG        27u
 
 #endif /* BOARD_ID */
 
