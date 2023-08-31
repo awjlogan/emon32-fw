@@ -28,7 +28,7 @@ dataPackageESP_n(const ECMSet_t *pData, char *pDst, unsigned int n)
     }
 
     /* V RMS for each channel.
-     * TODO : how should this look for multiple V channels?
+     * REVISIT : how should this look for multiple V channels?
      */
     charCnt += 6;
     if (charCnt <= n)
@@ -98,57 +98,12 @@ dataPackageESP_n(const ECMSet_t *pData, char *pDst, unsigned int n)
     return charCnt;
 }
 
-unsigned int
-dataPackage(const ECMSet_t *pData, char *pDst)
+void
+dataPackagePacked(const ECMSet_t *pData, PackedData_t *pPacked)
 {
-    unsigned int    charCnt;
-    char            tmpBuf[16];
-    unsigned int    cursor;
-    unsigned int    insLen;
-
-    /* Message number */
-    cursor = utilStrInsert(pDst, "MSG:", 0, 4);
-    charCnt = 4u;
-    insLen = utilItoa(tmpBuf, pData->msgNum, ITOA_BASE10) - 1u;
-    charCnt += insLen;
-    cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-
-    /* V RMS for each channel.
-     * TODO : how should this look for multiple V channels?
-     */
-    cursor = utilStrInsert(pDst, ",Vrms:", cursor, 6);
-    charCnt += 6u;
-    qfp_float2str(pData->rmsV[0], tmpBuf, 0);
-    insLen = utilStrlen(tmpBuf);
-    charCnt += insLen;
-    cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-
-    /* CT channels */
-    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
+    pPacked->msg = pData->msgNum;
+    for (unsigned int v = 0; v < NUM_V; v++)
     {
-        cursor = utilStrInsert(pDst, ",P", cursor, 2);
-        charCnt += 2u;
-        insLen = utilItoa(tmpBuf, (idxCT + 1u), ITOA_BASE10) - 1u;
-        charCnt += insLen;
-        cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-        cursor = utilStrInsert(pDst, ":", cursor, 1);
-        charCnt += 1u;
-        qfp_float2str(pData->CT[idxCT].realPower, tmpBuf, 0);
-        insLen = utilStrlen(tmpBuf);
-        charCnt += insLen;
-        cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-        cursor = utilStrInsert(pDst, ",E", cursor, 2);
-        charCnt += 2u;
-        insLen = utilItoa(tmpBuf, (idxCT + 1u), ITOA_BASE10) - 1u;
-        charCnt += insLen;
-        cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-        cursor = utilStrInsert(pDst, ":", cursor, 1);
-        charCnt += 1u;
-        insLen = utilItoa(tmpBuf, pData->CT[idxCT].wattHour, ITOA_BASE10) - 1u;
-        charCnt += insLen;
-        cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
+        pPacked->V[v] = (int16_t)pData->rmsV[v];
     }
-
-    /* TODO : temperature and pulse count are not implemented */
-    return charCnt;
 }
