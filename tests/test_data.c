@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <float.h>
 
-#include "data_pacl.h"
+#include "data_pack.h"
 #include "util.h"
 
 int
@@ -29,7 +29,7 @@ main(int argc, char *argv[])
         dataset.CT[i].wattHour = 0;
     }
 
-    dataCnt = dataPackage_n(&dataset, txBuffer, 1024);
+    dataCnt = dataPackageESP_n(&dataset, txBuffer, 1024);
     goldCnt = snprintf(goldBuffer, 1024, "MSG:%d,Vrms:%.2f,P1:%.2f,E1:%d,P2:%.2f,E2:%d,P3:%.2f,E3:%d,P4:%.2f,E4:%d",
                    dataset.msgNum, dataset.rmsV[0], dataset.CT[0].realPower, dataset.CT[0].wattHour, dataset.CT[1].realPower, dataset.CT[1].wattHour, dataset.CT[2].realPower, dataset.CT[2].wattHour, dataset.CT[3].realPower, dataset.CT[3].wattHour);
     if (0 != strcmp(txBuffer, goldBuffer) || dataCnt != goldCnt)
@@ -37,14 +37,6 @@ main(int argc, char *argv[])
         printf("  all data == 0:\n");
         printf("    Test: %s\n", txBuffer);
         printf("    Gold: %s\n", goldBuffer);
-        printf("    %d | %d\n", dataCnt, goldCnt);
-        assert(0);
-    }
-    dataCnt = dataPackage(&dataset, txBuffer);
-    if (0 != strcmp(txBuffer, goldBuffer) || dataCnt != goldCnt)
-    {
-        printf("  all data == 0:\n");
-        printf("    %s\n", txBuffer);
         printf("    %d | %d\n", dataCnt, goldCnt);
         assert(0);
     }
@@ -58,7 +50,7 @@ main(int argc, char *argv[])
         dataset.CT[i].wattHour = UINT32_MAX;
     }
 
-    dataCnt = dataPackage_n(&dataset, txBuffer, 1024);
+    dataCnt = dataPackageESP_n(&dataset, txBuffer, 1024);
     goldCnt = snprintf(goldBuffer, 1024, "MSG:%d,Vrms:%.2f,P1:%.2f,E1:%d,P2:%.2f,E2:%d,P3:%.2f,E3:%d,P4:%.2f,E4:%d",
                    dataset.msgNum, dataset.rmsV[0], dataset.CT[0].realPower, dataset.CT[0].wattHour, dataset.CT[1].realPower, dataset.CT[1].wattHour, dataset.CT[2].realPower, dataset.CT[2].wattHour, dataset.CT[3].realPower, dataset.CT[3].wattHour);
     if (0 != strcmp(txBuffer, goldBuffer) || dataCnt != goldCnt)
@@ -66,14 +58,6 @@ main(int argc, char *argv[])
         printf("  all data == MAX:\n");
         printf("    Test: %s\n", txBuffer);
         printf("    Gold: %s\n", goldBuffer);
-        printf("    %d | %d\n", dataCnt, goldCnt);
-        assert(0);
-    }
-    dataCnt = dataPackage(&dataset, txBuffer);
-    if (0 != strcmp(txBuffer, goldBuffer) || dataCnt != goldCnt)
-    {
-        printf("  all data == MAX:\n");
-        printf("    %s\n", txBuffer);
         printf("    %d | %d\n", dataCnt, goldCnt);
         assert(0);
     }

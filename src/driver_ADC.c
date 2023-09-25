@@ -1,4 +1,5 @@
 #include "emon32_samd.h"
+#include "qfplib.h"
 
 /*! @brief Load gain and offset registers for automatic compensation. Only
  *         available when using SAMD21 with sufficient ADC pins.
@@ -11,12 +12,16 @@ adcCalibrate()
     const int32_t normalQuarter         = 1024;
     const int32_t normalThreeQuarter    = 3073;
 
+    /* Real values from ADC conversion */
     int16_t actualQuarter;
     int16_t actualThreeQuarter;
 
+    /* Calibration values */
+    int32_t offset_inter[2];
     int32_t offset;
-    int16_t gain_inter[2];
-    int32_t gain;
+
+    float   gain_fp;
+    int     gain;
 
     dbgPuts("> Calibrating ADC... ");
 
@@ -35,32 +40,43 @@ adcCalibrate()
 
     ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_IOGND
                          | ADC_INPUTCTRL_MUXPOS_PIN18;
-    ADC->INTFLAG.reg    |= ADC_INTFLAG_RESRDY;
-    ADC->SWTRIG.reg     = ADC_SWTRIG_START;
+    ADC->INTFLAG.reg   |= ADC_INTFLAG_RESRDY;
+    ADC->SWTRIG.reg    = ADC_SWTRIG_START;
     while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY));
     actualQuarter = ADC->RESULT.reg;
 
     ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_IOGND
                          | ADC_INPUTCTRL_MUXPOS_PIN17;
-    ADC->INTFLAG.reg    |= ADC_INTFLAG_RESRDY;
-    ADC->SWTRIG.reg     = ADC_SWTRIG_START;
+    ADC->INTFLAG.reg   |= ADC_INTFLAG_RESRDY;
+    ADC->SWTRIG.reg    = ADC_SWTRIG_START;
     while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY));
     actualThreeQuarter = ADC->RESULT.reg;
 
     ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
-    /* Calculate offset value */
-    offset =   (normalThreeQuarter * actualQuarter)
-             - (normalQuarter * actualThreeQuarter);
-    offset = offset / (normalQuarter - normalThreeQuarter);
-    ADC->OFFSETCORR.reg = (int16_t)-offset;
+    /* The corrected value is:
+     * (Conversion + -OFFSET) * GAINCORR
+     * Solve two equations in two unknowns for OFFSETCORR and GAINCORR.
+     *  : G = (y0 - y1) / (y0' - y1') [y' is the actual conversion value]
+     *  : C = y' - y / G
+     * OFFSETCORR is a 12bit signed value (33.1.18 Offset Correction).
+     * GAINCORR is 1 unsigned bit + 11 fractional bits (33.8.17 Gain Correction)
+     *  : 1/2 < GAINCORR < 2.
+     */
+    gain_fp = qfp_fdiv((float)(normalQuarter - normalThreeQuarter),
+                       (float)(actualQuarter - actualThreeQuarter));
+    gain = qfp_float2fix(gain_fp, 11);
 
-    /* Calculate gain value; average the two possible values */
-    gain_inter[0] = normalQuarter / (actualQuarter + offset);
-    gain_inter[1] = normalThreeQuarter / (actualThreeQuarter + offset);
-    gain = (gain_inter[0] + gain_inter[1]) / 2;
-    ADC->GAINCORR.reg = (int16_t)gain;
+    offset_inter[0] = (int)qfp_fadd(0.5f,
+                                    qfp_fdiv((float)normalQuarter, gain_fp)) - actualQuarter;
+    offset_inter[1] = (int)qfp_fadd(0.5f,
+                                    qfp_fdiv((float)normalThreeQuarter, gain_fp)) - actualThreeQuarter;
+    offset = (offset_inter[0] + offset_inter[1]) / 2;
+
+    /* Mask top nibbles as registers are only 12bits wide */
+    ADC->OFFSETCORR.reg = (int16_t)offset & 0xFFF;
+    ADC->GAINCORR.reg = (int16_t)gain & 0xFFF;
 
     /* Enable automatic correction, and return ADC to differential mode */
     ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV8
