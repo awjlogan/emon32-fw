@@ -1,7 +1,11 @@
 #ifndef DRIVER_DMAC_H
 #define DRIVER_DMAC_H
 
-#include "samd11.h"
+#if (BOARD_ID == BOARD_ID_LC)
+    #include "samd11.h"
+#else
+    #include "samd21.h"
+#endif /* BOARD_ID */
 
 typedef struct {
     uint32_t    ctrlb;

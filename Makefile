@@ -33,14 +33,16 @@ CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 
 LDFLAGS += -mcpu=cortex-m0plus -mthumb
 LDFLAGS += -Wl,--gc-sections
-LDFLAGS += -Wl,--script=./linker/samd11d14.ld
+# LDFLAGS += -Wl,--script=./linker/samd11d14.ld
+LDFLAGS += -Wl,--script=./linker/samd21j18.ld
 
 INCLUDES += \
   -I./include/samd11 \
+  -I./include/samd21 \
   -I./src/
 
 SRCS += \
-  ./src/startup_samd11.c \
+  ./src/startup_samd21.c \
   ./src/driver_CLK.c \
   ./src/driver_ADC.c \
   ./src/driver_PORT.c \
@@ -53,16 +55,17 @@ SRCS += \
   ./src/driver_WDT.c \
   ./src/board_def.c \
   ./src/configuration.c \
-  ./src/data.c \
+  ./src/data_pack.c \
   ./src/eeprom.c \
   ./src/emon_CM.c \
   ./src/emon32.c \
-  ./src/rfm69.c \
+  ./src/periph_rfm69.c \
   ./src/util.c
 
 
+#-D__SAMD11D14AM__
 DEFINES += \
-  -D__SAMD11D14AM__ \
+  -D__SAMD21J18A__ \
   -DDONT_USE_CMSIS_INIT
 
 CFLAGS += $(INCLUDES) $(DEFINES)

@@ -13,7 +13,7 @@
 #define BOARD_ID_EMONPI     2
 #define BOARD_ID_DEV        255
 /* LC */
-#define BOARD_ID            BOARD_ID_LC
+#define BOARD_ID            BOARD_ID_EMONPI
 
 /* Online configuration takes around 2.5 KB of flash. Comment out this define to
  * save space, with only RO access to configuration values.
@@ -22,12 +22,12 @@
 
 /* Clock frequencies
  *  - Core is on the 48 MHz DFLL
- *  - Peripherals are on the OSC8M / 8 -> MHz
+ *  - Peripherals are on the OSC8M / 8 -> 1 MHz
  */
 #define F_CORE              48000000ul
 #define F_PERIPH            8000000ul
-#define F_TC1               F_PERIPH / 8
-#define F_TC2               F_PERIPH / 8
+#define F_TIMER1            F_PERIPH / 8
+#define F_TIMER2            F_PERIPH / 8
 
 /* Oversampling
  * There will be a fixed anti-aliasing filter on the board. This should be the
@@ -95,6 +95,17 @@
 #define SERCOM_UART_DATA_DMAC_ID_TX SERCOM2_DMAC_ID_TX
 
 #define SERCOM_UART_DBG_NVIC_IRQn   SERCOM0_IRQn
+
+#define TIMER1                      TC3
+#define TIMER2                      TC4
+
+#define TIMER1_GCLK_ID              TC3_GCLK_ID
+#define TIMER1_APBCMASK             PM_APBCMASK_TC3
+#define TIMER1_EVT_SRC              EVSYS_ID_GEN_TC3_OVF
+
+#define TIMER2_GCLK_ID              TC4_GCLK_ID
+#define TIMER2_APBCMASK             PM_APBCMASK_TC4
+#define TIMER2_IRQn                 TC4_IRQn
 
 #endif /* BOARD_ID */
 

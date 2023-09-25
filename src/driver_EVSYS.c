@@ -19,8 +19,7 @@ evsysSetup()
      * NB : the channel ID in the CHANNEL register is the channel number; for
      * the USER register it is (n - 1).
      */
-
     EVSYS->CHANNEL.reg =   EVSYS_CHANNEL_CHANNEL(0u)
                          | EVSYS_CHANNEL_PATH_ASYNCHRONOUS
-                         | EVSYS_CHANNEL_EVGEN(EVSYS_ID_GEN_TC1_OVF);
+                         | EVSYS_CHANNEL_EVGEN(TIMER1_EVT_SRC);
 }
