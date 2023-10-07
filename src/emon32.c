@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "emon32_samd.h"
+#include "temperature.h"
 
 #define EEPROM_WL_NUM_BLK   EEPROM_WL_SIZE / EEPROM_WL_SIZE_BLK
 
@@ -299,10 +300,13 @@ main()
 {
     Emon32Config_t  e32Config;
     ECMSet_t        dataset;
+    ECM_STATUS_t    cmStatus;
     eepromPktWL_t   eepromPkt;
     RFMPkt_t        *rfmPkt;
     char            txBuffer[TX_BUFFER_W] = {0};
     PackedData_t    packedData;
+    uint32_t        cyclesProcessed = 0u;
+    uint32_t        tempCount = 0;
 
     setup_uc();
 
@@ -377,11 +381,80 @@ main()
                 emon32ClrEvent(EVT_SYSTICK_100Hz);
             }
 
-            /* A full mains cycle has completed. Calculate power/energy */
+            /* A full mains cycle has completed. Calculate power/energy. When
+             * all samples are complete, trigger a read of any temperature
+             * sensors.
+             */
             if (evtPending(EVT_ECM_CYCLE_CMPL))
             {
-                ecmProcessCycle();
+                cmStatus = ecmProcessCycle();
+                if (ECM_REPORT_COMPLETE == cmStatus)
+                {
+                    emon32SetEvent(EVT_TEMP_READ);
+                }
+
+                /* Trigger a temperature sample 1 s before the report is due.
+                 * In 12bit mode (default), DS18B20 takes 750 ms to acquire.
+                 */
+                cyclesProcessed++;
+                if ((e32Config.baseCfg.reportCycles - cyclesProcessed) == e32Config.baseCfg.mainsFreq)
+                {
+                    emon32SetEvent(EVT_TEMP_SAMPLE);
+                }
+
+                if (cyclesProcessed == e32Config.baseCfg.reportCycles)
+                {
+                    cyclesProcessed = 0;
+                }
+
                 emon32ClrEvent(EVT_ECM_CYCLE_CMPL);
+            }
+
+            /* Start temperature sampling on OneWire interface. This has lower
+             * priority than cycle calculation, request one sample on each loop.
+             */
+            if (evtPending(EVT_TEMP_SAMPLE))
+            {
+                if (TEMP_MAX_ONEWIRE > 0)
+                {
+                    tempStartSample(TEMP_ONEWIRE, tempCount);
+
+                    tempCount++;
+                    if (tempCount == TEMP_MAX_ONEWIRE)
+                    {
+                        emon32ClrEvent(EVT_TEMP_SAMPLE);
+                        tempCount = 0;
+                    }
+                }
+                else
+                {
+                    emon32ClrEvent(EVT_TEMP_SAMPLE);
+                }
+            }
+
+            /* Read back samples from each DS18B20 present. This is a blocking
+             * routine, and is lower priority than processing a cycle, so read
+             * one sensor on each loop.
+             */
+            if (evtPending(EVT_TEMP_READ))
+            {
+                if (TEMP_MAX_ONEWIRE > 0)
+                {
+                    tempReadSample(TEMP_ONEWIRE, tempCount);
+
+                    tempCount++;
+                    if (tempCount == TEMP_MAX_ONEWIRE)
+                    {
+                        emon32SetEvent(EVT_ECM_SET_CMPL);
+                        emon32ClrEvent(EVT_TEMP_READ);
+                        tempCount = 0;
+                    }
+                }
+                else
+                {
+                    emon32SetEvent(EVT_ECM_SET_CMPL);
+                    emon32ClrEvent(EVT_TEMP_READ);
+                }
             }
 
             /* Report period elapsed; generate, pack, and send through the

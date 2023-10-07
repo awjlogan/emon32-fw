@@ -135,7 +135,9 @@ typedef enum {
     EVT_DMAC_I2C_CMPL   = 10u,
     EVT_TIMER_MC        = 11u,
     EVT_EIC_PULSE       = 12u,
-    EVT_EEPROM_TMR      = 13u
+    EVT_EEPROM_TMR      = 13u,
+    EVT_TEMP_SAMPLE     = 14u,
+    EVT_TEMP_READ       = 15u
 } EVTSRC_t;
 
 /* SingleSampleSet_t contains a single set of V + CT ADC samples */

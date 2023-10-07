@@ -60,6 +60,7 @@ SRCS += \
   ./src/emon_CM.c \
   ./src/emon32.c \
   ./src/periph_rfm69.c \
+  ./src/temperature.c \
   ./src/util.c
 
 
