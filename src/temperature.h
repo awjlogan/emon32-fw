@@ -19,13 +19,13 @@ uint8_t tempInitSensors(const TEMP_INTF_t intf, const void *pParams);
     @param [in] intf : interface type
  *  @param [in] dev : device index
  */
-void tempStartSample(const TEMP_INTF_t intf, const uint32_t dev);
+int8_t tempStartSample(const TEMP_INTF_t intf, const uint32_t dev);
 
 /*! @brief Read an existing temperature sample
  *  @param [in] intf : interface type
  *  @param [in] dev : device index
- *  @return : temperature value
+ *  @return : INT16_MIN for failure, otherwise temperature value
  */
-int16_t tempReadSample(const TEMP_INTF_t intf, const uint32_t dev);
+int16_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev);
 
 #endif

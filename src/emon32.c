@@ -426,26 +426,17 @@ main()
                 emon32ClrEvent(EVT_ECM_CYCLE_CMPL);
             }
 
-            /* Start temperature sampling on OneWire interface. This has lower
-             * priority than cycle calculation, request one sample on each loop.
+            /* Start temperature sampling on OneWire interface. All sensors can
+             * be triggered simultaneously.
              */
             if (evtPending(EVT_TEMP_SAMPLE))
             {
                 if (TEMP_MAX_ONEWIRE > 0)
                 {
-                    tempStartSample(TEMP_ONEWIRE, tempCount);
-
-                    tempCount++;
-                    if (tempCount == TEMP_MAX_ONEWIRE)
-                    {
-                        emon32ClrEvent(EVT_TEMP_SAMPLE);
-                        tempCount = 0;
-                    }
+                    /* REVISIT : report failed conversion here */
+                    (void)tempStartSample(TEMP_ONEWIRE, tempCount);
                 }
-                else
-                {
-                    emon32ClrEvent(EVT_TEMP_SAMPLE);
-                }
+                emon32ClrEvent(EVT_TEMP_SAMPLE);
             }
 
             /* Read back samples from each DS18B20 present. This is a blocking

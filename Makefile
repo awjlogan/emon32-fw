@@ -43,15 +43,15 @@ INCLUDES += \
 
 SRCS += \
   ./src/startup_samd21.c \
-  ./src/driver_CLK.c \
   ./src/driver_ADC.c \
-  ./src/driver_PORT.c \
+  ./src/driver_CLK.c \
+  ./src/driver_DMAC.c \
   ./src/driver_EIC.c \
-  ./src/driver_TIME.c \
+  ./src/driver_EVSYS.c \
+  ./src/driver_PORT.c \
   ./src/driver_SAMD.c \
   ./src/driver_SERCOM.c \
-  ./src/driver_DMAC.c \
-  ./src/driver_EVSYS.c \
+  ./src/driver_TIME.c \
   ./src/driver_WDT.c \
   ./src/board_def.c \
   ./src/configuration.c \
@@ -60,6 +60,7 @@ SRCS += \
   ./src/emon_CM.c \
   ./src/emon32.c \
   ./src/periph_rfm69.c \
+  ./src/periph_DS18B20.c \
   ./src/temperature.c \
   ./src/util.c
 
