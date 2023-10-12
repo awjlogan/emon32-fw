@@ -2,9 +2,14 @@
 
 #ifndef HOSTED
 #include "emon32_samd.h"
+#include "driver_SERCOM.h"
+#include "driver_TIME.h"
+#include "emon32.h"
 #else
 #include "test_eeprom.h"
 #endif /* HOSTED */
+
+#include "eeprom.h"
 
 /* Local data for interrupt driven EEPROM write */
 typedef struct {

@@ -1,6 +1,9 @@
 #include <stdint.h>
 
 #include "emon32_samd.h"
+#include "driver_SERCOM.h"
+#include "driver_TIME.h"
+#include "periph_rfm69.h"
 
 /* Register definitions */
 typedef enum {

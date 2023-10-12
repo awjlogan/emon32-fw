@@ -1,5 +1,7 @@
 #include "emon32_samd.h"
 
+#include "driver_WDT.h"
+
 void
 wdtSetup(WDT_PER_t per)
 {

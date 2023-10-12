@@ -3,11 +3,8 @@
 
 #include <stdint.h>
 
-#if (BOARD_ID == BOARD_ID_LC)
-    #include "samd11.h"
-#else
-    #include "samd21.h"
-#endif /* BOARD_ID */
+#include "emon32_samd.h"
+#include "driver_DMAC.h"
 
 typedef enum {
     I2CM_ACK    = 0u,

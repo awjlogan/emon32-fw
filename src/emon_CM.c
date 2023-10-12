@@ -3,8 +3,6 @@
 #include "qfplib.h"
 #include "emon_CM.h"
 
-
-
 #ifdef HOSTED
 #include <stdio.h>
 #include <assert.h>

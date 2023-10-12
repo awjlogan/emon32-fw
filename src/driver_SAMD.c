@@ -1,4 +1,5 @@
 #include "emon32_samd.h"
+#include "driver_SAMD.h"
 
 uint32_t
 samdCalibration(const Calibration_t cal)

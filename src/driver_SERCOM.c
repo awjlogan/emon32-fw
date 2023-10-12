@@ -1,5 +1,9 @@
 #include "emon32_samd.h"
 
+#include "driver_DMAC.h"
+#include "driver_PORT.h"
+#include "driver_SERCOM.h"
+
 void
 sercomSetup()
 {

@@ -1,5 +1,10 @@
 #include "emon32_samd.h"
 
+#include "emon32.h"
+#include "driver_TIME.h"
+#include "driver_WDT.h"
+
+
 void (*tc2_cb)();
 
 void

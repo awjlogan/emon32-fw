@@ -1,4 +1,7 @@
 #include "emon32_samd.h"
+#include "driver_EIC.h"
+
+#include "emon32.h"
 
 void
 eicSetup()

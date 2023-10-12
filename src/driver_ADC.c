@@ -1,4 +1,10 @@
 #include "emon32_samd.h"
+#include "driver_ADC.h"
+#include "driver_DMAC.h"
+#include "driver_SAMD.h"
+#include "driver_PORT.h"
+
+#include "emon32.h"
 #include "qfplib.h"
 
 /*! @brief Load gain and offset registers for automatic compensation. Only
