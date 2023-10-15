@@ -71,17 +71,17 @@ portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg, PINCFG_t cs)
 void
 portPinDrv(unsigned int grp, unsigned int pin, PINDRV_t drv)
 {
-    if (PIN_DRV_CLR == drv)
+    switch (drv)
     {
-        PORT->Group[grp].OUTCLR.reg = (1u << pin);
-    }
-    else if (PIN_DRV_SET == drv)
-    {
-        PORT->Group[grp].OUTSET.reg = (1u << pin);
-    }
-    else
-    {
-        PORT->Group[grp].OUTTGL.reg = (1u << pin);
+        case PIN_DRV_CLR:
+            PORT->Group[grp].OUTCLR.reg = (1u << pin);
+            break;
+        case PIN_DRV_SET:
+            PORT->Group[grp].OUTSET.reg = (1u << pin);
+            break;
+        case PIN_DRV_TGL:
+            PORT->Group[grp].OUTTGL.reg = (1u << pin);
+            break;
     }
 }
 

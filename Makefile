@@ -34,7 +34,7 @@ CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 LDFLAGS += -mcpu=cortex-m0plus -mthumb
 LDFLAGS += -Wl,--gc-sections
 # LDFLAGS += -Wl,--script=./linker/samd11d14.ld
-LDFLAGS += -Wl,--script=./linker/samd21j18.ld
+LDFLAGS += -Wl,--script=./linker/samd21j17.ld
 
 INCLUDES += \
   -I./include/samd11 \
@@ -67,7 +67,7 @@ SRCS += \
 
 #-D__SAMD11D14AM__
 DEFINES += \
-  -D__SAMD21J18A__ \
+  -D__SAMD21J17A__ \
   -DDONT_USE_CMSIS_INIT
 
 CFLAGS += $(INCLUDES) $(DEFINES)

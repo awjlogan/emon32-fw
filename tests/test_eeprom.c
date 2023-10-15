@@ -182,8 +182,8 @@ main(int argc, char *argv[])
      * values are read at the very first time powered on */
     initMem(EEPROM_WL_OFFSET, EEPROM_SIZE_BYTES, 0x0u);
 
-    wlPkt.addr_base = EEPROM_WL_OFFSET;
-    assert(wlPkt.addr_base == 128);  /* 512 kB EEPROM, 384 byte WL */
+    wlPkt.addrBase = EEPROM_WL_OFFSET;
+    assert(wlPkt.addrBase == 128);  /* 512 kB EEPROM, 384 byte WL */
     wlPkt.idxNextWrite = -1;  /* Unknown entrance point */
     wlPkt.blkCnt = EEPROM_WL_SIZE / sizeof(Emon32Cumulative_t);
     wlPkt.dataSize = sizeof(Emon32Cumulative_t);
@@ -197,7 +197,7 @@ main(int argc, char *argv[])
     cumulative.report.wattHour[3] = 0xA;
     cumulative.report.pulseCnt = 'a';
 
-    // printf("    Base address: %d\n", wlPkt.addr_base);
+    // printf("    Base address: %d\n", wlPkt.addrBase);
     // printf("    Block count:  %d\n", wlPkt.blkCnt);
     // printf("    Data size:    %d\n", wlPkt.dataSize);
 

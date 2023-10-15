@@ -90,17 +90,23 @@
 #define SERCOM_SPI_APBCMASK         PM_APBCMASK_SERCOM4
 #define SERCOM_UART_DATA_APBCMASK   PM_APBCMASK_SERCOM2
 
-#define SERCOM_UART_DBG_GCLK_ID     SERCOM0_GCLK_ID_CORE
-#define SERCOM_I2CM_GCLK_ID         SERCOM1_GCLK_ID_CORE
+#define SERCOM_UART_DBG_GCLK_ID     SERCOM2_GCLK_ID_CORE
+#define SERCOM_I2CM_GCLK_ID         SERCOM3_GCLK_ID_CORE
 #define SERCOM_UART_DATA_GCLK_ID    SERCOM2_GCLK_ID_CORE
+#define SERCOM_SPI_GCLK_ID          SERCOM4_GCLK_ID_CORE
 
-#define SERCOM_UART_DBG_DMAC_ID_TX  SERCOM0_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_TX      SERCOM1_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_RX      SERCOM1_DMAC_ID_RX
+#define SERCOM_UART_DBG_DMAC_ID_TX  SERCOM2_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_TX      SERCOM3_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_RX      SERCOM3_DMAC_ID_RX
 #define SERCOM_UART_DATA_DMAC_ID_TX SERCOM2_DMAC_ID_TX
 
-#define SERCOM_UART_DBG_NVIC_IRQn   SERCOM0_IRQn
+#define PMUX_UART_DBG               PORT_PMUX_PMUXE_C
+#define PMUX_UART_DATA              PORT_PMUX_PMUXE_C
 
+#define SERCOM_UART_DBG_NVIC_IRQn   SERCOM2_IRQn
+#define SERCOM_I2CM_NVIC_IRQn       SERCOM3_IRQn
+
+/* TIMER1 drives ADC conversion tick, TIMER2 used for delay timing */
 #define TIMER1                      TC3
 #define TIMER2                      TC4
 
@@ -131,29 +137,6 @@
 #define PIN_LED_STATUS      16u
 #define PIN_LED_PROG        17u
 
-#elif (BOARD_ID == BOARD_ID_EMONPI)
-
-#define GRP_PINA            0u
-#define GRP_PINB            1u
-#define GRP_LED_STATUS      1u
-#define PIN_LED_STATUS      23u
-#define PIN_LED_PROG        27u
-
-#endif /* BOARD_ID */
-
-/* I2C related defines */
-#define GRP_SERCOM_I2C      0u
-#define PIN_I2C_SDA         22u
-#define PIN_I2C_SCL         23u
-
-/* Debug UART related defines */
-#define GRP_SERCOM_UART_DBG 0u
-#define PIN_UART_DBG_RX     9u
-#define PIN_UART_DBG_TX     8u
-#define UART_DBG_PAD_RX     3u
-#define UART_DBG_PAD_TX     1u
-#define UART_DBG_BAUD       38400u
-
 /* SPI related defines */
 #define GRP_SERCOM_SPI      0u
 #define PIN_SPI_MISO        14u
@@ -161,6 +144,12 @@
 #define PIN_SPI_SCK         16u
 #define PIN_SPI_RFM_SS      17u
 #define SPI_DATA_BAUD       4000000ul
+#define PMUX_SPI_DATA       PORT_PMUX_PMUXE_D
+
+/* I2C related defines */
+#define GRP_SERCOM_I2C      0u
+#define PIN_I2C_SDA         22u
+#define PIN_I2C_SCL         23u
 
 /* Data UART related defines */
 #define GRP_SERCOM_UART_DATA 0u
@@ -176,5 +165,53 @@
 #define DMA_CHAN_I2CM       2u
 #define DMA_CHAN_UART_DBG   1u
 #define DMA_CHAN_ADC        0u
+
+#elif (BOARD_ID == BOARD_ID_EMONPI)
+
+#define GRP_PINA            0u
+#define GRP_PINB            1u
+#define GRP_LED_STATUS      1u
+#define PIN_LED_STATUS      23u
+#define PIN_LED_PROG        27u
+
+/* Debug UART related defines */
+#define GRP_SERCOM_UART_DBG 0u
+#define PIN_UART_DBG_RX     13u
+#define PIN_UART_DBG_TX     12u
+#define UART_DBG_PAD_RX     1u
+#define UART_DBG_PAD_TX     2u
+#define UART_DBG_BAUD       38400u
+
+/* SPI related defines */
+#define GRP_SERCOM_SPI      0u
+#define PIN_SPI_MISO        14u
+#define PIN_SPI_MOSI        15u
+#define PIN_SPI_SCK         16u
+#define PIN_SPI_RFM_SS      17u
+#define SPI_DATA_BAUD       4000000ul
+#define PMUX_SPI_DATA       PORT_PMUX_PMUXE_D
+
+/* I2C related defines */
+#define GRP_SERCOM_I2C      1u
+#define PIN_I2C_SDA         12u
+#define PIN_I2C_SCL         13u
+#define PMUX_I2CM           PORT_PMUX_PMUXE_C
+
+/* Data UART related defines */
+#define GRP_SERCOM_UART_DATA 0u
+#define PIN_UART_DATA_RX    21u
+#define PIN_UART_DATA_TX    22u
+#define UART_DATA_PAD_RX    3u
+#define UART_DATA_PAD_TX    1u
+#define UART_DATA_BAUD      115200u
+
+/* DMA defines */
+#define NUM_CHAN_DMA        4u
+#define DMA_CHAN_UART_DATA  3u
+#define DMA_CHAN_I2CM       2u
+#define DMA_CHAN_UART_DBG   1u
+#define DMA_CHAN_ADC        0u
+
+#endif /* BOARD_ID */
 
 #endif

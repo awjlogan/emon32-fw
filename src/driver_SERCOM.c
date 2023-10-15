@@ -13,6 +13,7 @@ sercomSetup()
     UART_Cfg_t uart_dbg_cfg;
     uart_dbg_cfg.sercom     = SERCOM_UART_DBG;
     uart_dbg_cfg.baud       = UART_DBG_BAUD;
+    uart_dbg_cfg.apbc_mask  = SERCOM_UART_DBG_APBCMASK;
     uart_dbg_cfg.gclk_id    = SERCOM_UART_DBG_GCLK_ID;
     uart_dbg_cfg.gclk_gen   = 3u;
     uart_dbg_cfg.pad_tx     = UART_DBG_PAD_TX;
@@ -20,6 +21,7 @@ sercomSetup()
     uart_dbg_cfg.port_grp   = GRP_SERCOM_UART_DBG;
     uart_dbg_cfg.pin_tx     = PIN_UART_DBG_TX;
     uart_dbg_cfg.pin_rx     = PIN_UART_DBG_RX;
+    uart_dbg_cfg.pmux       = PMUX_UART_DBG;
     uart_dbg_cfg.dmaChannel = DMA_CHAN_UART_DBG;
     uart_dbg_cfg.dmaCfg.ctrlb =   DMAC_CHCTRLB_LVL(1u)
                                 | DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DBG_DMAC_ID_TX)
@@ -29,8 +31,8 @@ sercomSetup()
     /*****************
     * I2C Setup
     ******************/
-    portPinMux(GRP_SERCOM_I2C, PIN_I2C_SDA, PORT_PMUX_PMUXE_C);
-    portPinMux(GRP_SERCOM_I2C, PIN_I2C_SCL, PORT_PMUX_PMUXE_C);
+    portPinMux(GRP_SERCOM_I2C, PIN_I2C_SDA, PMUX_I2CM);
+    portPinMux(GRP_SERCOM_I2C, PIN_I2C_SCL, PMUX_I2CM);
 
     PM->APBCMASK.reg |= SERCOM_I2CM_APBCMASK;
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_I2CM_GCLK_ID)
@@ -97,11 +99,11 @@ sercomSetupUART(const UART_Cfg_t *pCfg)
             baud = 64279;
     }
 
-    portPinMux(pCfg->port_grp, pCfg->pin_tx, PORT_PMUX_PMUXE_D);
-    portPinMux(pCfg->port_grp, pCfg->pin_rx, PORT_PMUX_PMUXE_D);
+    portPinMux(pCfg->port_grp, pCfg->pin_tx, pCfg->pmux);
+    portPinMux(pCfg->port_grp, pCfg->pin_rx, pCfg->pmux);
 
     /* Configure clocks - runs from the OSC8M clock on gen 3 */
-    PM->APBCMASK.reg |= SERCOM_UART_DBG_APBCMASK;
+    PM->APBCMASK.reg |= pCfg->apbc_mask;
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(pCfg->gclk_id)
                         | GCLK_CLKCTRL_GEN(pCfg->gclk_gen)
                         | GCLK_CLKCTRL_CLKEN;
@@ -134,17 +136,17 @@ sercomSetupSPI()
     /**********************
     * SPI Setup (for RFM69)
     ***********************/
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MISO, PORT_PMUX_PMUXE_D);
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI, PORT_PMUX_PMUXE_D);
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK, PORT_PMUX_PMUXE_D);
+    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MISO, PMUX_SPI_DATA);
+    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI, PMUX_SPI_DATA);
+    portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK, PMUX_SPI_DATA);
 
     /* Table 24-2 - driven @ F_REF = F_PERIPH */
     const uint32_t baud_data = SPI_DATA_BAUD;
     const uint32_t br_data = ((uint32_t)F_PERIPH / (2 * baud_data) - 1u);
 
     /* Configure clocks - runs from the OSC8M clock on gen 3 */
-    PM->APBCMASK.reg |= SERCOM_UART_DATA_APBCMASK;
-    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_UART_DATA_GCLK_ID)
+    PM->APBCMASK.reg |= SERCOM_SPI_APBCMASK;
+    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_SPI_GCLK_ID)
                         | GCLK_CLKCTRL_GEN(3u)
                         | GCLK_CLKCTRL_CLKEN;
 

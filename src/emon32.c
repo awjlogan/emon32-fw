@@ -92,7 +92,8 @@ emon32StateGet()
 static void
 ledOn()
 {
-    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_CLR);
+    /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
 }
 
 static void
@@ -278,6 +279,9 @@ dbgPutBoard()
         case (BOARD_ID_STANDARD):
             dbgPuts("emon32 Standard");
             break;
+        case (BOARD_ID_EMONPI):
+            dbgPuts("emon32-Pi2");
+            break;
         default:
             dbgPuts("Unknown");
     }
@@ -316,7 +320,6 @@ main()
 {
     Emon32Config_t  e32Config;
     ECMSet_t        dataset;
-    ECM_STATUS_t    cmStatus;
     eepromPktWL_t   eepromPkt;
     RFMPkt_t        *rfmPkt;
     char            txBuffer[TX_BUFFER_W] = {0};
@@ -338,7 +341,7 @@ main()
      * store default configuration and 0 energy accumulator area.
      * REVISIT add check that firmware version matches stored config.
      */
-    eepromPkt.addr_base     = EEPROM_WL_OFFSET;
+    eepromPkt.addrBase      = EEPROM_WL_OFFSET;
     eepromPkt.blkCnt        = EEPROM_WL_NUM_BLK;
     eepromPkt.dataSize      = sizeof(Emon32Cumulative_t);
     eepromPkt.idxNextWrite  = -1;
@@ -366,6 +369,7 @@ main()
         UART_Cfg_t uart_data_cfg;
         uart_data_cfg.sercom    = SERCOM_UART_DATA;
         uart_data_cfg.baud      = UART_DATA_BAUD;
+        uart_data_cfg.apbc_mask = SERCOM_UART_DATA_APBCMASK;
         uart_data_cfg.gclk_id   = SERCOM_UART_DATA_GCLK_ID;
         uart_data_cfg.gclk_gen  = 3u;
         uart_data_cfg.pad_tx    = UART_DATA_PAD_TX;
@@ -373,6 +377,7 @@ main()
         uart_data_cfg.port_grp  = GRP_SERCOM_UART_DATA;
         uart_data_cfg.pin_tx    = PIN_UART_DATA_TX;
         uart_data_cfg.pin_rx    = PIN_UART_DATA_RX;
+        uart_data_cfg.pmux      = PMUX_UART_DATA;
         sercomSetupUART(&uart_data_cfg);
     }
 
@@ -403,9 +408,9 @@ main()
              */
             if (evtPending(EVT_ECM_CYCLE_CMPL))
             {
-                cmStatus = ecmProcessCycle();
-                if (ECM_REPORT_COMPLETE == cmStatus)
+                if (ECM_REPORT_COMPLETE == ecmProcessCycle())
                 {
+                    cyclesProcessed = 0;
                     emon32SetEvent(EVT_TEMP_READ);
                 }
 
@@ -416,11 +421,6 @@ main()
                 if ((e32Config.baseCfg.reportCycles - cyclesProcessed) == e32Config.baseCfg.mainsFreq)
                 {
                     emon32SetEvent(EVT_TEMP_SAMPLE);
-                }
-
-                if (cyclesProcessed == e32Config.baseCfg.reportCycles)
-                {
-                    cyclesProcessed = 0;
                 }
 
                 emon32ClrEvent(EVT_ECM_CYCLE_CMPL);

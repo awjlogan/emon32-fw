@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 typedef struct {
-    uint16_t    addr_base;      /* Block base address */
+    uint16_t    addrBase;       /* Block base address */
     int8_t      idxNextWrite;   /* Index of next write to EEPROM */
     uint8_t     blkCnt;         /* Number of available blocks */
     uint8_t     dataSize;       /* Size (bytes) of the data */
@@ -35,7 +35,7 @@ eepromWrStatus_t eepromWrite(uint16_t addr, const void *pSrc, unsigned int n);
 void eepromWriteCB();
 
 /*! @brief Read data from EEPROM
- *  @param [in] addr : base address of EEPROM
+ *  @param [in] addr : base address of EEPROM read
  *  @param [out] pDst : pointer to read destination
  *  @param [in] n : number of bytes to read
  */

@@ -29,17 +29,19 @@ typedef enum {
 } UART_BAUD_t;
 
 typedef struct UART_Cfg_ {
-    Sercom          *sercom;
-    UART_BAUD_t     baud;
-    uint8_t         gclk_id;
-    uint8_t         gclk_gen;
-    uint8_t         pad_tx;
-    uint8_t         pad_rx;
-    uint8_t         port_grp;
-    uint8_t         pin_tx;
-    uint8_t         pin_rx;
-    uint8_t         dmaChannel;
-    DMACCfgCh_t     dmaCfg;
+    Sercom       *sercom;
+    UART_BAUD_t baud;
+    int         apbc_mask;
+    int         gclk_id;
+    int         gclk_gen;
+    int         pad_tx;
+    int         pad_rx;
+    int         port_grp;
+    int         pin_tx;
+    int         pin_rx;
+    int         pmux;
+    int         dmaChannel;
+    DMACCfgCh_t dmaCfg;
 } UART_Cfg_t;
 
 /* @brief configure the serial communication module. This function starts the
