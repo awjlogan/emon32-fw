@@ -5,7 +5,6 @@
 
 #include "driver_ADC.h"
 #include "driver_CLK.h"
-#include "driver_EIC.h"
 #include "driver_EVSYS.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
@@ -18,9 +17,8 @@
 #include "emon_CM.h"
 #include "eeprom.h"
 #include "periph_rfm69.h"
+#include "pulse.h"
 #include "temperature.h"
-
-#define EEPROM_WL_NUM_BLK   EEPROM_WL_SIZE / EEPROM_WL_SIZE_BLK
 
 /*************************************
  * Persistent state variables
@@ -181,7 +179,12 @@ loadCumulative(eepromPktWL_t *pPkt, ECMSet_t *pData)
         pData->CT[idxCT].wattHour = data.report.wattHour[idxCT];
     }
 
-    pData->pulseCnt = data.report.pulseCnt;
+    #if (NUM_PULSECOUNT > 0)
+    for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse ++)
+    {
+        pData->pulseCnt[idxPulse] = data.report.pulseCnt[idxPulse];
+    }
+    #endif
 }
 
 /*! @brief Store cumulative energy and pulse values
@@ -200,7 +203,13 @@ storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData)
     {
         data.report.wattHour[idxCT] = pData->CT[idxCT].wattHour;
     }
-    data.report.pulseCnt = pData->pulseCnt;
+
+    #if (NUM_PULSECOUNT > 0)
+    for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++)
+    {
+        data.report.pulseCnt[0] = pData->pulseCnt[0];
+    }
+    #endif
 
     data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Report_t));
 
@@ -251,6 +260,9 @@ evtKiloHertz()
      * processing rather than entering the interrupt reliably.
      */
     wdtFeed();
+
+    /* Update the pulse counters, looking on different edges */
+    pulseUpdate();
 }
 
 /*! @brief Check if an event source is active
@@ -269,7 +281,8 @@ dbgPutBoard()
     char        wr_buf[8];
     const int   board_id = BOARD_ID;
 
-    dbgPuts("\033c== Energy Monitor 32 ==\r\n");
+    dbgPuts("\033c== Energy Monitor 32 ==\r\n\r\n");
+
     dbgPuts("Board:    ");
     switch (board_id)
     {
@@ -293,7 +306,7 @@ dbgPutBoard()
     uartPutcBlocking(SERCOM_UART_DBG, '.');
     (void)utilItoa(wr_buf, VERSION_FW_MIN, ITOA_BASE10);
     dbgPuts(wr_buf);
-    dbgPuts("\r\n");
+    dbgPuts("\r\n\r\n");
 }
 
 
@@ -309,9 +322,11 @@ setup_uc()
     portSetup();
     dmacSetup();
     sercomSetup();
+
+    dbgPutBoard();
+
     adcSetup();
     evsysSetup();
-    eicSetup();
     wdtSetup(WDT_PER_4K);
 }
 
@@ -326,6 +341,7 @@ main()
     PackedData_t    packedData;
     uint32_t        cyclesProcessed = 0u;
     uint32_t        tempCount = 0;
+    PulseCfg_t      *pulseCfg = 0;
 
     setup_uc();
 
@@ -333,8 +349,6 @@ main()
     uartConfigureDMA();
     uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
     uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
-
-    dbgPutBoard();
 
     /* Load stored values (configuration and accumulated energy) from
      * non-volatile memory (NVM). If the NVM has not been used before then
@@ -381,6 +395,21 @@ main()
         sercomSetupUART(&uart_data_cfg);
     }
 
+    #if (NUM_PULSECOUNT > 0)
+    /* REVISIT : make the 100 Hz time out periods and active configurable */
+    pulseCfg = pulseGetCfg(0);
+    if (0 != pulseCfg)
+    {
+        pulseCfg->edge      = PULSE_EDGE_FALLING;
+        pulseCfg->grp       = GRP_PULSE0;
+        pulseCfg->pin       = PIN_PULSE0;
+        pulseCfg->periods   = 4u;
+        pulseCfg->active    = 1u;
+        pulseInit(0);
+        pulseSetCount(0, dataset.pulseCnt[0]);
+    }
+    #endif
+
     /* Set up buffers for ADC data, and configure energy processing */
     ledOn();
     emon32StateSet(EMON_STATE_ACTIVE);
@@ -395,7 +424,7 @@ main()
          */
         while(0 != evtPend)
         {
-            /* 1 ms timer flag */
+            /* 10 ms timer flag */
             if (evtPending(EVT_SYSTICK_100Hz))
             {
                 evtKiloHertz();

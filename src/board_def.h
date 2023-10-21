@@ -120,15 +120,6 @@
 
 #endif /* BOARD_ID */
 
-/* Pulse counting */
-#define PULSE_MIN_PERIOD_MS         100u    /* Minimum period between pulses */
-#define PULSE_EIC_MAP               3u
-#define PULSE_EIC_FILTER            EIC_CONFIG_FILTEN3
-#define PULSE_EIC_RISING            EIC_CONFIG_SENSE3_RISE
-#define PULSE_EIC_INTFLAG           EIC_INTFLAG_EXTINT3
-#define PULSE_EIC_INTENSET          EIC_INTENSET_EXTINT3
-#define PULSE_EIC_INTENCLR          EIC_INTENCLR_EXTINT3
-
 /* Pin assignments (nb. logical, not physical) */
 #if (BOARD_ID == BOARD_ID_LC)
 
@@ -211,6 +202,11 @@
 #define DMA_CHAN_I2CM       2u
 #define DMA_CHAN_UART_DBG   1u
 #define DMA_CHAN_ADC        0u
+
+/* Pulse counting */
+#define GRP_PULSE0          0
+#define PIN_PULSE0          17
+#define PIN_PULSE1          16
 
 #endif /* BOARD_ID */
 

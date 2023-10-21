@@ -65,7 +65,9 @@ typedef struct {
     uint32_t    msgNum;
     float       rmsV[NUM_V];
     DataCT_t    CT[NUM_CT];
-    uint32_t    pulseCnt;
+    #if (NUM_PULSECOUNT > 0)
+    uint64_t    pulseCnt[NUM_PULSECOUNT];
+    #endif
 } ECMSet_t;
 
 /******************************************************************************

@@ -42,6 +42,7 @@
  * energy and pulse count values. 2 bytes for CRC, 1 for valid
  */
 #define EEPROM_WL_SIZE_BLK  (NUM_CT * 4) + (NUM_PULSECOUNT * 4) + 2 + 1
+#define EEPROM_WL_NUM_BLK   EEPROM_WL_SIZE / EEPROM_WL_SIZE_BLK
 
 /* Uncomment to downsample the sample rate by low pass filter
  * Otherwise, the second sample from each set will be discarded
@@ -92,7 +93,9 @@ typedef struct __attribute__((__packed__)) {
 
 typedef struct __attribute__((__packed__)) {
     uint32_t        wattHour[NUM_CT];
-    uint32_t        pulseCnt;
+    #if (NUM_PULSECOUNT > 0)
+    uint64_t        pulseCnt[NUM_PULSECOUNT];
+    #endif
 } Emon32Report_t;
 
 typedef struct __attribute__((__packed__)) {
@@ -106,8 +109,12 @@ typedef struct __attribute__((__packed__)) {
     int16_t         V[NUM_V];
     int16_t         P[NUM_CT];
     int32_t         E[NUM_CT];
-    // int16_t         T[NUM_TEMP];
-    uint32_t        pulse;
+    #if (NUM_TEMP > 0)
+    int16_t         T[NUM_TEMP];
+    #endif
+    #if (NUM_PULSECOUNT > 0)
+    uint64_t        pulse[NUM_PULSECOUNT];
+    #endif
 } PackedData_t;
 
 /* Contains the states that are available to emon32 */

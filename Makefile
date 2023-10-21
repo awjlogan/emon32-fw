@@ -46,7 +46,6 @@ SRCS += \
   ./src/driver_ADC.c \
   ./src/driver_CLK.c \
   ./src/driver_DMAC.c \
-  ./src/driver_EIC.c \
   ./src/driver_EVSYS.c \
   ./src/driver_PORT.c \
   ./src/driver_SAMD.c \
@@ -61,6 +60,7 @@ SRCS += \
   ./src/emon32.c \
   ./src/periph_rfm69.c \
   ./src/periph_DS18B20.c \
+  ./src/pulse.c \
   ./src/temperature.c \
   ./src/util.c
 
