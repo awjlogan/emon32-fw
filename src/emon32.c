@@ -33,26 +33,77 @@ static unsigned int         lastStoredWh;
  * Static function prototypes
  *************************************/
 
+static void     datasetInit(Emon32Dataset_t *pDst, ECMDataset_t *pECM);
+static void     datasetUpdate(Emon32Dataset_t *pDst);
 static void     dbgPutBoard();
+static void     ecmConfigure(const Emon32Config_t *pCfg);
 static void     evtKiloHertz();
 static uint32_t evtPending(EVTSRC_t evt);
 static void     ledOn();
 static void     ledToggle();
 static void     loadConfiguration(Emon32Config_t *pCfg);
-static void     loadCumulative(eepromPktWL_t *pPkt, ECMSet_t *pData);
-static void     processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, const unsigned int whDeltaStore);
+static void     loadCumulative(eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
+static void     processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     setup_uc();
-static void     storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData);
-static uint32_t totalEnergy(const ECMSet_t *pData);
+static void     storeCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
+static uint32_t totalEnergy(const Emon32Dataset_t *pData);
 
 /*************************************
  * Functions
  *************************************/
 
+static void
+datasetInit(Emon32Dataset_t *pDst, ECMDataset_t *pECM)
+{
+    pDst->msgNum = 0;
+
+    pDst->pECM = pECM;
+
+    #if (NUM_PULSECOUNT > 0)
+    for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
+    {
+        pDst->pulseCnt[i] = 0;
+
+    }
+    #endif
+}
+
+static void
+datasetUpdate(Emon32Dataset_t *pDst)
+{
+    pDst->msgNum++;
+    #if (NUM_PULSECOUNT > 0)
+    for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
+    {
+        pDst->pulseCnt[i] = pulseGetCount(i);
+
+    }
+    #endif
+}
+
 void
 dbgPuts(const char *s)
 {
     uartPutsBlocking(SERCOM_UART_DBG, s);
+}
+
+void
+ecmConfigure(const Emon32Config_t *pCfg)
+{
+    ECMCfg_t *ecmCfg;
+    ecmCfg = ecmGetConfig();
+
+    ecmCfg->reportCycles = pCfg->baseCfg.reportCycles;
+    for (unsigned int i = 0; i < NUM_V; i ++)
+    {
+        ecmCfg->voltageCal[i] = pCfg->voltageCfg[i].voltageCal;
+    }
+    for (unsigned int i = 0; i < NUM_CT; i++)
+    {
+        ecmCfg->ctCfg[i].phaseX = pCfg->ctCfg[i].phaseX;
+        ecmCfg->ctCfg[i].phaseY = pCfg->ctCfg[i].phaseY;
+        ecmCfg->ctCfg[i].ctCal  = pCfg->ctCfg[i].ctCal;
+    }
 }
 
 void
@@ -151,12 +202,12 @@ loadConfiguration(Emon32Config_t *pCfg)
  *  @return : sum of Wh for all CTs
  */
 static uint32_t
-totalEnergy(const ECMSet_t *pData)
+totalEnergy(const Emon32Dataset_t *pData)
 {
     uint32_t totalEnergy = 0;
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        totalEnergy += pData->CT[idxCT].wattHour;
+        totalEnergy += pData->pECM->CT[idxCT].wattHour;
     }
     return totalEnergy;
 }
@@ -166,17 +217,17 @@ totalEnergy(const ECMSet_t *pData)
  *  @param [in] pData : pointer to current dataset
  */
 static void
-loadCumulative(eepromPktWL_t *pPkt, ECMSet_t *pData)
+loadCumulative(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
 {
-    Emon32Cumulative_t data;
+    Emon32CumulativeSave_t data;
     pPkt->pData = &data;
 
-    memset(&data, 0, sizeof(Emon32Cumulative_t));
+    memset(&data, 0, sizeof(Emon32CumulativeSave_t));
     eepromReadWL(pPkt);
 
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        pData->CT[idxCT].wattHour = data.report.wattHour[idxCT];
+        pData->pECM->CT[idxCT].wattHour = data.report.wattHour[idxCT];
     }
 
     #if (NUM_PULSECOUNT > 0)
@@ -191,17 +242,17 @@ loadCumulative(eepromPktWL_t *pPkt, ECMSet_t *pData)
  *  @param [in] pRes : pointer to cumulative values
  */
 static void
-storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData)
+storeCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
 {
     int timerStatus;
 
-    Emon32Cumulative_t data;
+    Emon32CumulativeSave_t data;
     pPkt->pData = &data;
 
     /* Copy data and calculate CRC */
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        data.report.wattHour[idxCT] = pData->CT[idxCT].wattHour;
+        data.report.wattHour[idxCT] = pData->pECM->CT[idxCT].wattHour;
     }
 
     #if (NUM_PULSECOUNT > 0)
@@ -211,7 +262,7 @@ storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData)
     }
     #endif
 
-    data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Report_t));
+    data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Cumulative_t));
 
     eepromWriteWL(pPkt);
     /* If the timer is in use, then add a pending event to finish the EEPROM
@@ -224,7 +275,7 @@ storeCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData)
 }
 
 static void
-processCumulative(eepromPktWL_t *pPkt, const ECMSet_t *pData, const unsigned int whDeltaStore)
+processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore)
 {
     int         energyOverflow;
     uint32_t    latestWh;
@@ -334,7 +385,8 @@ int
 main()
 {
     Emon32Config_t  e32Config;
-    ECMSet_t        dataset;
+    ECMDataset_t    ecmDataset;
+    Emon32Dataset_t dataset;
     eepromPktWL_t   eepromPkt;
     RFMPkt_t        *rfmPkt;
     char            txBuffer[TX_BUFFER_W] = {0};
@@ -357,12 +409,14 @@ main()
      */
     eepromPkt.addrBase      = EEPROM_WL_OFFSET;
     eepromPkt.blkCnt        = EEPROM_WL_NUM_BLK;
-    eepromPkt.dataSize      = sizeof(Emon32Cumulative_t);
+    eepromPkt.dataSize      = sizeof(Emon32CumulativeSave_t);
     eepromPkt.idxNextWrite  = -1;
 
+    datasetInit(&dataset, &ecmDataset);
     loadConfiguration(&e32Config);
     loadCumulative(&eepromPkt, &dataset);
     lastStoredWh = totalEnergy(&dataset);
+    ecmConfigure(&e32Config);
 
     /* Set up data transmission interfaces and configuration */
     if (DATATX_RFM69 == e32Config.baseCfg.dataTx)
@@ -413,7 +467,6 @@ main()
     /* Set up buffers for ADC data, and configure energy processing */
     ledOn();
     emon32StateSet(EMON_STATE_ACTIVE);
-    ecmInit(&e32Config);
     adcStartDMAC((uint32_t)ecmDataBuffer());
     dbgPuts("> Start monitoring...\r\n");
 
@@ -500,7 +553,9 @@ main()
             {
                 unsigned int pktLength;
 
-                ecmProcessSet(&dataset);
+                ecmProcessSet(&ecmDataset);
+                datasetUpdate(&dataset);
+
                 pktLength = dataPackageESP_n(&dataset, txBuffer, TX_BUFFER_W);
 
                 if (pktLength >= TX_BUFFER_W)

@@ -559,13 +559,13 @@ configLoadFromNVM(Emon32Config_t *pCfg)
         configDefault(pCfg);
         eepromInitConfig(pCfg, cfgSize);
         (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
-        dbgPuts("Done\r\n");
+        dbgPuts("Done!\r\n");
     }
     else
     {
         dbgPuts("> Reading configuration from NVM... ");
         eepromRead(0, (void *)pCfg, cfgSize);
-        dbgPuts("Done\r\n");
+        dbgPuts("Done!\r\n");
 
         /* Check the CRC and raise a warning if no matched. -2 from the base
          * size to account for the stored 16 bit CRC.

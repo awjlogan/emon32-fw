@@ -2,6 +2,7 @@
 #define EMON32_H
 
 #include <stdint.h>
+#include "emon_CM.h"
 
 /* Firmware version */
 #define VERSION_FW_MAJ      0u
@@ -17,20 +18,9 @@
  * has been retrieved from non-volatile storage */
 #define CONFIG_NVM_KEY      0xca55e77eul
 
-/* Voltage and CT setup - this is configurable, but constrained per board. For
- * example, NUM_CT can't be greater than the number of physical channels, but
- * can be less.
+/* Voltage and CT setup.
  */
 #define DELTA_WH_STORE      200u    /* Threshold to store to non-volatile */
-#define NUM_V               1u
-#define NUM_CT              2u
-#define VCT_TOTAL           NUM_V + NUM_CT
-#define SAMPLE_RATE         4800u
-#define SAMPLES_IN_SET      2u
-#define SAMPLE_BUF_DEPTH    2u
-
-#define ZC_HYST             3u      /* Zero crossing hysteresis */
-#define EQUIL_CYCLES        5u      /* Number of cycles to discard at POR */
 
 /* Pulse count setup */
 #define NUM_PULSECOUNT      1
@@ -50,13 +40,6 @@
 #define DOWNSAMPLE_DSP
 #define DOWNSAMPLE_TAPS     19u
 
-/* Number of samples available for power calculation. must be power of 2 */
-#define PROC_DEPTH          4u
-
-/* Alias integer types for fixed point calculation */
-typedef int16_t     q15_t;
-typedef int32_t     q31_t;
-
 /* Configurable options. All the structs are packed to allow simple write to
  * EEPROM as a contiguous set.
  */
@@ -74,6 +57,11 @@ typedef struct __attribute__((__packed__)) {
 } BaseCfg_t;
 
 typedef struct __attribute__((__packed__)) {
+    uint8_t         period;
+    uint8_t         edge;
+} PulseCfgPacked_t;
+
+typedef struct __attribute__((__packed__)) {
    float           voltageCal;      /* Conversion to real V value */
 } VoltageCfg_t;
 
@@ -84,25 +72,38 @@ typedef struct __attribute__((__packed__)) {
 } CTCfg_t;
 
 typedef struct __attribute__((__packed__)) {
-    uint32_t        key;
-    BaseCfg_t       baseCfg;
-    VoltageCfg_t    voltageCfg[NUM_V];
-    CTCfg_t         ctCfg[NUM_CT];
-    uint16_t        crc16_ccitt;
+    uint32_t            key;
+    BaseCfg_t           baseCfg;
+#if (NUM_PULSECOUNT > 0)
+    PulseCfgPacked_t    pulseCfg[NUM_PULSECOUNT];
+    uint8_t             pulseActive;
+#endif
+    VoltageCfg_t        voltageCfg[NUM_V];
+    CTCfg_t             ctCfg[NUM_CT];
+    uint32_t            ctActive;       /* Multihot active bits */
+    uint16_t            crc16_ccitt;
 } Emon32Config_t;
+
+typedef struct {
+    uint32_t        msgNum;
+    ECMDataset_t    *pECM;
+    #if (NUM_PULSECOUNT > 0)
+    uint64_t        pulseCnt[NUM_PULSECOUNT];
+    #endif
+} Emon32Dataset_t;
 
 typedef struct __attribute__((__packed__)) {
     uint32_t        wattHour[NUM_CT];
     #if (NUM_PULSECOUNT > 0)
     uint64_t        pulseCnt[NUM_PULSECOUNT];
     #endif
-} Emon32Report_t;
+} Emon32Cumulative_t;
 
 typedef struct __attribute__((__packed__)) {
-    uint8_t         valid;  /* Valid byte for wear levelling */
-    Emon32Report_t  report;
-    uint16_t        crc;    /* CRC16-CCITT of data */
-} Emon32Cumulative_t;
+    uint8_t             valid;  /* Valid byte for wear levelling */
+    Emon32Cumulative_t  report;
+    uint16_t            crc;    /* CRC16-CCITT of data */
+} Emon32CumulativeSave_t;
 
 typedef struct __attribute__((__packed__)) {
     uint32_t        msg;
@@ -146,28 +147,6 @@ typedef enum {
     EVT_TEMP_SAMPLE     = 14u,
     EVT_TEMP_READ       = 15u
 } EVTSRC_t;
-
-/* SingleSampleSet_t contains a single set of V + CT ADC samples */
-typedef struct __attribute__((__packed__)) SingleSampleSet {
-    q15_t smp[VCT_TOTAL];
-} SingleRawSampleSet_t;
-
-/* SampleSetPacked_t contains a set of single sample sets. This allows the DMAC
- * to blit samples across multiple sample sets, depending on processing needs
- */
-typedef struct __attribute__((__packed__)) SampleSetPacked {
-    SingleRawSampleSet_t samples[SAMPLES_IN_SET];
-} RawSampleSetPacked_t;
-
-typedef struct RawSampleSetUnpacked {
-    q15_t smp[NUM_V + NUM_CT];
-} RawSampleSetUnpacked_t;
-
-/* SampleSet_t contains an unpacked set of single sample sets */
-typedef struct SampleSet {
-    q15_t smpV[NUM_V];
-    q15_t smpCT[NUM_CT];
-} SampleSet_t;
 
 /*! @brief Get the default configuration values
  *  @param [out] pCfg : pointer to configuration struct

@@ -4,7 +4,7 @@
 #include "qfpio.h"
 
 unsigned int
-dataPackageESP_n(const ECMSet_t *pData, char *pDst, unsigned int n)
+dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, unsigned int n)
 {
     unsigned int    charCnt = 0;
     char            tmpBuf[16];
@@ -35,7 +35,7 @@ dataPackageESP_n(const ECMSet_t *pData, char *pDst, unsigned int n)
     {
         cursor = utilStrInsert(pDst, ",Vrms:", cursor, 6);
     }
-    qfp_float2str(pData->rmsV[0], tmpBuf, 0);
+    qfp_float2str(pData->pECM->rmsV[0], tmpBuf, 0);
     insLen = utilStrlen(tmpBuf);
     charCnt += insLen;
     if (charCnt <= n)
@@ -62,7 +62,7 @@ dataPackageESP_n(const ECMSet_t *pData, char *pDst, unsigned int n)
         {
             cursor = utilStrInsert(pDst, ":", cursor, 1);
         }
-        qfp_float2str(pData->CT[idxCT].realPower, tmpBuf, 0);
+        qfp_float2str(pData->pECM->CT[idxCT].realPower, tmpBuf, 0);
         insLen = utilStrlen(tmpBuf);
         charCnt += insLen;
         if (charCnt <= n)
@@ -85,7 +85,7 @@ dataPackageESP_n(const ECMSet_t *pData, char *pDst, unsigned int n)
         {
             cursor = utilStrInsert(pDst, ":", cursor, 1);
         }
-        insLen = utilItoa(tmpBuf, pData->CT[idxCT].wattHour, ITOA_BASE10) - 1u;
+        insLen = utilItoa(tmpBuf, pData->pECM->CT[idxCT].wattHour, ITOA_BASE10) - 1u;
         charCnt += insLen;
         if (charCnt <= n)
         {
@@ -99,11 +99,11 @@ dataPackageESP_n(const ECMSet_t *pData, char *pDst, unsigned int n)
 }
 
 void
-dataPackagePacked(const ECMSet_t *pData, PackedData_t *pPacked)
+dataPackagePacked(const Emon32Dataset_t *pData, PackedData_t *pPacked)
 {
     pPacked->msg = pData->msgNum;
     for (unsigned int v = 0; v < NUM_V; v++)
     {
-        pPacked->V[v] = (int16_t)pData->rmsV[v];
+        pPacked->V[v] = (int16_t)pData->pECM->rmsV[v];
     }
 }

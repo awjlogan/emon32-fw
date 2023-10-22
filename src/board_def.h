@@ -29,6 +29,13 @@
 #define F_TIMER1            F_PERIPH / 8
 #define F_TIMER2            F_PERIPH / 8
 
+#define NUM_V               1u
+#define NUM_CT              2u
+#define VCT_TOTAL           NUM_V + NUM_CT
+#define SAMPLE_RATE         4800u
+#define SAMPLES_IN_SET      2u
+#define SAMPLE_BUF_DEPTH    2u
+
 /* Oversampling
  * There will be a fixed anti-aliasing filter on the board. This should be the
  * target oversampling ratio at the ADC

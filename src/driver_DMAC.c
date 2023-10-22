@@ -2,6 +2,7 @@
 #include "driver_ADC.h"
 #include "driver_DMAC.h"
 
+#include "emon32.h"
 #include "emon_CM.h"
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
