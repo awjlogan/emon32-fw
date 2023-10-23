@@ -53,9 +53,11 @@ typedef struct SampleSet {
 } SampleSet_t;
 
 typedef struct {
-    q15_t   phaseX;
-    q15_t   phaseY;
-    float   ctCal;
+    q15_t           phaseX;
+    q15_t           phaseY;
+    float           ctCal;
+    unsigned int    active;
+    unsigned int    vChan;
 } CTCfgUnpacked_t;
 
 typedef struct {

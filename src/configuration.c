@@ -39,12 +39,13 @@
     }
 
 #else
+
     #include "emon32_samd.h"
 
     #include "driver_SERCOM.h"
-    #include "emon32.h"
     #include "configuration.h"
     #include "eeprom.h"
+    #include "emon32.h"
     #include "qfplib.h"
     #include "qfpio.h"
     #include "util.h"
@@ -289,6 +290,7 @@ menuVoltage()
 static void
 menuCTChan(unsigned int chanCT)
 {
+    unsigned int activeMask = (1 << chanCT);
     char c = 0;
     unsigned int idxChange = 0;
 
@@ -299,41 +301,66 @@ menuCTChan(unsigned int chanCT)
         (void)utilItoa(genBuf, chanCT, ITOA_BASE10);
         putString(genBuf);
         putString(" ----\r\n\r\n");
-        putString("0: Conversion factor:   ");
+        putString("0: Active:              ");
+        if (0 == (activeMask & pCfg->ctActive))
+        {
+            putString("N\r\n");
+        }
+        else
+        {
+            putString("Y\r\n");
+        }
+        putString("1: Conversion factor:   ");
         putValueEnd_Float(pCfg->ctCfg[chanCT].ctCal);
-        putString("1: Phase calibration X: ");
+        putString("2: Phase calibration X: ");
         putValueEnd_10(pCfg->ctCfg[chanCT].phaseX);
-        putString("2: Phase calibration Y: ");
+        putString("3: Phase calibration Y: ");
         putValueEnd_10(pCfg->ctCfg[chanCT].phaseY);
+        putString("4: V Channel:           ");
+        putValueEnd_10(pCfg->ctCfg[chanCT].vChan);
         infoEdit();
 
         c = waitForChar();
 
         if ('0' == c)
         {
-            float   val_f;
             int16_t val_fixed;
             idxChange = c - '0';
 
-            switch (idxChange)
+            if (1 == idxChange)
             {
-                case 0:
-                    val_f = getValue_float();
-                    pCfg->ctCfg[chanCT].ctCal = val_f;
-                    valChanged = 1u;
-                    break;
-                case 1:
-                    val_fixed = getValue();
-                    pCfg->ctCfg[chanCT].phaseX = val_fixed;
-                    valChanged = 1u;
-                    break;
-                case 2:
-                    val_fixed = getValue();
-                    pCfg->ctCfg[chanCT].phaseY = val_fixed;
-                    valChanged = 1u;
-                    break;
-                default:
-                    break;
+                pCfg->ctCfg[chanCT].ctCal = getValue_float();
+                valChanged = 1u;
+            }
+            else
+            {
+                val_fixed = getValue();
+                valChanged = 1u;
+                switch (idxChange)
+                {
+                    case 0:
+                        if ('Y' == (char)val_fixed)
+                        {
+                            pCfg->ctActive |= activeMask;
+                            valChanged = 1u;
+                        }
+                        else if ('N' == (char)val_fixed)
+                        {
+                            pCfg->ctActive &= ~activeMask;
+                        }
+                        break;
+                    case 2:
+                        pCfg->ctCfg[chanCT].phaseX = val_fixed;
+                        break;
+                    case 3:
+                        pCfg->ctCfg[chanCT].phaseY = val_fixed;
+                        break;
+                    case 4:
+                        pCfg->ctCfg[chanCT].vChan = val_fixed;
+                        break;
+                    default:
+                        break;
+                }
             }
         }
     }
@@ -376,13 +403,13 @@ menuConfiguration()
     {
         clearTerm();
         putString("---- CONFIGURATION ----\r\n\r\n");
-        putString("0: Node ID:                  ");
+        putString("0: Node ID:                    ");
         putValueEnd_10(pCfg->baseCfg.nodeID);
-        putString("1: Cycles to report:         ");
+        putString("1: Cycles to report:           ");
         putValueEnd_10(pCfg->baseCfg.reportCycles);
-        putString("2: Mains frequency (Hz):     ");
+        putString("2: Mains frequency (Hz):       ");
         putValueEnd_10(pCfg->baseCfg.mainsFreq);
-        putString("3: Energy delta to store:    ");
+        putString("3: Energy delta to store (Wh): ");
         putValueEnd_10(pCfg->baseCfg.whDeltaStore);
         infoEdit();
 
@@ -601,7 +628,9 @@ configDefault(Emon32Config_t *pCfg)
         pCfg->ctCfg[idxCT].ctCal    = 90.91;
         pCfg->ctCfg[idxCT].phaseX   = 13495;
         pCfg->ctCfg[idxCT].phaseY   = 19340;
+        pCfg->ctCfg[idxCT].vChan    = 0;
     }
+    pCfg->ctActive = (1 << NUM_CT_ACTIVE_DEF) - 1u;
 
     pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
 }

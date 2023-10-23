@@ -69,6 +69,7 @@ typedef struct __attribute__((__packed__)) {
     float           ctCal;          /* Conversion to real I value */
     q15_t           phaseX;         /* Phase calibrations for interpolation */
     q15_t           phaseY;
+    uint8_t         vChan;
 } CTCfg_t;
 
 typedef struct __attribute__((__packed__)) {

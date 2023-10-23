@@ -443,20 +443,28 @@ ecmProcessCycle()
     /* CT channels */
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        accum_processing->processCT[idxCT].sumI_sqr    = __STRUNCATE(accum_processing->processCT[idxCT].sumI_sqr);
-        int32_t sumI_deltas_sqr =   accum_processing->processCT[idxCT].sumI_deltas
-                                  * accum_processing->processCT[idxCT].sumI_deltas;
-        sumI_deltas_sqr = __STRUNCATE(sumI_deltas_sqr);
+        if (0 != ecmCfg.ctCfg[idxCT].active)
+        {
+            accum_processing->processCT[idxCT].sumI_sqr    = __STRUNCATE(accum_processing->processCT[idxCT].sumI_sqr);
+            int32_t sumI_deltas_sqr =   accum_processing->processCT[idxCT].sumI_deltas
+                                      * accum_processing->processCT[idxCT].sumI_deltas;
+            sumI_deltas_sqr = __STRUNCATE(sumI_deltas_sqr);
 
 
-        /* Apply phase calibration for CT interpolated between V samples */
-        int32_t sumRealPower =   accum_processing->processCT[idxCT].sumPA * ecmCfg.ctCfg[idxCT].phaseX
-                               + accum_processing->processCT[idxCT].sumPB * ecmCfg.ctCfg[idxCT].phaseY;
+            /* Apply phase calibration for CT interpolated between V samples */
+            int32_t sumRealPower =   accum_processing->processCT[idxCT].sumPA * ecmCfg.ctCfg[idxCT].phaseX
+                                   + accum_processing->processCT[idxCT].sumPB * ecmCfg.ctCfg[idxCT].phaseY;
 
-        ecmCycle.valCT[idxCT].powerNow += (sumRealPower / numSamples) - (sumI_deltas_sqr / numSamplesSqr);
+            ecmCycle.valCT[idxCT].powerNow += (sumRealPower / numSamples) - (sumI_deltas_sqr / numSamplesSqr);
 
-        ecmCycle.valCT[idxCT].rmsCT +=   sqrt_q15(((accum_processing->processCT[idxCT].sumI_sqr / numSamples)
-                                       - (sumI_deltas_sqr / numSamplesSqr)));
+            ecmCycle.valCT[idxCT].rmsCT +=   sqrt_q15(((accum_processing->processCT[idxCT].sumI_sqr / numSamples)
+                                           - (sumI_deltas_sqr / numSamplesSqr)));
+        }
+        else
+        {
+            ecmCycle.valCT[idxCT].powerNow = 0;
+            ecmCycle.valCT[idxCT].rmsCT = 0;
+        }
     }
 
     if (ecmCycle.cycleCount >= ecmCfg.reportCycles)
@@ -486,17 +494,25 @@ ecmProcessSet(ECMDataset_t *pData)
         float   energyNow;
         float   scaledPower;
 
-        scaledPower =   qfp_fmul(qfp_fmul(ecmCycle.valCT[idxCT].powerNow,
-                                          vCal),
-                                 ecmCfg.ctCfg[idxCT].ctCal);
-        pData->CT[idxCT].realPower = qfp_fadd(scaledPower, 0.5f);
+        if (0 != ecmCfg.ctCfg[idxCT].active)
+        {
+            scaledPower =   qfp_fmul(qfp_fmul(ecmCycle.valCT[idxCT].powerNow,
+                                              vCal),
+                                     ecmCfg.ctCfg[idxCT].ctCal);
+            pData->CT[idxCT].realPower = qfp_fadd(scaledPower, 0.5f);
 
-        /* TODO add frequency deviation scaling */
-        energyNow = qfp_fadd(scaledPower, pData->CT[idxCT].residualEnergy);
-        wattHoursRecent = (int)energyNow / 3600;
-        pData->CT[idxCT].wattHour += wattHoursRecent;
-        pData->CT[idxCT].residualEnergy = qfp_fsub(energyNow,
-                                                   qfp_fmul(wattHoursRecent, 3600.0f));
+            /* TODO add frequency deviation scaling */
+            energyNow = qfp_fadd(scaledPower, pData->CT[idxCT].residualEnergy);
+            wattHoursRecent = (int)energyNow / 3600;
+            pData->CT[idxCT].wattHour += wattHoursRecent;
+            pData->CT[idxCT].residualEnergy = qfp_fsub(energyNow,
+                                                       qfp_fmul(wattHoursRecent, 3600.0f));
+        }
+        else
+        {
+            pData->CT[idxCT].wattHour = 0;
+            pData->CT[idxCT].residualEnergy = 0.0f;
+        }
     }
 
     /* Zero out cycle accummulator */

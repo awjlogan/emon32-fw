@@ -100,9 +100,15 @@ ecmConfigure(const Emon32Config_t *pCfg)
     }
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
+        uint32_t active = pCfg->ctActive & (1 << i);
+
         ecmCfg->ctCfg[i].phaseX = pCfg->ctCfg[i].phaseX;
         ecmCfg->ctCfg[i].phaseY = pCfg->ctCfg[i].phaseY;
         ecmCfg->ctCfg[i].ctCal  = pCfg->ctCfg[i].ctCal;
+        ecmCfg->ctCfg[i].active =   active
+                                  ? 1u
+                                  : 0u;
+        ecmCfg->ctCfg[i].vChan  = pCfg->ctCfg[i].vChan;
     }
 }
 
