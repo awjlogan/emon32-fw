@@ -2,9 +2,9 @@
 #define PULSE_H
 
 typedef enum {
-    PULSE_EDGE_RISING,
-    PULSE_EDGE_FALLING,
-    PULSE_EDGE_BOTH
+    PULSE_EDGE_RISING   = 0,
+    PULSE_EDGE_FALLING  = 1,
+    PULSE_EDGE_BOTH     = 2
 } PulseEdge_t;
 
 typedef struct {

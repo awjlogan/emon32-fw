@@ -38,7 +38,6 @@ static void     datasetUpdate           (Emon32Dataset_t *pDst);
 static RFMPkt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
 static void     dbgPutBoard             ();
 static void     ecmConfigure            (const Emon32Config_t *pCfg);
-static void     evtCycleComplete        ();
 static void     evtKiloHertz            ();
 static uint32_t evtPending              (EVTSRC_t evt);
 static void     ledStatusOn             ();
@@ -404,20 +403,24 @@ processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsig
 static void
 pulseConfigure(const Emon32Config_t *pCfg)
 {
-    (void)pCfg;
-    #if (NUM_PULSECOUNT > 0)
-    PulseCfg_t *pulseCfg = pulseGetCfg(0);
-    /* REVISIT : make the 100 Hz time out periods and active configurable */
-    if (0 != pulseCfg)
+    extern uint8_t pinsPulse[][2];
+
+    for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
-        pulseCfg->edge      = PULSE_EDGE_FALLING;
-        pulseCfg->grp       = GRP_PULSE0;
-        pulseCfg->pin       = PIN_PULSE0;
-        pulseCfg->periods   = 4u;
-        pulseCfg->active    = 1u;
-        pulseInit(0);
+        PulseCfg_t *pulseCfg = pulseGetCfg(i);
+
+        if (0 != pulseCfg)
+        {
+            pulseCfg->edge      = (PulseEdge_t)pCfg->pulseCfg[i].edge;
+            pulseCfg->grp       = pinsPulse[i][0];
+            pulseCfg->pin       = pinsPulse[i][1];
+            pulseCfg->periods   = pCfg->pulseCfg[i].period;
+            pulseCfg->active    =   (0 == (pCfg->pulseActive & (1 << i)))
+                                  ? 0
+                                  : 1;
+            pulseInit(i);
+        }
     }
-    #endif
 }
 
 /*! @brief Setup the microcontoller. This function must be called first. An
@@ -458,15 +461,15 @@ totalEnergy(const Emon32Dataset_t *pData)
 int
 main()
 {
-    Emon32Config_t  e32Config;
-    ECMDataset_t    ecmDataset;
-    Emon32Dataset_t dataset;
-    eepromPktWL_t   nvmCumulative;
-    RFMPkt_t        *rfmPkt;
-    char            txBuffer[TX_BUFFER_W] = {0};
-    PackedData_t    packedData;
-    uint32_t        cyclesProcessed = 0u;
-    uint32_t        tempCount = 0;
+    Emon32Config_t  e32Config               = {0};
+    ECMDataset_t    ecmDataset              = {0};
+    Emon32Dataset_t dataset                 = {0};
+    eepromPktWL_t   nvmCumulative           = {0};
+    RFMPkt_t        *rfmPkt                 = 0;
+    char            txBuffer[TX_BUFFER_W]   = {0};
+    PackedData_t    packedData              = {0};
+    uint32_t        cyclesProcessed         = 0u;
+    uint32_t        tempCount               = 0;
 
     setupMicrocontroller();
 
@@ -609,7 +612,6 @@ main()
                     dataPackagePacked(&dataset, &packedData);
                     rfmSend(&packedData);
                 }
-                else
                 uartPutsNonBlocking(DMA_CHAN_UART_DBG, txBuffer, pktLength);
 
                 /* If the energy used since the last storage is greater than the

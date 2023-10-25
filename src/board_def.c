@@ -22,6 +22,12 @@ const uint8_t pinsUnused[][2] = {
     {0xFF,      0}
 };
 
+const uint8_t pinsPulse[][2] = {
+    {GRP_PINA,  17},
+    {GRP_PINA,  16},
+    {0xFF,      0}
+};
+
 const uint8_t pinsADC[][2] = {
     {GRP_PINA,  2u},
     {GRP_PINA,  3u},

@@ -36,6 +36,7 @@ pulseInit(const unsigned int index)
     portPinDir(grp, pin, PIN_DIR_IN);
     pinValue[index] = portPinValue(grp, pin);
 
+    /* Use the first read value as the current state */
     pulseLvlLast[index] =   (0 == pinValue[index])
                           ? PULSE_LVL_LOW
                           : PULSE_LVL_HIGH;

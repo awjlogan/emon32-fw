@@ -211,11 +211,6 @@
 #define DMA_CHAN_UART_DBG   1u
 #define DMA_CHAN_ADC        0u
 
-/* Pulse counting */
-#define GRP_PULSE0          0
-#define PIN_PULSE0          17
-#define PIN_PULSE1          16
-
 #endif /* BOARD_ID */
 
 #endif
