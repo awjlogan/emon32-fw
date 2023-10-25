@@ -14,10 +14,10 @@ void
 dmacSetup()
 {
     /* Clocking - AHB and APB are both enabled at reset (15.8.8, 15.8.10) */
-    DMAC->BASEADDR.reg = (uint32_t)dmacs;
-    DMAC->WRBADDR.reg = (uint32_t)dmacs_wb;
-    DMAC->CTRL.reg =   DMAC_CTRL_DMAENABLE
-                     | DMAC_CTRL_LVLEN(0xFu);
+    DMAC->BASEADDR.reg  = (uint32_t)dmacs;
+    DMAC->WRBADDR.reg   = (uint32_t)dmacs_wb;
+    DMAC->CTRL.reg      =   DMAC_CTRL_DMAENABLE
+                          | DMAC_CTRL_LVLEN(0xFu);
 
     /* CRC module - CRC16-CCITT byte wise access from IO */
     DMAC->CRCCTRL.reg = DMAC_CRCCTRL_CRCSRC_IO;
@@ -36,36 +36,36 @@ dmacGetDescriptor(unsigned int ch)
 void
 dmacStartTransfer(unsigned int ch)
 {
-    DMAC->CHID.reg = ch;
-    DMAC->CHCTRLA.reg |= DMAC_CHCTRLA_ENABLE;
+    DMAC->CHID.reg      = ch;
+    DMAC->CHCTRLA.reg   |= DMAC_CHCTRLA_ENABLE;
 }
 
 void
 dmacEnableChannelInterrupt(unsigned int ch)
 {
-    DMAC->CHID.reg = ch;
-    DMAC->CHINTENSET.reg |= DMAC_CHINTENSET_TCMPL;
+    DMAC->CHID.reg          = ch;
+    DMAC->CHINTENSET.reg    |= DMAC_CHINTENSET_TCMPL;
 }
 
 void
 dmacDisableChannelInterrupt(unsigned int ch)
 {
-    DMAC->CHID.reg = ch;
-    DMAC->CHINTENCLR.reg |= DMAC_CHINTENCLR_TCMPL;
+    DMAC->CHID.reg          = ch;
+    DMAC->CHINTENCLR.reg    |= DMAC_CHINTENCLR_TCMPL;
 }
 
 void
 dmacClearChannelInterrupt(unsigned int ch)
 {
-    DMAC->CHID.reg = ch;
+    DMAC->CHID.reg      = ch;
     DMAC->CHINTFLAG.reg |= DMAC_CHINTFLAG_TCMPL;
 }
 
 void
 dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg)
 {
-    DMAC->CHID.reg = ch;
-    DMAC->CHCTRLB.reg = pCfg->ctrlb;
+    DMAC->CHID.reg      = ch;
+    DMAC->CHCTRLB.reg   = pCfg->ctrlb;
 }
 
 unsigned int
@@ -91,8 +91,8 @@ irq_handler_dmac()
     if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL)
     {
         /* Restart DMA for ADC and inject sample */
-        ecmSwapDataBuffer();
-        adcStartDMAC((uint32_t)ecmDataBuffer());
+        ecmSwapDataBuffer   ();
+        adcStartDMAC        ((uint32_t)ecmDataBuffer());
         if (ECM_CYCLE_COMPLETE == ecmInjectSample())
         {
             emon32EventSet(EVT_ECM_CYCLE_CMPL);

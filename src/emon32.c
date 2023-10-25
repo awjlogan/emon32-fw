@@ -144,13 +144,13 @@ dbgPutBoard()
     }
     dbgPuts("\r\n");
 
-    dbgPuts("Firmware: ");
-    (void)utilItoa(wr_buf, VERSION_FW_MAJ, ITOA_BASE10);
-    dbgPuts(wr_buf);
+    dbgPuts         ("Firmware: ");
+    (void)utilItoa  (wr_buf, VERSION_FW_MAJ, ITOA_BASE10);
+    dbgPuts         (wr_buf);
     uartPutcBlocking(SERCOM_UART_DBG, '.');
-    (void)utilItoa(wr_buf, VERSION_FW_MIN, ITOA_BASE10);
-    dbgPuts(wr_buf);
-    dbgPuts("\r\n\r\n");
+    (void)utilItoa  (wr_buf, VERSION_FW_MIN, ITOA_BASE10);
+    dbgPuts         (wr_buf);
+    dbgPuts         ("\r\n\r\n");
 }
 
 void
@@ -283,9 +283,9 @@ nvmLoadConfiguration(Emon32Config_t *pCfg)
     {
         if (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC)
         {
-            emon32StateSet(EMON_STATE_CONFIG);
-            (void)uartGetc(SERCOM_UART_DBG);
-            configEnter(pCfg);
+            emon32StateSet  (EMON_STATE_CONFIG);
+            (void)uartGetc  (SERCOM_UART_DBG);
+            configEnter     (pCfg);
             break;
         }
 
@@ -298,13 +298,13 @@ nvmLoadConfiguration(Emon32Config_t *pCfg)
             /* Countdown every second, tick every 200 ms to debug UART */
             if (0 == (systickCnt % 100))
             {
-                ledStatusToggle();
+                ledStatusToggle ();
                 uartPutcBlocking(SERCOM_UART_DBG, '0' + seconds);
                 seconds--;
             }
             else if (0 == (systickCnt % 20))
             {
-                ledStatusToggle();
+                ledStatusToggle ();
                 uartPutcBlocking(SERCOM_UART_DBG, '.');
             }
         }
@@ -322,7 +322,7 @@ nvmLoadCumulative(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
     Emon32CumulativeSave_t data;
     pPkt->pData = &data;
 
-    memset(&data, 0, sizeof(Emon32CumulativeSave_t));
+    memset      (&data, 0, sizeof(Emon32CumulativeSave_t));
     eepromReadWL(pPkt);
 
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
@@ -430,17 +430,17 @@ pulseConfigure(const Emon32Config_t *pCfg)
 static void
 setupMicrocontroller()
 {
-    clkSetup();
-    timerSetup();
-    portSetup();
-    dmacSetup();
-    sercomSetup();
+    clkSetup    ();
+    timerSetup  ();
+    portSetup   ();
+    dmacSetup   ();
+    sercomSetup ();
 
-    dbgPutBoard();
+    dbgPutBoard ();
 
-    adcSetup();
-    evsysSetup();
-    wdtSetup(WDT_PER_4K);
+    adcSetup    ();
+    evsysSetup  ();
+    wdtSetup    (WDT_PER_4K);
 }
 
 /*! @brief Total energy across all CTs
@@ -483,10 +483,11 @@ main()
      * store default configuration and 0 energy accumulator area.
      * REVISIT add check that firmware version matches stored config.
      */
-    nvmLoadConfiguration(&e32Config);
-    datasetInit(&dataset, &ecmDataset);
-    nvmCumulativeConfigure(&nvmCumulative);
-    nvmLoadCumulative(&nvmCumulative, &dataset);
+    nvmLoadConfiguration    (&e32Config);
+    datasetInit             (&dataset, &ecmDataset);
+    nvmCumulativeConfigure  (&nvmCumulative);
+    nvmLoadCumulative       (&nvmCumulative, &dataset);
+
     lastStoredWh = totalEnergy(&dataset);
 
     /* Set up data transmission interfaces and configuration */
@@ -504,10 +505,10 @@ main()
     pulseConfigure(&e32Config);
 
     /* Set up buffers for ADC data, configure energy processing, and start */
-    ledStatusOn();
-    emon32StateSet(EMON_STATE_ACTIVE);
-    ecmConfigure(&e32Config);
-    adcStartDMAC((uint32_t)ecmDataBuffer());
+    ledStatusOn     ();
+    emon32StateSet  (EMON_STATE_ACTIVE);
+    ecmConfigure    (&e32Config);
+    adcStartDMAC    ((uint32_t)ecmDataBuffer());
     dbgPuts("> Start monitoring...\r\n");
 
     for (;;)
@@ -520,8 +521,8 @@ main()
             /* 10 ms timer flag */
             if (evtPending(EVT_SYSTICK_100Hz))
             {
-                evtKiloHertz();
-                emon32EventClr(EVT_SYSTICK_100Hz);
+                evtKiloHertz    ();
+                emon32EventClr  (EVT_SYSTICK_100Hz);
             }
 
             /* A full mains cycle has completed. Calculate power/energy. When
@@ -609,8 +610,8 @@ main()
                 }
                 else
                 {
-                    dataPackagePacked(&dataset, &packedData);
-                    rfmSend(&packedData);
+                    dataPackagePacked   (&dataset, &packedData);
+                    rfmSend             (&packedData);
                 }
                 uartPutsNonBlocking(DMA_CHAN_UART_DBG, txBuffer, pktLength);
 
@@ -618,9 +619,10 @@ main()
                  * configured energy delta (baseCfg.whDeltaStore), then save the
                  * accumulated energy in NVM.
                  */
-                processCumulative(&nvmCumulative, &dataset, e32Config.baseCfg.whDeltaStore);
+                processCumulative   (&nvmCumulative, &dataset,
+                                     e32Config.baseCfg.whDeltaStore);
 
-                emon32EventClr(EVT_ECM_SET_CMPL);
+                emon32EventClr      (EVT_ECM_SET_CMPL);
             }
 
             /* If timer for EEPROM was not available, then retry until it is free */

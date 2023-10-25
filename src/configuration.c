@@ -137,6 +137,13 @@ getInputStr()
     }
 }
 
+static char
+getChar()
+{
+    getInputStr();
+    return *genBuf;
+}
+
 static unsigned int
 getValue()
 {
@@ -170,15 +177,15 @@ static void
 putValueEnd_10(unsigned int val)
 {
 //     memset(genBuf, 0, GENBUF_W);
-    (void)utilItoa(genBuf, val, ITOA_BASE10);
-    putValueEnd();
+    (void)utilItoa  (genBuf, val, ITOA_BASE10);
+    putValueEnd     ();
 }
 
 static void
 putValueEnd_Float(float val)
 {
-    qfp_float2str(val, genBuf, 0);
-    putValueEnd();
+    qfp_float2str   (val, genBuf, 0);
+    putValueEnd     ();
 }
 
 static void
@@ -220,8 +227,8 @@ menuReset()
         {
             while ('y' != c && 'n' != c)
             {
-                putString("Clear stored energy accumulators? (y/n)\r\n");
-                c = waitForChar();
+                putString       ("Clear stored energy accumulators? (y/n)\r\n");
+                c = waitForChar ();
             }
 
             if ('y' == c)
@@ -233,18 +240,134 @@ menuReset()
 }
 
 static void
+menuPulseChan(unsigned int chanP)
+{
+    char c = 0;
+    unsigned int activeMask = (1 << chanP);
+    unsigned int idxChange  = 0;
+    unsigned int val        = 0;
+    char         input      = 0;
+
+    while ('b' != c)
+    {
+        clearTerm       ();
+        putString       ("---- PULSE CHANNEL ");
+        (void)utilItoa  (genBuf, chanP, ITOA_BASE10);
+        putString       (genBuf);
+        putString       (" ----\r\n\r\n");
+        putString       ("0: Active:           ");
+        if (0 == (pCfg->pulseActive & activeMask))
+        {
+            putString   ("N\r\n");
+        }
+        else
+        {
+            putString   ("Y\r\n");
+        }
+        putString       ("1: Sensitive edge:   ");
+        switch(pCfg->pulseCfg[chanP].edge)
+        {
+            case 0:
+                putString("R\r\n");
+                break;
+            case 1:
+                putString("F\r\n");
+                break;
+            case 2:
+                putString("B\r\n");
+                break;
+        }
+        putString       ("2: Debounce periods: ");
+        (void)utilItoa(genBuf, pCfg->pulseCfg[chanP].period, ITOA_BASE10);
+        putString(genBuf);
+        putString("\r\n");
+        infoEdit();
+
+        c = waitForChar();
+        if ((c >= '0') && (c <= '2'))
+        {
+            idxChange = c - '0';
+            valChanged = 1;
+            if (idxChange < 2)
+            {
+                input = getChar();
+                if (0 == idxChange)
+                {
+                    if ('Y' == input)
+                    {
+                        pCfg->pulseActive |= activeMask;
+                    }
+                    else if ('N' == input)
+                    {
+                        pCfg->pulseActive &= ~activeMask;
+                    }
+                }
+                else
+                {
+                    /* Values here match the PulseEdge_t enum */
+                    if ('R' == input)
+                    {
+                        pCfg->pulseCfg[chanP].edge = 0;
+                    }
+                    else if ('F' == input)
+                    {
+                        pCfg->pulseCfg[chanP].edge = 1;
+                    }
+                    else if ('B' == input)
+                    {
+                        pCfg->pulseCfg[chanP].edge = 2;
+                    }
+                }
+            }
+            else
+            {
+                val = getValue();
+                pCfg->pulseCfg[chanP].period = (uint8_t)val;
+            }
+        }
+    }
+}
+
+
+static void
+menuPulse()
+{
+    char c = 0;
+    while ('b' != c)
+    {
+        clearTerm           ();
+        putString           ("---- PULSE CHANNELS ----\r\n\r\n");
+        for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
+        {
+            (void)utilItoa  (genBuf, i, ITOA_BASE10);
+            putString       (genBuf);
+            putString       (": Pulse Channel ");
+            putString       (genBuf);
+            putString       ("\r\n");
+        }
+        enterConfigText();
+        c = waitForChar();
+
+        if ('b' != c)
+        {
+            menuPulseChan(c - '0');
+        }
+    }
+}
+
+static void
 menuVoltageChan(unsigned int chanV)
 {
     char c = 0;
 
     while ('b' != c)
     {
-        clearTerm();
-        putString("---- VOLTAGE CHANNEL ");
-        (void)utilItoa(genBuf, chanV, ITOA_BASE10);
-        putString(genBuf);
-        putString(" ----\r\n\r\n");
-        putString("0: Conversion factor: ");
+        clearTerm       ();
+        putString       ("---- VOLTAGE CHANNEL ");
+        (void)utilItoa  (genBuf, chanV, ITOA_BASE10);
+        putString       (genBuf);
+        putString       (" ----\r\n\r\n");
+        putString       ("0: Conversion factor: ");
         putValueEnd_Float(pCfg->voltageCfg[chanV].voltageCal);
         infoEdit();
 
@@ -266,15 +389,15 @@ menuVoltage()
 
     while ('b' != c)
     {
-        clearTerm();
-        putString("---- VOLTAGE CHANNELS ----\r\n\r\n");
+        clearTerm           ();
+        putString           ("---- VOLTAGE CHANNELS ----\r\n\r\n");
         for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
         {
-            (void)utilItoa(genBuf, idxV, ITOA_BASE10);
-            putString(genBuf);
-            putString(": Voltage Channel ");
-            putString(genBuf);
-            putString("\r\n");
+            (void)utilItoa  (genBuf, idxV, ITOA_BASE10);
+            putString       (genBuf);
+            putString       (": Voltage Channel ");
+            putString       (genBuf);
+            putString       ("\r\n");
         }
         enterConfigText();
 
@@ -291,64 +414,64 @@ static void
 menuCTChan(unsigned int chanCT)
 {
     unsigned int activeMask = (1 << chanCT);
-    char c = 0;
-    unsigned int idxChange = 0;
+    char         c          = 0;
+    unsigned int idxChange  = 0;
+    char         input      = 0;
 
     while ('b' != c)
     {
-        clearTerm();
-        putString("---- CT CHANNEL ");
-        (void)utilItoa(genBuf, chanCT, ITOA_BASE10);
-        putString(genBuf);
-        putString(" ----\r\n\r\n");
-        putString("0: Active:              ");
+        clearTerm       ();
+        putString       ("---- CT CHANNEL ");
+        (void)utilItoa  (genBuf, chanCT, ITOA_BASE10);
+        putString       (genBuf);
+        putString       (" ----\r\n\r\n");
+        putString       ("0: Active:              ");
         if (0 == (activeMask & pCfg->ctActive))
         {
-            putString("N\r\n");
+            putString   ("N\r\n");
         }
         else
         {
-            putString("Y\r\n");
+            putString   ("Y\r\n");
         }
-        putString("1: Conversion factor:   ");
+        putString       ("1: Conversion factor:   ");
         putValueEnd_Float(pCfg->ctCfg[chanCT].ctCal);
-        putString("2: Phase calibration X: ");
-        putValueEnd_10(pCfg->ctCfg[chanCT].phaseX);
-        putString("3: Phase calibration Y: ");
-        putValueEnd_10(pCfg->ctCfg[chanCT].phaseY);
-        putString("4: V Channel:           ");
-        putValueEnd_10(pCfg->ctCfg[chanCT].vChan);
+        putString       ("2: Phase calibration X: ");
+        putValueEnd_10  (pCfg->ctCfg[chanCT].phaseX);
+        putString       ("3: Phase calibration Y: ");
+        putValueEnd_10  (pCfg->ctCfg[chanCT].phaseY);
+        putString       ("4: V Channel:           ");
+        putValueEnd_10  (pCfg->ctCfg[chanCT].vChan);
         infoEdit();
 
         c = waitForChar();
 
-        if ('0' == c)
+        if ((c >= '0') && (c <= '4'))
         {
-            int16_t val_fixed;
             idxChange = c - '0';
+            valChanged = 1u;
 
-            if (1 == idxChange)
+            if (0 == idxChange)
+            {
+                input = getChar();
+                if ('Y' == input)
+                {
+                    pCfg->ctActive |= activeMask;
+                }
+                else if ('N' == input)
+                {
+                    pCfg->ctActive &= ~activeMask;
+                }
+            }
+            else if (1 == idxChange)
             {
                 pCfg->ctCfg[chanCT].ctCal = getValue_float();
-                valChanged = 1u;
             }
             else
             {
-                val_fixed = getValue();
-                valChanged = 1u;
+                int16_t val_fixed = getValue();
                 switch (idxChange)
                 {
-                    case 0:
-                        if ('Y' == (char)val_fixed)
-                        {
-                            pCfg->ctActive |= activeMask;
-                            valChanged = 1u;
-                        }
-                        else if ('N' == (char)val_fixed)
-                        {
-                            pCfg->ctActive &= ~activeMask;
-                        }
-                        break;
                     case 2:
                         pCfg->ctCfg[chanCT].phaseX = val_fixed;
                         break;
@@ -372,15 +495,15 @@ menuCT()
     char c = 0;
     while ('b' != c)
     {
-        clearTerm();
-        putString("---- CT CHANNELS ----\r\n\r\n");
+        clearTerm           ();
+        putString           ("---- CT CHANNELS ----\r\n\r\n");
         for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
         {
-            (void)utilItoa(genBuf, idxCT, ITOA_BASE10);
-            putString(genBuf);
-            putString(": CT Channel ");
-            putString(genBuf);
-            putString("\r\n");
+            (void)utilItoa  (genBuf, idxCT, ITOA_BASE10);
+            putString       (genBuf);
+            putString       (": CT Channel ");
+            putString       (genBuf);
+            putString       ("\r\n");
         }
         enterConfigText();
 
@@ -401,21 +524,21 @@ menuConfiguration()
 
     while ('b' != c)
     {
-        clearTerm();
-        putString("---- CONFIGURATION ----\r\n\r\n");
-        putString("0: Node ID:                    ");
-        putValueEnd_10(pCfg->baseCfg.nodeID);
-        putString("1: Cycles to report:           ");
-        putValueEnd_10(pCfg->baseCfg.reportCycles);
-        putString("2: Mains frequency (Hz):       ");
-        putValueEnd_10(pCfg->baseCfg.mainsFreq);
-        putString("3: Energy delta to store (Wh): ");
-        putValueEnd_10(pCfg->baseCfg.whDeltaStore);
+        clearTerm       ();
+        putString       ("---- CONFIGURATION ----\r\n\r\n");
+        putString       ("0: Node ID:                    ");
+        putValueEnd_10  (pCfg->baseCfg.nodeID);
+        putString       ("1: Cycles to report:           ");
+        putValueEnd_10  (pCfg->baseCfg.reportCycles);
+        putString       ("2: Mains frequency (Hz):       ");
+        putValueEnd_10  (pCfg->baseCfg.mainsFreq);
+        putString       ("3: Energy delta to store (Wh): ");
+        putValueEnd_10  (pCfg->baseCfg.whDeltaStore);
         infoEdit();
 
         c = waitForChar();
 
-        if ((c >= '0') && (c <= '2'))
+        if ((c >= '0') && (c <= '3'))
         {
             uint32_t val;
             idxChange = c - '0';
@@ -449,32 +572,31 @@ menuAbout()
 {
     char c = 0;
 
-    clearTerm();
-    putString("---- ABOUT ----\r\n\r\n");
-    putString("Firmware version: ");
-
-    (void)utilItoa(genBuf, VERSION_FW_MAJ, ITOA_BASE10);
-    putString(genBuf);
-    putChar('.');
-    putValueEnd_10(VERSION_FW_MIN);
+    clearTerm       ();
+    putString       ("---- ABOUT ----\r\n\r\n");
+    putString       ("Firmware version: ");
+    (void)utilItoa  (genBuf, VERSION_FW_MAJ, ITOA_BASE10);
+    putString       (genBuf);
+    putChar         ('.');
+    putValueEnd_10  (VERSION_FW_MIN);
 
     putString("Serial number:    ");
     for (unsigned int i = 0; i < 4; i++)
     {
-        utilItoa(genBuf, getUniqueID(i), ITOA_BASE16);
+        utilItoa (genBuf, getUniqueID(i), ITOA_BASE16);
         putString(genBuf);
     }
     putString("\r\n\r\n");
 
-    putString("Voltage channels: ");
-    putValueEnd_10(NUM_V);
+    putString       ("Voltage channels: ");
+    putValueEnd_10  (NUM_V);
 
-    putString("CT channels:      ");
-    putValueEnd_10(NUM_CT);
+    putString       ("CT channels:      ");
+    putValueEnd_10  (NUM_CT);
 
-    putString("\r\n(c) Angus Logan 2022-23\r\n");
-    putString("For Bear and Moose\r\n\r\n");
-    putString("(b)ack");
+    putString       ("\r\n(c) Angus Logan 2022-23\r\n");
+    putString       ("For Bear and Moose\r\n\r\n");
+    putString       ("(b)ack");
 
     while ('b' != c)
     {
@@ -497,6 +619,7 @@ menuBase()
         putString("  1: Configuration\r\n");
         putString("  2: Voltage\r\n");
         putString("  3: CT\r\n");
+        putString("  4: Pulse counter\r\n");
         putString("  9: Reset device\r\n");
         putString("Enter number, or (e)xit");
 
@@ -521,6 +644,9 @@ menuBase()
                 break;
             case '3':
                 menuCT();
+                break;
+            case '4':
+                menuPulse();
                 break;
             case '9':
                 menuReset();
@@ -582,17 +708,17 @@ configLoadFromNVM(Emon32Config_t *pCfg)
 
     if (CONFIG_NVM_KEY != key)
     {
-        dbgPuts("> Initialising NVM... ");
-        configDefault(pCfg);
-        eepromInitConfig(pCfg, cfgSize);
+        dbgPuts                 ("> Initialising NVM... ");
+        configDefault           (pCfg);
+        eepromInitConfig        (pCfg, cfgSize);
         (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
         dbgPuts("Done!\r\n");
     }
     else
     {
-        dbgPuts("> Reading configuration from NVM... ");
-        eepromRead(0, (void *)pCfg, cfgSize);
-        dbgPuts("Done!\r\n");
+        dbgPuts     ("> Reading configuration from NVM... ");
+        eepromRead  (0, (void *)pCfg, cfgSize);
+        dbgPuts     ("Done!\r\n");
 
         /* Check the CRC and raise a warning if no matched. -2 from the base
          * size to account for the stored 16 bit CRC.

@@ -70,8 +70,8 @@ adcCalibrate()
      * GAINCORR is 1 unsigned bit + 11 fractional bits (33.8.17 Gain Correction)
      *  : 1/2 < GAINCORR < 2.
      */
-    gain_fp = qfp_fdiv((float)(normalQuarter - normalThreeQuarter),
-                       (float)(actualQuarter - actualThreeQuarter));
+    gain_fp = qfp_fdiv  ((float)(normalQuarter - normalThreeQuarter),
+                         (float)(actualQuarter - actualThreeQuarter));
     gain = qfp_float2fix(gain_fp, 11);
 
     offset_inter[0] = (int)qfp_fadd(0.5f,
@@ -82,7 +82,7 @@ adcCalibrate()
 
     /* Mask top nibbles as registers are only 12bits wide */
     ADC->OFFSETCORR.reg = (int16_t)offset & 0xFFF;
-    ADC->GAINCORR.reg = (int16_t)gain & 0xFFF;
+    ADC->GAINCORR.reg   = (int16_t)gain & 0xFFF;
 
     /* Enable automatic correction, and return ADC to differential mode */
     ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV8
@@ -172,8 +172,8 @@ adcSetup()
     dmacConfig.ctrlb =    DMAC_CHCTRLB_LVL(0u)
                         | DMAC_CHCTRLB_TRIGSRC(ADC_DMAC_ID_RESRDY)
                         | DMAC_CHCTRLB_TRIGACT_BEAT;
-    dmacChannelConfigure(DMA_CHAN_ADC, &dmacConfig);
-    dmacEnableChannelInterrupt(DMA_CHAN_ADC);
+    dmacChannelConfigure        (DMA_CHAN_ADC, &dmacConfig);
+    dmacEnableChannelInterrupt  (DMA_CHAN_ADC);
 
     /* Enable requires synchronisation (30.6.13) */
     ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
@@ -186,5 +186,6 @@ adcStartDMAC(uint32_t buf)
     volatile DmacDescriptor *dmaDesc = dmacGetDescriptor(DMA_CHAN_ADC);
     dmaDesc->BTCTRL.reg     |= DMAC_BTCTRL_VALID;
     dmaDesc->DSTADDR.reg    = buf;
+
     dmacStartTransfer(DMA_CHAN_ADC);
 }

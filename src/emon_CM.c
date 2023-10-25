@@ -496,15 +496,15 @@ ecmProcessSet(ECMDataset_t *pData)
 
         if (0 != ecmCfg.ctCfg[idxCT].active)
         {
-            scaledPower =   qfp_fmul(qfp_fmul(ecmCycle.valCT[idxCT].powerNow,
-                                              vCal),
-                                     ecmCfg.ctCfg[idxCT].ctCal);
-            pData->CT[idxCT].realPower = qfp_fadd(scaledPower, 0.5f);
+            scaledPower                 =   qfp_fmul(qfp_fmul(ecmCycle.valCT[idxCT].powerNow,
+                                                              vCal),
+                                                     ecmCfg.ctCfg[idxCT].ctCal);
+            pData->CT[idxCT].realPower  = qfp_fadd(scaledPower, 0.5f);
 
             /* TODO add frequency deviation scaling */
-            energyNow = qfp_fadd(scaledPower, pData->CT[idxCT].residualEnergy);
-            wattHoursRecent = (int)energyNow / 3600;
-            pData->CT[idxCT].wattHour += wattHoursRecent;
+            energyNow                       = qfp_fadd(scaledPower, pData->CT[idxCT].residualEnergy);
+            wattHoursRecent                 = (int)energyNow / 3600;
+            pData->CT[idxCT].wattHour       += wattHoursRecent;
             pData->CT[idxCT].residualEnergy = qfp_fsub(energyNow,
                                                        qfp_fmul(wattHoursRecent, 3600.0f));
         }
