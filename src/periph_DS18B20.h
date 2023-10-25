@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 typedef struct {
-    uint8_t    grp;
-    uint8_t    pin;
-    uint8_t    t_wait_us;
+    unsigned int    grp;
+    unsigned int    pin;
+    unsigned int    t_wait_us;
 } DS18B20_conf_t;
 
 /*! @brief Configure the OneWire port
@@ -23,6 +23,6 @@ int ds18b20StartSample();
  *  @param [in] dev : index of OneWire device
  *  @return : INT16_MIN for failure (no presence response), otherwise sensor data
  */
-int16_t ds18b20ReadSample(const uint8_t dev);
+int16_t ds18b20ReadSample(const unsigned int dev);
 
 #endif

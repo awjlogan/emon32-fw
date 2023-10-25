@@ -12,13 +12,14 @@
  */
 
 /* OneWire pins and configuration */
-static uint8_t  grp;
-static uint8_t  pin;
-static uint8_t  t_wait_us;
+static DS18B20_conf_t cfg;
+static unsigned int grp;
+static unsigned int pin;
+static unsigned int t_wait_us;
 
 /* Device address table */
-static uint64_t address[TEMP_MAX_ONEWIRE];
-static uint8_t  addressRemap[TEMP_MAX_ONEWIRE];
+static uint64_t     address[TEMP_MAX_ONEWIRE];
+static unsigned int addressRemap[TEMP_MAX_ONEWIRE];
 
 /* OneWire functions & state variables */
 static uint8_t      calcCRC8            (const uint8_t crc, const uint8_t value);
@@ -31,11 +32,11 @@ static int          oneWireSearch       ();
 static void         oneWireWriteBit     (unsigned int bit);
 static void         oneWireWriteBytes   (const void *pSrc, const uint8_t n);
 
-uint64_t        ROM_NO;
-uint8_t         crc8;
-int             lastDiscrepancy;
-int             lastFamilyDiscrepancy;
-int             lastDeviceFlag;
+uint64_t    ROM_NO;
+uint8_t     crc8;
+int         lastDiscrepancy;
+int         lastFamilyDiscrepancy;
+int         lastDeviceFlag;
 
 static uint8_t
 calcCRC8(const uint8_t crc, const uint8_t value)
@@ -288,12 +289,12 @@ ds18b20InitSensors(const DS18B20_conf_t *pCfg)
     unsigned int deviceCount    = 0;
     int          searchResult   = 0;
 
-    grp         = pCfg->grp;
-    pin         = pCfg->pin;
+    cfg.grp         = pCfg->grp;
+    cfg.pin         = pCfg->pin;
     /* If not overridden, default to 5 us pull low */
-    t_wait_us   =   pCfg->t_wait_us
-                  ? pCfg->t_wait_us
-                  : 5u;
+    cfg.t_wait_us   =   pCfg->t_wait_us
+                      ? pCfg->t_wait_us
+                      : 5u;
 
     /* Search for devices */
     searchResult = oneWireFirst();
@@ -332,13 +333,12 @@ ds18b20StartSample()
 }
 
 int16_t
-ds18b20ReadSample(const uint8_t dev)
+ds18b20ReadSample(const unsigned int dev)
 {
     const uint8_t   cmdMatchROM     = 0x55;
     const uint8_t   cmdReadScratch  = 0xBE;
-    const uint8_t   devRemapped     = addressRemap[dev];
-    const uint64_t  *addrDev        = address + devRemapped;
-    uint8_t         tempData[2]     = {0};
+    const uint64_t  *addrDev        = address + addressRemap[dev];
+    int             tempData        = 0;
 
     /* Check for presence pulse before continuing */
     if (0 == oneWireReset())
@@ -353,5 +353,5 @@ ds18b20ReadSample(const uint8_t dev)
     oneWireReadBytes    (&tempData, 2);
 
     /* Second byte is the MSB, shift to top 8 */
-    return (tempData[0] | (int16_t)(tempData[1] << 8));
+    return (int16_t)tempData;
 }
