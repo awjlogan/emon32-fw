@@ -153,7 +153,7 @@ timerElapsedStop()
 void
 irq_handler_sys_tick()
 {
-    emon32SetEvent(EVT_SYSTICK_100Hz);
+    emon32EventSet(EVT_SYSTICK_100Hz);
 
     /* Clear the watchdog if in the configuration state, as the normal 1 kHz
      * tick event will not be serviced.

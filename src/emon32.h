@@ -158,21 +158,21 @@ void emon32DefaultConfiguration(Emon32Config_t *pCfg);
  *         within an ISR
  *  @param [in] evt : Event source in enum
  */
-void emon32SetEvent(EVTSRC_t evt);
+void emon32EventSet(EVTSRC_t evt);
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled
  *  @param [in] Event source in enum
  */
-void emon32ClrEvent(EVTSRC_t evt);
+void emon32EventClr(EVTSRC_t evt);
+
+/*! @brief Returns the state of the emon32 system
+ */
+EmonState_t emon32StateGet();
 
 /*! @brief Set the state of the emon32 system
  *  @param [in] state : state to set
  */
 void emon32StateSet(EmonState_t state);
-
-/*! @brief Returns the state of the emon32 system
- */
-EmonState_t emon32StateGet();
 
 /*! @brief Output a string to the debug destination
  *  @param [in] s: pointer to null terminated string s

@@ -95,7 +95,7 @@ irq_handler_dmac()
         adcStartDMAC((uint32_t)ecmDataBuffer());
         if (ECM_CYCLE_COMPLETE == ecmInjectSample())
         {
-            emon32SetEvent(EVT_ECM_CYCLE_CMPL);
+            emon32EventSet(EVT_ECM_CYCLE_CMPL);
         }
         DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
     }
@@ -103,7 +103,7 @@ irq_handler_dmac()
     DMAC->CHID.reg = DMA_CHAN_UART_DBG;
     if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL)
     {
-        emon32SetEvent(EVT_DMAC_UART_CMPL);
+        emon32EventSet(EVT_DMAC_UART_CMPL);
         DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
     }
 
@@ -111,7 +111,7 @@ irq_handler_dmac()
     if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL)
     {
         /* DMA for this channel is used to write to I2C EEPROM */
-        emon32SetEvent(EVT_DMAC_I2C_CMPL);
+        emon32EventSet(EVT_DMAC_I2C_CMPL);
         DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
     }
 }
