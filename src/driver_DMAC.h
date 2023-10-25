@@ -53,6 +53,6 @@ void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg);
  *  @param [in] n : number of bytes in data
  *  @return CRC16 value
  */
-uint16_t calcCRC16_ccitt(const void *pData, unsigned int n);
+uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n);
 
 #endif

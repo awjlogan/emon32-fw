@@ -12,12 +12,12 @@ typedef struct {
 /*! @brief Configure the OneWire port
  *  @param [in] pCfg: pointer to the configuration struct
  */
-uint8_t ds18b20InitSensors(const DS18B20_conf_t *pCfg);
+unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg);
 
 /*! @brief Start a temperature conversion on all OneWire devices
  *  @return : 0 for success, -1 if no presence pulse detected
  */
-int8_t ds18b20StartSample();
+int ds18b20StartSample();
 
 /*! @brief Read the temperature data from a OneWire device
  *  @param [in] dev : index of OneWire device

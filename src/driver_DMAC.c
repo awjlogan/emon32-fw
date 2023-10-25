@@ -117,9 +117,9 @@ irq_handler_dmac()
 }
 
 uint16_t
-calcCRC16_ccitt(const void *pData, unsigned int n)
+calcCRC16_ccitt(const void *pSrc, unsigned int n)
 {
-    const uint8_t *pD = (uint8_t *)pData;
+    const uint8_t *pData = (uint8_t *)pSrc;
 
     /* CCITT is 0xFFFF initial value (nb. ASF only sets this for CRC32) */
     DMAC->CRCCHKSUM.reg = 0xFFFF;
@@ -130,7 +130,7 @@ calcCRC16_ccitt(const void *pData, unsigned int n)
      */
     while (n--)
     {
-        DMAC->CRCDATAIN.reg = *pD++;
+        DMAC->CRCDATAIN.reg = *pData++;
         __DSB();
     }
 

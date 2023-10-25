@@ -4,7 +4,7 @@
 uint8_t
 tempInitSensors(const TEMP_INTF_t intf, const void *pParams)
 {
-    if (TEMP_ONEWIRE == intf)
+    if (TEMP_INTF_ONEWIRE == intf)
     {
         return ds18b20InitSensors((DS18B20_conf_t *)pParams);
     }
@@ -15,7 +15,7 @@ tempInitSensors(const TEMP_INTF_t intf, const void *pParams)
 int8_t
 tempStartSample(const TEMP_INTF_t intf, const uint32_t dev)
 {
-    if (TEMP_ONEWIRE == intf)
+    if (TEMP_INTF_ONEWIRE == intf)
     {
         (void)dev;
         return ds18b20StartSample();
@@ -27,7 +27,7 @@ tempStartSample(const TEMP_INTF_t intf, const uint32_t dev)
 int16_t
 tempReadSample(const TEMP_INTF_t intf, const uint8_t dev)
 {
-    if (TEMP_ONEWIRE == intf)
+    if (TEMP_INTF_ONEWIRE == intf)
     {
         return ds18b20ReadSample(dev);
     }

@@ -16,6 +16,7 @@
 #include "emon32.h"
 #include "emon_CM.h"
 #include "eeprom.h"
+#include "periph_DS18B20.h"
 #include "periph_rfm69.h"
 #include "pulse.h"
 #include "temperature.h"
@@ -48,8 +49,9 @@ static void     nvmLoadCumulative       (eepromPktWL_t *pPkt, Emon32Dataset_t *p
 static void     nvmStoreCumulative      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     processCumulative       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     pulseConfigure          (const Emon32Config_t *pCfg);
-static void     setupMicrocontroller    ();
+static uint32_t tempConfigure           ();
 static uint32_t totalEnergy             (const Emon32Dataset_t *pData);
+static void     ucConfigure             ();
 
 /*************************************
  * Functions
@@ -405,6 +407,7 @@ pulseConfigure(const Emon32Config_t *pCfg)
 {
     extern uint8_t pinsPulse[][2];
 
+    dbgPuts("> Setting up pulse counters... ");
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
         PulseCfg_t *pulseCfg = pulseGetCfg(i);
@@ -421,6 +424,7 @@ pulseConfigure(const Emon32Config_t *pCfg)
             pulseInit(i);
         }
     }
+    dbgPuts("Done!\r\n");
 }
 
 /*! @brief Setup the microcontoller. This function must be called first. An
@@ -428,7 +432,7 @@ pulseConfigure(const Emon32Config_t *pCfg)
  *         These can be empty if they are not used.
  */
 static void
-setupMicrocontroller()
+ucConfigure()
 {
     clkSetup    ();
     timerSetup  ();
@@ -441,6 +445,28 @@ setupMicrocontroller()
     adcSetup    ();
     evsysSetup  ();
     wdtSetup    (WDT_PER_4K);
+}
+
+static uint32_t
+tempConfigure()
+{
+    unsigned int    numTempSensors  = 0;
+    DS18B20_conf_t  dsCfg           = {0};
+    char            txBuffer[4]     = {0};
+
+    dsCfg.grp       = GRP_ONEWIRE;
+    dsCfg.pin       = PIN_ONEWIRE;
+    dsCfg.t_wait_us = 3;
+
+    dbgPuts         ("> Searching for DS18B20 sensors... ");
+
+    numTempSensors = tempInitSensors(TEMP_INTF_ONEWIRE, &dsCfg);
+
+    (void)utilItoa  (txBuffer, numTempSensors, ITOA_BASE10);
+    dbgPuts         (txBuffer);
+    dbgPuts         (" found.\r\n");
+
+    return numTempSensors;
 }
 
 /*! @brief Total energy across all CTs
@@ -468,10 +494,11 @@ main()
     RFMPkt_t        *rfmPkt                 = 0;
     char            txBuffer[TX_BUFFER_W]   = {0};
     PackedData_t    packedData              = {0};
-    uint32_t        cyclesProcessed         = 0u;
-    uint32_t        tempCount               = 0;
+    unsigned int    cyclesProcessed         = 0u;
+    unsigned int    numTempSensors          = 0;
+    unsigned int    tempCount               = 0;
 
-    setupMicrocontroller();
+    ucConfigure();
 
     /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
     uartConfigureDMA();
@@ -503,6 +530,7 @@ main()
 
     /* Set up pulse and temperature sensors, if present */
     pulseConfigure(&e32Config);
+    numTempSensors = tempConfigure();
 
     /* Set up buffers for ADC data, configure energy processing, and start */
     ledStatusOn     ();
@@ -554,10 +582,10 @@ main()
              */
             if (evtPending(EVT_TEMP_SAMPLE))
             {
-                if (TEMP_MAX_ONEWIRE > 0)
+                if (numTempSensors > 0)
                 {
                     /* REVISIT : report failed conversion here */
-                    (void)tempStartSample(TEMP_ONEWIRE, tempCount);
+                    (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
                 }
                 emon32EventClr(EVT_TEMP_SAMPLE);
             }
@@ -568,12 +596,12 @@ main()
              */
             if (evtPending(EVT_TEMP_READ))
             {
-                if (TEMP_MAX_ONEWIRE > 0)
+                if (numTempSensors > 0)
                 {
-                    tempReadSample(TEMP_ONEWIRE, tempCount);
+                    tempReadSample(TEMP_INTF_ONEWIRE, tempCount);
 
                     tempCount++;
-                    if (tempCount == TEMP_MAX_ONEWIRE)
+                    if (tempCount == numTempSensors)
                     {
                         emon32EventSet(EVT_ECM_SET_CMPL);
                         emon32EventClr(EVT_TEMP_READ);

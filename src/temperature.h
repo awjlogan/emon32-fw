@@ -4,8 +4,8 @@
 #include <stdint.h>
 
 typedef enum {
-    TEMP_ONEWIRE,
-    TEMP_I2C
+    TEMP_INTF_ONEWIRE,
+    TEMP_INTF_I2C
 } TEMP_INTF_t;
 
 /*! @brief Find and initialise sensors

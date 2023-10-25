@@ -204,6 +204,10 @@
 #define UART_DATA_PAD_TX    1u
 #define UART_DATA_BAUD      115200u
 
+/* OneWire defines */
+#define GRP_ONEWIRE         0u
+#define PIN_ONEWIRE         18u
+
 /* DMA defines */
 #define NUM_CHAN_DMA        4u
 #define DMA_CHAN_UART_DATA  3u
