@@ -10,6 +10,8 @@ sercomSetup()
     /*****************
     * Debug UART setup
     ******************/
+    unsigned int testSense = portPinValue(GRP_TEST_SENSE, PIN_TEST_SENSE);
+
     UART_Cfg_t uart_dbg_cfg;
     uart_dbg_cfg.sercom     = SERCOM_UART_DBG;
     uart_dbg_cfg.baud       = UART_DBG_BAUD;
@@ -18,10 +20,23 @@ sercomSetup()
     uart_dbg_cfg.gclk_gen   = 3u;
     uart_dbg_cfg.pad_tx     = UART_DBG_PAD_TX;
     uart_dbg_cfg.pad_rx     = UART_DBG_PAD_RX;
-    uart_dbg_cfg.port_grp   = GRP_SERCOM_UART_DBG;
-    uart_dbg_cfg.pin_tx     = PIN_UART_DBG_TX;
-    uart_dbg_cfg.pin_rx     = PIN_UART_DBG_RX;
-    uart_dbg_cfg.pmux       = PMUX_UART_DBG;
+
+    /* If the test probe is present, route the debug UART to the tester */
+    if (0 == testSense)
+    {
+        uart_dbg_cfg.port_grp   = GRP_SERCOM_UART_DBG0;
+        uart_dbg_cfg.pin_tx     = PIN_UART_DBG_TX0;
+        uart_dbg_cfg.pin_rx     = PIN_UART_DBG_RX0;
+        uart_dbg_cfg.pmux       = PMUX_UART_DBG0;
+    }
+    else
+    {
+        uart_dbg_cfg.port_grp   = GRP_SERCOM_UART_DBG1;
+        uart_dbg_cfg.pin_tx     = PIN_UART_DBG_TX1;
+        uart_dbg_cfg.pin_rx     = PIN_UART_DBG_RX1;
+        uart_dbg_cfg.pmux       = PMUX_UART_DBG1;
+    }
+
     uart_dbg_cfg.dmaChannel = DMA_CHAN_UART_DBG;
     uart_dbg_cfg.dmaCfg.ctrlb =   DMAC_CHCTRLB_LVL(1u)
                                 | DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DBG_DMAC_ID_TX)
@@ -141,8 +156,8 @@ sercomSetupSPI()
     portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK, PMUX_SPI_DATA);
 
     /* Table 24-2 - driven @ F_REF = F_PERIPH */
-    const uint32_t baud_data = SPI_DATA_BAUD;
-    const uint32_t br_data = ((uint32_t)F_PERIPH / (2 * baud_data) - 1u);
+    const uint32_t baud_data    = SPI_DATA_BAUD;
+    const uint32_t br_data      = ((uint32_t)F_PERIPH / (2 * baud_data) - 1u);
 
     /* Configure clocks - runs from the OSC8M clock on gen 3 */
     PM->APBCMASK.reg |= SERCOM_SPI_APBCMASK;

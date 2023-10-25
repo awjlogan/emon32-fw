@@ -108,7 +108,8 @@
 #define SERCOM_I2CM_DMAC_ID_RX      SERCOM3_DMAC_ID_RX
 #define SERCOM_UART_DATA_DMAC_ID_TX SERCOM2_DMAC_ID_TX
 
-#define PMUX_UART_DBG               PORT_PMUX_PMUXE_C
+#define PMUX_UART_DBG0              PORT_PMUX_PMUXE_C
+#define PMUX_UART_DBG1              PORT_PMUX_PMUXE_D
 #define PMUX_UART_DATA              PORT_PMUX_PMUXE_C
 
 #define SERCOM_UART_DBG_NVIC_IRQn   SERCOM2_IRQn
@@ -169,14 +170,24 @@
 
 #define GRP_PINA            0u
 #define GRP_PINB            1u
-#define GRP_LED_STATUS      1u
+#define GRP_LED_STATUS      GRP_PINB
 #define PIN_LED_STATUS      23u
+#define GRP_LED_PROG        GRP_PINA
 #define PIN_LED_PROG        27u
+#define GRP_LED_USER        GRP_PINB
+#define PIN_LED_USER0       10u
+#define PIN_LED_USER1       11u
+
+#define GRP_TEST_SENSE      0
+#define PIN_TEST_SENSE      28
 
 /* Debug UART related defines */
-#define GRP_SERCOM_UART_DBG 0u
-#define PIN_UART_DBG_RX     13u
-#define PIN_UART_DBG_TX     12u
+#define GRP_SERCOM_UART_DBG0    0u
+#define PIN_UART_DBG_RX0        13u
+#define PIN_UART_DBG_TX0        12u
+#define GRP_SERCOM_UART_DBG1    1u
+#define PIN_UART_DBG_RX1        30u
+#define PIN_UART_DBG_TX1        31u
 #define UART_DBG_PAD_RX     1u
 #define UART_DBG_PAD_TX     2u
 #define UART_DBG_BAUD       38400u

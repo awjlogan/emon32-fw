@@ -6,19 +6,25 @@
 #if (BOARD_ID == BOARD_ID_EMONPI)
 
 const uint8_t pinsGPIO_Out[][2] = {
-    {GRP_PINB,  PIN_LED_STATUS},
-    {GRP_PINA,  PIN_LED_PROG},
+    {GRP_PINB,      PIN_LED_STATUS},
+    {GRP_PINA,      PIN_LED_PROG},
+    {GRP_LED_USER,  PIN_LED_USER0},
+    {GRP_LED_USER,  PIN_LED_USER1},
     {0xFF,      0}
 };
 
 const uint8_t pinsGPIO_In[][2] = {
+    {GRP_TEST_SENSE, PIN_TEST_SENSE},
     {0xFF,      0}
 };
 
 const uint8_t pinsUnused[][2] = {
-    {GRP_PINA,  22},
-    {GRP_PINA,  25},
-    {GRP_PINA,  34},
+    {GRP_PINA,  0},
+    {GRP_PINA,  1},
+    {GRP_PINA,  19},
+    {GRP_PINA,  20},
+    {GRP_PINA,  21},
+    {GRP_PINB,  22},
     {0xFF,      0}
 };
 
