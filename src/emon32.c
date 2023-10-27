@@ -57,6 +57,11 @@ static void     ucConfigure             ();
  * Functions
  *************************************/
 
+
+/* @brief Initialise the data set
+ * @param [out] pDst : pointer to the data struct
+ * @param [in] pECM : pointer to the emon Continuous Monitoring struct
+ */
 static void
 datasetInit(Emon32Dataset_t *pDst, ECMDataset_t *pECM)
 {
@@ -73,6 +78,10 @@ datasetInit(Emon32Dataset_t *pDst, ECMDataset_t *pECM)
     #endif
 }
 
+
+/* @brief Add pulse counting information to the dataset to be sent
+ * @param [out] pDst : pointer to the data struct
+ */
 static void
 datasetUpdate(Emon32Dataset_t *pDst)
 {
@@ -86,6 +95,11 @@ datasetUpdate(Emon32Dataset_t *pDst)
     #endif
 }
 
+
+/* @brief Configure the data transmission output.
+ * @param [in] pCfg : pointer to the configuration struct
+ * @return : pointer to an RFM packet if using RFM, 0 if not.
+ */
 static RFMPkt_t *
 dataTxConfigure(const Emon32Config_t *pCfg)
 {
@@ -121,10 +135,12 @@ dataTxConfigure(const Emon32Config_t *pCfg)
     return rfmPkt;
 }
 
+
+/*! @brief Print the board and firmware info to the debug UART */
 static void
 dbgPutBoard()
 {
-    char        wr_buf[8];
+    char        wr_buf[4];
     const int   board_id = BOARD_ID;
 
     dbgPuts("\033c== Energy Monitor 32 ==\r\n\r\n");
@@ -161,6 +177,10 @@ dbgPuts(const char *s)
     uartPutsBlocking(SERCOM_UART_DBG, s);
 }
 
+
+/*! @brief Configure the continuous energy monitoring system
+ *  @param [in] pCfg : pointer to the configuration struct
+ */
 void
 ecmConfigure(const Emon32Config_t *pCfg)
 {
@@ -186,8 +206,12 @@ ecmConfigure(const Emon32Config_t *pCfg)
     }
 }
 
+
+/*! @brief Set a pending event
+ *  @brief [in] evt : event to be set
+ */
 void
-emon32EventSet(EVTSRC_t evt)
+emon32EventSet(const EVTSRC_t evt)
 {
     /* Disable interrupts during RMW update of event status */
     uint32_t evtDecode = (1u << evt);
@@ -196,8 +220,12 @@ emon32EventSet(EVTSRC_t evt)
     __enable_irq();
 }
 
+
+/*! @brief Clear a pending event
+ *  @brief [in] evt : event to be cleared
+ */
 void
-emon32EventClr(EVTSRC_t evt)
+emon32EventClr(const EVTSRC_t evt)
 {
     /* Disable interrupts during RMW update of event status */
     uint32_t evtDecode = ~(1u << evt);
@@ -206,17 +234,26 @@ emon32EventClr(EVTSRC_t evt)
     __enable_irq();
 }
 
+
+/*! @brief Get the current state of the emon32 system
+ *  @return : state of the system
+ */
 EmonState_t
 emon32StateGet()
 {
     return emonState;
 }
 
+
+/*! @brief Set the state of the emon32 system
+ *  @param [in] state : state to set to
+ */
 void
-emon32StateSet(EmonState_t state)
+emon32StateSet(const EmonState_t state)
 {
     emonState = state;
 }
+
 
 /*! @brief This function is called when the 10 ms timer overflows (SYSTICK).
  *         Latency is not guaranteed, so only non-timing critical things
@@ -234,6 +271,7 @@ evtKiloHertz()
     pulseUpdate();
 }
 
+
 /*! @brief Check if an event source is active
  *  @param [in] : event source to check
  *  @return : 1 if pending, 0 otherwise
@@ -246,6 +284,8 @@ evtPending(EVTSRC_t evt)
            : 0;
 }
 
+
+/*! @brief Turn on the STATUS LED */
 static void
 ledStatusOn()
 {
@@ -253,12 +293,18 @@ ledStatusOn()
     portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
 }
 
+
+/*! @brief Toggle the STATUS LED */
 static void
 ledStatusToggle()
 {
     portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_TGL);
 }
 
+
+/*! @brief Initialise the NVM packet with default values
+ *  @param [out] : pPkt : pointer to the NVM packet
+ */
 static void
 nvmCumulativeConfigure(eepromPktWL_t *pPkt)
 {
@@ -268,8 +314,9 @@ nvmCumulativeConfigure(eepromPktWL_t *pPkt)
     pPkt->idxNextWrite  = -1;
 }
 
+
 /*! @brief This function handles loading of configuration data
- *  @param [in] pCfg : pointer to the configuration struct
+ *  @param [out] pCfg : pointer to the configuration struct
  */
 static void
 nvmLoadConfiguration(Emon32Config_t *pCfg)
@@ -314,6 +361,7 @@ nvmLoadConfiguration(Emon32Config_t *pCfg)
     dbgPuts("\r\n");
 }
 
+
 /*! @brief Load cumulative energy and pulse values
  *  @param [in] pEEPROM : pointer to EEPROM configuration
  *  @param [in] pData : pointer to current dataset
@@ -339,6 +387,7 @@ nvmLoadCumulative(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
     }
     #endif
 }
+
 
 /*! @brief Store cumulative energy and pulse values
  *  @param [in] pRes : pointer to cumulative values
@@ -376,6 +425,12 @@ nvmStoreCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
     }
 }
 
+
+/*! @brief Calculate the cumulative energy consumption and store if the delta
+ *         since last storage is greater than a configurable threshold
+ *  @param [in] : pPkt : pointer to an NVM packet
+ *  @param [in] : pData : pointer to the current dataset
+ */
 static void
 processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore)
 {
@@ -389,10 +444,10 @@ processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsig
     /* Catch overflow of energy. This corresponds to ~4 MWh(!), so
      * unlikely to happen, but handle safely.
      */
-    energyOverflow = (latestWh < lastStoredWh) ? 1u : 0;
-    if (0 != energyOverflow)
+    energyOverflow = (latestWh < lastStoredWh);
+    if (energyOverflow)
     {
-        dbgPuts("\r\n> Cumulative energy overflowed counter!");
+        dbgPuts("> Cumulative energy overflowed counter!\r\n");
     }
     deltaWh = latestWh - lastStoredWh;
     if ((deltaWh > whDeltaStore) || energyOverflow)
@@ -402,6 +457,10 @@ processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsig
     }
 }
 
+
+/*! @brief Configure any pulse counter interfaces
+ *  @param [in] pCfg : pointer to the configuration struct
+ */
 static void
 pulseConfigure(const Emon32Config_t *pCfg)
 {
@@ -427,6 +486,7 @@ pulseConfigure(const Emon32Config_t *pCfg)
     dbgPuts("Done!\r\n");
 }
 
+
 /*! @brief Setup the microcontoller. This function must be called first. An
  *         implementation must provide all the functions that are called.
  *         These can be empty if they are not used.
@@ -447,6 +507,10 @@ ucConfigure()
     wdtSetup    (WDT_PER_4K);
 }
 
+
+/*! @brief Initialises the temperature sensors
+ *  @return : number of temperature sensors found
+ */
 static uint32_t
 tempConfigure()
 {
@@ -469,6 +533,7 @@ tempConfigure()
     return numTempSensors;
 }
 
+
 /*! @brief Total energy across all CTs
  *  @param [in] pData : pointer to data setup
  *  @return : sum of Wh for all CTs
@@ -483,6 +548,7 @@ totalEnergy(const Emon32Dataset_t *pData)
     }
     return totalEnergy;
 }
+
 
 int
 main()
