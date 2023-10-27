@@ -21,6 +21,20 @@
 #include "pulse.h"
 #include "temperature.h"
 
+
+/*************************************
+ * Types
+ *************************************/
+
+typedef enum {
+    RCAUSE_SYST     = 0x40,
+    RCAUSE_WDT      = 0x20,
+    RCAUSE_EXT      = 0x10,
+    RCAUSE_BOD33    = 0x04,
+    RCAUSE_BOD12    = 0x02,
+    RCAUSE_POR      = 0x01
+} RCAUSE_t;
+
 /*************************************
  * Persistent state variables
  *************************************/
@@ -140,29 +154,54 @@ dataTxConfigure(const Emon32Config_t *pCfg)
 static void
 dbgPutBoard()
 {
-    char        wr_buf[4];
-    const int   board_id = BOARD_ID;
+    char            wr_buf[4];
+    const int       board_id    = BOARD_ID;
+    const RCAUSE_t  lastReset   = (RCAUSE_t)PM->RCAUSE.reg;
 
-    dbgPuts("\033c== Energy Monitor 32 ==\r\n\r\n");
+    dbgPuts         ("\033c== Energy Monitor 32 ==\r\n\r\n");
 
-    dbgPuts("Board:    ");
+    dbgPuts         ("Board:      ");
     switch (board_id)
     {
         case (BOARD_ID_LC):
-            dbgPuts("emon32 Low Cost");
+            dbgPuts ("emon32 Low Cost");
             break;
         case (BOARD_ID_STANDARD):
-            dbgPuts("emon32 Standard");
+            dbgPuts ("emon32 Standard");
             break;
         case (BOARD_ID_EMONPI):
-            dbgPuts("emon32-Pi2");
+            dbgPuts ("emon32-Pi2");
             break;
         default:
-            dbgPuts("Unknown");
+            dbgPuts ("Unknown");
     }
-    dbgPuts("\r\n");
+    dbgPuts         ("\r\n");
 
-    dbgPuts         ("Firmware: ");
+    /* Display the cause of the last system reset (16.8.14) */
+    dbgPuts         ("Last reset: ");
+    switch (lastReset)
+    {
+        case RCAUSE_SYST:
+            dbgPuts("Reset request");
+            break;
+        case RCAUSE_WDT:
+            dbgPuts("Watchdog timeout");
+            break;
+        case RCAUSE_EXT:
+            dbgPuts("External reset");
+            break;
+        case RCAUSE_BOD33:
+            dbgPuts("3V3 brownout");
+            break;
+        case RCAUSE_BOD12:
+            dbgPuts("1V2 brownout");
+            break;
+        case RCAUSE_POR:
+            dbgPuts("Power on cold reset");
+            break;
+    }
+    dbgPuts         ("\r\n");
+    dbgPuts         ("Firmware:   ");
     (void)utilItoa  (wr_buf, VERSION_FW_MAJ, ITOA_BASE10);
     dbgPuts         (wr_buf);
     uartPutcBlocking(SERCOM_UART_DBG, '.');
