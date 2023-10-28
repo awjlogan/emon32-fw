@@ -60,12 +60,13 @@ static void     ledStatusToggle         ();
 static void     nvmCumulativeConfigure  (eepromPktWL_t *pPkt);
 static void     nvmLoadConfiguration    (Emon32Config_t *pCfg);
 static void     nvmLoadCumulative       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
+static void     nvmSetup                ();
 static void     nvmStoreCumulative      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     processCumulative       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     pulseConfigure          (const Emon32Config_t *pCfg);
-static uint32_t tempConfigure           ();
+static uint32_t tempSetup               ();
 static uint32_t totalEnergy             (const Emon32Dataset_t *pData);
-static void     ucConfigure             ();
+static void     ucSetup                 ();
 
 /*************************************
  * Functions
@@ -347,8 +348,6 @@ ledStatusToggle()
 static void
 nvmCumulativeConfigure(eepromPktWL_t *pPkt)
 {
-    pPkt->addrBase      = EEPROM_WL_OFFSET;
-    pPkt->blkCnt        = EEPROM_WL_NUM_BLK;
     pPkt->dataSize      = sizeof(Emon32CumulativeSave_t);
     pPkt->idxNextWrite  = -1;
 }
@@ -427,6 +426,13 @@ nvmLoadCumulative(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
     #endif
 }
 
+
+/*! @brief Do any required setup for the NVM used */
+static void
+nvmSetup()
+{
+    eepromSetup(EEPROM_WL_OFFSET);
+}
 
 /*! @brief Store cumulative energy and pulse values
  *  @param [in] pRes : pointer to cumulative values
@@ -531,7 +537,7 @@ pulseConfigure(const Emon32Config_t *pCfg)
  *         These can be empty if they are not used.
  */
 static void
-ucConfigure()
+ucSetup()
 {
     clkSetup    ();
     timerSetup  ();
@@ -551,7 +557,7 @@ ucConfigure()
  *  @return : number of temperature sensors found
  */
 static uint32_t
-tempConfigure()
+tempSetup()
 {
     unsigned int    numTempSensors  = 0;
     DS18B20_conf_t  dsCfg           = {0};
@@ -603,7 +609,7 @@ main()
     unsigned int    numTempSensors          = 0;
     unsigned int    tempCount               = 0;
 
-    ucConfigure();
+    ucSetup();
 
     /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
     uartConfigureDMA();
@@ -615,6 +621,7 @@ main()
      * store default configuration and 0 energy accumulator area.
      * REVISIT add check that firmware version matches stored config.
      */
+    nvmSetup                ();
     nvmLoadConfiguration    (&e32Config);
     datasetInit             (&dataset, &ecmDataset);
     nvmCumulativeConfigure  (&nvmCumulative);
@@ -635,7 +642,7 @@ main()
 
     /* Set up pulse and temperature sensors, if present */
     pulseConfigure(&e32Config);
-    numTempSensors = tempConfigure();
+    numTempSensors = tempSetup();
 
     /* Set up buffers for ADC data, configure energy processing, and start */
     ledStatusOn     ();

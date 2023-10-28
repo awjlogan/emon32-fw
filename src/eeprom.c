@@ -13,18 +13,35 @@
 
 /* Local data for interrupt driven EEPROM write */
 typedef struct {
-    uint16_t        addr;
+    unsigned int    addr;
     unsigned int    n_residual;
     uint8_t         *pData;
 } wrLocal_t;
 
 typedef struct {
-    uint8_t         msb;
-    uint8_t         lsb;
+    unsigned int    msb;
+    unsigned int    lsb;
 } Address_t;
 
+/* FUNCTIONS */
+static Address_t    calcAddress     (const unsigned int addrFull);
+static unsigned int nextValidByte   (const uint8_t currentValid);
+static void         wlFindLast      (eepromPktWL_t *pPkt);
+static void         writeBytes      (wrLocal_t *wr, unsigned int n);
+
+
+/* Precalculate wear limiting addresses */
+static unsigned int         addrsWL[EEPROM_WL_NUM_BLK]  = {0};
+static const unsigned int   blkCnt                      = EEPROM_WL_NUM_BLK;
+static const unsigned int   blkSize                     = sizeof(Emon32CumulativeSave_t);
+
+
+/*! @brief Calculates the LSB and MSB address bytes
+ *  @param [in] addrFull : full address of the EEPROM
+ *  @return : Address_t struct with MSB and LSB
+ */
 static Address_t
-calcAddress (const uint16_t addrFull)
+calcAddress (const unsigned int addrFull)
 {
     Address_t address;
 
@@ -37,171 +54,16 @@ calcAddress (const uint16_t addrFull)
 }
 
 
-/*! @brief Send n bytes over I2C using DMA
- *  @param [in] wr : pointer to local address, data, and remaining bytes
- *  @param [in] n : number of bytes to send in this chunk
+/*! @brief Calculate the next "valid" byte. This is chosen for even set/clear
+ *         across all bytes
+ *  @param [in] currentValid : value of the current "valid" byte
+ *  @return The next "valid" byte
  */
-static void
-writeBytes(wrLocal_t *wr, uint8_t n)
-{
-    Address_t address = calcAddress(wr->addr);
-
-    /* Setup next transaction */
-    wr->addr += n;
-    wr->n_residual -= n;
-
-    /* Write to select, then lower address */
-    i2cActivate(SERCOM_I2CM, address.msb);
-    i2cDataWrite(SERCOM_I2CM, address.lsb);
-    while (n--)
-    {
-        i2cDataWrite(SERCOM_I2CM, *wr->pData++);
-    }
-    i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_STOP);
-}
-
-void
-eepromWriteCB()
-{
-    const eepromWrStatus_t wrStatus = eepromWrite(0, 0, 0);
-    if (EEPROM_WR_COMPLETE != wrStatus)
-    {
-        while(-1 != timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB));
-    }
-    else
-    {
-        timerDisable();
-    }
-}
-
-eepromWrStatus_t
-eepromWrite(uint16_t addr, const void *pSrc, unsigned int n)
-{
-    /* Make byte count and address static to allow re-entrant writes */
-    static wrLocal_t    wrLocal;
-    uint8_t             align_bytes;
-
-    /* If all parameters are 0, then this is a continuation from ISR */
-    const unsigned int  continueBlock = (0 == addr) && (0 == pSrc) && (0 == n);
-
-    /* If no ongoing transaction:
-     *   - if it is a continuation, then return complete
-     *   - otherwise capture required details
-     */
-    if (0 == wrLocal.n_residual)
-    {
-        if (0 != continueBlock)
-        {
-            return EEPROM_WR_COMPLETE;
-        }
-
-        wrLocal.n_residual = n;
-        wrLocal.pData = (uint8_t *)pSrc;
-        wrLocal.addr = addr;
-    }
-    /* If there is a pending data, and this is new, indicate BUSY */
-    else
-    {
-        if (0 == continueBlock)
-        {
-            return EEPROM_WR_BUSY;
-        }
-    }
-
-    /* Writes can not go over EEPROM_PAGE_SIZE byte pages. Align the first
-     * transfer to end of EEPROM_PAGE_SIZE byte page.
-     */
-    align_bytes = (EEPROM_PAGE_SIZE - (wrLocal.addr & (EEPROM_PAGE_SIZE - 1u))) % EEPROM_PAGE_SIZE;
-    if (0 != align_bytes)
-    {
-        if (align_bytes > wrLocal.n_residual)
-        {
-            align_bytes = wrLocal.n_residual;
-        }
-
-        /* Copy data into the write packet's data section */
-        writeBytes(&wrLocal, align_bytes);
-        return EEPROM_WR_PEND;
-    }
-
-    /* Write any whole pages */
-    while (wrLocal.n_residual > EEPROM_PAGE_SIZE)
-    {
-        writeBytes(&wrLocal, EEPROM_PAGE_SIZE);
-        return EEPROM_WR_PEND;
-    }
-
-    /* Mop up residual data */
-    writeBytes(&wrLocal, wrLocal.n_residual);
-    return EEPROM_WR_PEND;
-}
-
-void
-eepromRead(uint16_t addr, void *pDst, unsigned int n)
-{
-    uint8_t     *pData = pDst;
-    Address_t   address = calcAddress(addr);
-
-    /* TODO handle timeouts and other errors gracefully */
-    /* Write select with address high and ack with another start, then send low
-     * byte of address */
-    i2cActivate(SERCOM_I2CM, address.msb);
-    i2cDataWrite(SERCOM_I2CM, address.lsb);
-
-    /* Send select with read, and then continue to read until complete. On
-     * final byte, respond with NACK */
-    address.msb += 1u;
-
-    i2cActivate(SERCOM_I2CM, address.msb);
-
-    do
-    {
-        *pData++ = i2cDataRead(SERCOM_I2CM);
-        i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_CONTINUE);
-        n--;
-    } while (n);
-    i2cAck(SERCOM_I2CM, I2CM_NACK, I2CM_ACK_CMD_STOP);
-}
-
-/*! @brief Find the index of the last valid write to a wear levelled block
- *  @param [in] pPkt : pointer to the packet
- */
-void
-wlFindLast(eepromPktWL_t *pPkt)
-{
-    /* Step through from the base address in (data) sized steps. The first
-     * byte that is different to the 0-th byte is the oldest block. If all
-     * blocks are the same, then the 0-th index is the next to be written.
-     */
-
-    uint8_t idxNextWr = 0;
-    uint8_t firstByte = 0;
-
-    eepromRead(pPkt->addr_base, &firstByte, 1u);
-    for (unsigned int idxBlk = 1u; idxBlk < pPkt->blkCnt; idxBlk++)
-    {
-        uint8_t         validByte;
-        unsigned int    addrRd = pPkt->addr_base + (pPkt->dataSize * idxBlk);
-
-        eepromRead(addrRd, &validByte, 1u);
-        idxNextWr++;
-
-        if (firstByte != validByte)
-        {
-            break;
-        }
-    }
-    /* TODO Compare checksum of packet */
-    pPkt->idxNextWrite =   (idxNextWr == (pPkt->blkCnt - 1u))
-                          ? 0
-                          : idxNextWr;
-}
-
-uint8_t
+static unsigned int
 nextValidByte(const uint8_t currentValid)
 {
 
-    uint8_t validByte = currentValid;
+    unsigned int validByte = currentValid;
 
     /* The valid byte is calculated to have even bit 0/1 writes. */
     /* Start filling with 1s */
@@ -229,60 +91,64 @@ nextValidByte(const uint8_t currentValid)
     return validByte;
 }
 
-void
-eepromWriteWL(eepromPktWL_t *pPktWr)
+
+/*! @brief Send n bytes over I2C using DMA
+ *  @param [in] wr : pointer to local address, data, and remaining bytes
+ *  @param [in] n : number of bytes to send in this chunk
+ */
+static void
+writeBytes(wrLocal_t *wr, unsigned int n)
 {
-    /* Check for correct indexing, find if not yet set; this is indicated by
-     * idxNextWrite == -1. Write output to new levelled position.
-     */
-    uint8_t             validByte;
-    int8_t              idxWr;
-    uint16_t            addrWr;
-    eepromWrStatus_t    wrStatus;
+    Address_t address = calcAddress(wr->addr);
 
-    if (-1 == pPktWr->idxNextWrite) wlFindLast(pPktWr);
+    /* Setup next transaction */
+    wr->addr += n;
+    wr->n_residual -= n;
 
-    /* Calculate the next valid byte, and store packet */
-    addrWr = pPktWr->addr_base + (pPktWr->idxNextWrite * pPktWr->dataSize);
-    eepromRead((addrWr - pPktWr->dataSize), &validByte, 1u);
-
-    wrStatus = eepromWrite(addrWr, pPktWr->pData, pPktWr->dataSize);
-    if (wrStatus != (EEPROM_WR_PEND || EEPROM_WR_COMPLETE))
+    /* Write to select, then lower address */
+    i2cActivate (SERCOM_I2CM, address.msb);
+    i2cDataWrite(SERCOM_I2CM, address.lsb);
+    while (n--)
     {
-        dbgPuts(">  EEPROM write failed!\r\n");
+        i2cDataWrite(SERCOM_I2CM, *wr->pData++);
     }
-
-    idxWr = pPktWr->idxNextWrite + 1u;
-    if (idxWr == pPktWr->blkCnt)
-    {
-        idxWr = 0;
-        *(uint8_t *)pPktWr->pData = nextValidByte(validByte);
-    }
-    pPktWr->idxNextWrite = idxWr;
+    i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_STOP);
 }
 
-void
-eepromReadWL(eepromPktWL_t *pPktRd)
+
+/*! @brief Find the index of the last valid write to a wear levelled block
+ *  @param [in] pPkt : pointer to the packet
+ */
+static void
+wlFindLast(eepromPktWL_t *pPkt)
 {
-    /* Check for correct indexing, find it not yet set. Read into struct from
-     * correct location.
+    unsigned int    idxNextWr = 0;
+    unsigned int    firstByte = 0;
+
+    /* Step through from the base address in (data) sized steps. The first
+     * byte that is different to the 0-th byte is the oldest block. If all
+     * blocks are the same, then the 0-th index is the next to be written.
      */
-    int8_t      idxRd;
-    uint16_t    addrRd;
-
-    if (-1 == pPktRd->idxNextWrite) wlFindLast(pPktRd);
-
-    idxRd = pPktRd->idxNextWrite - 1u;
-    if (idxRd < 0)
+    eepromRead(addrsWL[0], &firstByte, 1u);
+    pPkt->idxNextWrite = 0;
+    for (unsigned int idxBlk = 1u; idxBlk < blkCnt; idxBlk++)
     {
-        idxRd = pPktRd->blkCnt + idxRd;
+        unsigned int validByte;
+
+        eepromRead(addrsWL[idxBlk], &validByte, 1u);
+        idxNextWr++;
+
+        if (firstByte != validByte)
+        {
+            pPkt->idxNextWrite = idxBlk;
+            break;
+        }
     }
-    addrRd = pPktRd->addr_base + (idxRd * pPktRd->dataSize);
-    eepromRead(addrRd, pPktRd->pData, pPktRd->dataSize);
 }
+
 
 int
-eepromInitBlocking(uint16_t startAddr, const uint8_t val, unsigned int n)
+eepromInitBlocking(unsigned int startAddr, const unsigned int val, unsigned int n)
 {
     Address_t address;
 
@@ -301,11 +167,11 @@ eepromInitBlocking(uint16_t startAddr, const uint8_t val, unsigned int n)
     while (n)
     {
         address = calcAddress(startAddr);
-        i2cActivate(SERCOM_I2CM, address.msb);
+        i2cActivate (SERCOM_I2CM, address.msb);
         i2cDataWrite(SERCOM_I2CM, address.lsb);
         for (unsigned int i = 0; i < 16; i++)
         {
-            i2cDataWrite(SERCOM_I2CM, val);
+            i2cDataWrite(SERCOM_I2CM, (uint8_t)val);
         }
         i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_STOP);
 
@@ -326,4 +192,183 @@ eepromInitConfig(const void *pSrc, const unsigned int n)
     {
         timerDelay_us(EEPROM_WR_TIME);
     }
+}
+
+
+void
+eepromRead(uint16_t addr, void *pDst, unsigned int n)
+{
+    uint8_t     *pData = pDst;
+    Address_t   address = calcAddress(addr);
+
+    /* TODO handle timeouts and other errors gracefully */
+    /* Write select with address high and ack with another start, then send low
+     * byte of address */
+    i2cActivate (SERCOM_I2CM, address.msb);
+    i2cDataWrite(SERCOM_I2CM, address.lsb);
+
+    /* Send select with read, and then continue to read until complete. On
+     * final byte, respond with NACK */
+    address.msb += 1u;
+
+    i2cActivate(SERCOM_I2CM, address.msb);
+
+    do
+    {
+        *pData++ = i2cDataRead(SERCOM_I2CM);
+        i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_CONTINUE);
+    } while (n--);
+    i2cAck(SERCOM_I2CM, I2CM_NACK, I2CM_ACK_CMD_STOP);
+}
+
+
+void
+eepromReadWL(eepromPktWL_t *pPktRd)
+{
+    /* Check for correct indexing, find it not yet set. Read into struct from
+     * correct location.
+     */
+    int             idxRd;
+    unsigned int    addrRd;
+
+    if (-1 == pPktRd->idxNextWrite) wlFindLast(pPktRd);
+
+    idxRd = pPktRd->idxNextWrite - 1u;
+    if (idxRd < 0)
+    {
+        idxRd = blkCnt + idxRd;
+    }
+    addrRd = addrsWL[idxRd];
+    eepromRead(addrRd, pPktRd->pData, pPktRd->dataSize);
+}
+
+
+void
+eepromSetup(const unsigned int wlOffset)
+{
+    /* Precalculate the addresses of the wear limiting blocks */
+    for (unsigned int i = 0; i < EEPROM_WL_NUM_BLK; i++)
+    {
+        addrsWL[i] = wlOffset + (i * blkSize);
+    }
+}
+
+
+eepromWrStatus_t
+eepromWrite(uint16_t addr, const void *pSrc, unsigned int n)
+{
+    /* Make byte count and address static to allow re-entrant writes */
+    static wrLocal_t    wrLocal;
+    unsigned int        alignBytes;
+
+    /* If all parameters are 0, then this is a continuation from ISR */
+    const unsigned int  continueBlock = (0 == addr) && (0 == pSrc) && (0 == n);
+
+    /* If no ongoing transaction:
+     *   - if it is a continuation, then return complete
+     *   - otherwise capture required details
+     */
+    if (0 == wrLocal.n_residual)
+    {
+        if (0 != continueBlock)
+        {
+            return EEPROM_WR_COMPLETE;
+        }
+
+        wrLocal.n_residual = n;
+        wrLocal.pData      = (uint8_t *)pSrc;
+        wrLocal.addr       = addr;
+    }
+
+    /* If there is a pending data, and this is new, indicate BUSY */
+    else
+    {
+        if (0 == continueBlock)
+        {
+            return EEPROM_WR_BUSY;
+        }
+    }
+
+    /* Writes can not go over EEPROM_PAGE_SIZE byte pages. Align the first
+     * transfer to end of EEPROM_PAGE_SIZE byte page.
+     */
+    alignBytes = (EEPROM_PAGE_SIZE - (wrLocal.addr & (EEPROM_PAGE_SIZE - 1u))) % EEPROM_PAGE_SIZE;
+    if (0 != alignBytes)
+    {
+        if (alignBytes > wrLocal.n_residual)
+        {
+            alignBytes = wrLocal.n_residual;
+        }
+
+        /* Copy data into the write packet's data section */
+        writeBytes(&wrLocal, alignBytes);
+        return EEPROM_WR_PEND;
+    }
+
+    /* Write any whole pages */
+    while (wrLocal.n_residual > EEPROM_PAGE_SIZE)
+    {
+        writeBytes(&wrLocal, EEPROM_PAGE_SIZE);
+        return EEPROM_WR_PEND;
+    }
+
+    /* Mop up residual data */
+    writeBytes(&wrLocal, wrLocal.n_residual);
+    return EEPROM_WR_PEND;
+}
+
+
+void
+eepromWriteCB()
+{
+    const eepromWrStatus_t wrStatus = eepromWrite(0, 0, 0);
+
+    /* If not complete, start next write slot, retry if the timer is busy.
+     * When complete, free the timer
+     */
+    if (EEPROM_WR_COMPLETE != wrStatus)
+    {
+        while(-1 == timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB));
+    }
+    else
+    {
+        timerDisable();
+    }
+}
+
+
+void
+eepromWriteWL(eepromPktWL_t *pPktWr)
+{
+    /* Check for correct indexing, find if not yet set; this is indicated by
+     * idxNextWrite == -1. Write output to new levelled position.
+     */
+    unsigned int        validByte;
+    int                 idxWr;
+    unsigned int        addrWr;
+    eepromWrStatus_t    wrStatus;
+
+    if (-1 == pPktWr->idxNextWrite) wlFindLast(pPktWr);
+
+    /* Calculate the next valid byte, and store packet */
+    addrWr = addrsWL[pPktWr->idxNextWrite];
+    /* TODO : this is not correct, unsafe wrap! */
+    eepromRead((addrWr - pPktWr->dataSize), &validByte, 1u);
+
+    wrStatus = eepromWrite(addrWr, pPktWr->pData, pPktWr->dataSize);
+    if (wrStatus != (EEPROM_WR_PEND || EEPROM_WR_COMPLETE))
+    {
+        dbgPuts(">  EEPROM write failed!\r\n");
+    }
+
+    /* Once all blocks with the same "valid" byte have been written out,
+     * generate the next "valid" byte to be used and wrap.
+     */
+    idxWr = pPktWr->idxNextWrite + 1u;
+    if (idxWr == blkCnt)
+    {
+        idxWr = 0;
+        *(uint8_t *)pPktWr->pData = nextValidByte(validByte);
+    }
+    pPktWr->idxNextWrite = idxWr;
 }
