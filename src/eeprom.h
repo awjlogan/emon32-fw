@@ -16,6 +16,10 @@ typedef enum {
 } eepromWrStatus_t;
 
 
+/*! Dump all the EEPROM data out on to the debug UART
+ */
+void eepromDump();
+
 /*! @brief Set all data within a block to uniform value
  *  @param [in] startAddr : start address, must be on 16 byte boundary
  *  @param [in] val : value to write
@@ -36,7 +40,7 @@ void eepromInitConfig(const void *pSrc, const unsigned int n);
  *  @param [out] pDst : pointer to read destination
  *  @param [in] n : number of bytes to read
  */
-void eepromRead(uint16_t addr, void *pDst, unsigned int n);
+void eepromRead(unsigned int addr, void *pDst, unsigned int n);
 
 /*! @brief Read data from EEPROM with wear leveling
  *  @param [out] pPktRd : pointer to read packet

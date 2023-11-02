@@ -64,6 +64,7 @@ static void     nvmSetup                ();
 static void     nvmStoreCumulative      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     processCumulative       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     pulseConfigure          (const Emon32Config_t *pCfg);
+static void     emon32StateSet          (const EmonState_t state);
 static uint32_t tempSetup               ();
 static uint32_t totalEnergy             (const Emon32Dataset_t *pData);
 static void     ucSetup                 ();
@@ -549,7 +550,7 @@ ucSetup()
 
     adcSetup    ();
     evsysSetup  ();
-    wdtSetup    (WDT_PER_4K);
+    // wdtSetup    (WDT_PER_4K);
 }
 
 

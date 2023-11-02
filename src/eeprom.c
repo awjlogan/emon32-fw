@@ -5,6 +5,7 @@
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
 #include "emon32.h"
+#include "util.h"
 #else
 #include "test_eeprom.h"
 #endif /* HOSTED */
@@ -31,7 +32,7 @@ static void         writeBytes      (wrLocal_t *wr, unsigned int n);
 
 
 /* Precalculate wear limiting addresses */
-static unsigned int         addrsWL[EEPROM_WL_NUM_BLK]  = {0};
+static       unsigned int   addrsWL[EEPROM_WL_NUM_BLK];
 static const unsigned int   blkCnt                      = EEPROM_WL_NUM_BLK;
 static const unsigned int   blkSize                     = sizeof(Emon32CumulativeSave_t);
 
@@ -147,6 +148,38 @@ wlFindLast(eepromPktWL_t *pPkt)
 }
 
 
+void
+eepromDump()
+{
+    /* Write out EEPROM content to debug UART 16 bytes (one page) at a time.
+     * Each byte is written out as hex with a space in between
+     */
+    char wrBuffer[49] = {0};
+
+    for (unsigned int i = 0; i < EEPROM_SIZE_BYTES; i+=16)
+    {
+        uint8_t         dataBuf[16];
+        uint8_t         *pSrc = dataBuf;
+        Address_t       addressCalc;
+        unsigned int    addr;
+
+        addressCalc = calcAddress(i);
+        addr        = (addressCalc.msb << 8) | addressCalc.lsb;
+        eepromRead(addr, dataBuf, 16);
+
+        for (unsigned int j = 0; j < 16; j++)
+        {
+            char charBuf[3] = {0};
+            (void)utilItoa(charBuf, *pSrc++, ITOA_BASE16);
+            utilStrInsert(wrBuffer, charBuf, j*3, 2);
+            charBuf[2] = ' ';
+        }
+
+        dbgPuts(wrBuffer);
+        dbgPuts("\r\n");
+    }
+}
+
 int
 eepromInitBlocking(unsigned int startAddr, const unsigned int val, unsigned int n)
 {
@@ -196,7 +229,7 @@ eepromInitConfig(const void *pSrc, const unsigned int n)
 
 
 void
-eepromRead(uint16_t addr, void *pDst, unsigned int n)
+eepromRead(unsigned int addr, void *pDst, unsigned int n)
 {
     uint8_t     *pData = pDst;
     Address_t   address = calcAddress(addr);
@@ -247,7 +280,7 @@ void
 eepromSetup(const unsigned int wlOffset)
 {
     /* Precalculate the addresses of the wear limiting blocks */
-    for (unsigned int i = 0; i < EEPROM_WL_NUM_BLK; i++)
+    for (unsigned int i = 0; i < blkCnt; i++)
     {
         addrsWL[i] = wlOffset + (i * blkSize);
     }

@@ -32,12 +32,6 @@
         (void)c;
     }
 
-    void
-    emon32StateSet(EmonState_t state)
-    {
-        (void)state;
-    }
-
 #else
 
     #include "emon32_samd.h"
@@ -205,6 +199,7 @@ menuReset()
         putString("---- RESET DEVICE ----\r\n");
         putString("0: Restore default configuration.\r\n");
         putString("1: Clear stored energy accumulators.\r\n");
+        putString("2: Dump NVM conents.\r\n");
         putString("(b)ack\r\n");
 
         c = waitForChar();
@@ -235,6 +230,10 @@ menuReset()
             {
                 (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
             }
+        }
+        else if ('2' == c)
+        {
+            eepromDump();
         }
     }
 }
@@ -675,7 +674,7 @@ menuBase()
         c = ('y' == c) ? 'e' : 's';
     }
 
-    /* Save configuration if requested, then let watchdog reset the sytem */
+    /* Save configuration if requested, then reset the system */
     if ('s' == c)
     {
         #ifndef HOSTED
@@ -683,8 +682,9 @@ menuBase()
         eepromInitConfig(pCfg, sizeof(Emon32Config_t));
         #endif
     }
-    emon32StateSet(EMON_STATE_IDLE);
+    NVIC_SystemReset();
 }
+
 
 void
 configEnter(Emon32Config_t *pConfig)
@@ -693,18 +693,19 @@ configEnter(Emon32Config_t *pConfig)
     menuBase();
 }
 
+
 void
 configLoadFromNVM(Emon32Config_t *pCfg)
 {
     uint32_t    key         = 0u;
     uint32_t    cfgSize     = sizeof(Emon32Config_t);
-    uint16_t    crc16_ccitt;
+    uint16_t    crc16_ccitt = 0;
 
     /* Load 32bit key from "static" part of EEPROM. If the key does not match
      * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
      * wear levelled portion. Otherwise, read configuration from EEPROM.
      */
-    eepromRead(0, (void *)&key, 4u);
+    eepromRead(0, &key, 4u);
 
     if (CONFIG_NVM_KEY != key)
     {
@@ -717,7 +718,7 @@ configLoadFromNVM(Emon32Config_t *pCfg)
     else
     {
         dbgPuts     ("> Reading configuration from NVM... ");
-        eepromRead  (0, (void *)pCfg, cfgSize);
+        eepromRead  (0, pCfg, cfgSize);
         dbgPuts     ("Done!\r\n");
 
         /* Check the CRC and raise a warning if no matched. -2 from the base

@@ -121,7 +121,7 @@ calcCRC16_ccitt(const void *pSrc, unsigned int n)
 {
     const uint8_t *pData = (uint8_t *)pSrc;
 
-    /* CCITT is 0xFFFF initial value (nb. ASF only sets this for CRC32) */
+    /* CCITT is 0xFFFF initial value */
     DMAC->CRCCHKSUM.reg = 0xFFFF;
     DMAC->CTRL.reg |= DMAC_CTRL_CRCENABLE;
 

@@ -169,11 +169,6 @@ void emon32EventClr(const EVTSRC_t evt);
  */
 EmonState_t emon32StateGet();
 
-/*! @brief Set the state of the emon32 system
- *  @param [in] state : state to set
- */
-void emon32StateSet(const EmonState_t state);
-
 /*! @brief Output a string to the debug destination
  *  @param [in] s: pointer to null terminated string s
  */
