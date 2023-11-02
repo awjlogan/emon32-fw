@@ -202,9 +202,9 @@
 #define PMUX_SPI_DATA       PORT_PMUX_PMUXE_D
 
 /* I2C related defines */
-#define GRP_SERCOM_I2C      1u
-#define PIN_I2C_SDA         12u
-#define PIN_I2C_SCL         13u
+#define GRP_SERCOM_I2C      GRP_PINA
+#define PIN_I2C_SDA         22u
+#define PIN_I2C_SCL         23u
 #define PMUX_I2CM           PORT_PMUX_PMUXE_C
 
 /* Data UART related defines */

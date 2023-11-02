@@ -52,16 +52,18 @@ setTimedOut()
 /* Adapted from AVR GCC libc:
  * https://www.nongnu.org/avr-libc/user-manual/group__util__crc.html#ga95371c87f25b0a2497d9cba13190847f
  */
-static void
-crc16_update(uint16_t *crc, const uint8_t d)
+static uint16_t
+crc16_update(uint16_t crc, const uint8_t d)
 {
-    *crc ^= d;
+    crc ^= d;
     for (unsigned int i = 0; i < 8; i++)
     {
-        *crc =   (*crc & 0x1u)
-               ? (*crc >> 1) ^ 0xA001u
-               : (*crc >> 1);
+        crc =   (crc & 0x1u)
+              ? (crc >> 1) ^ 0xA001u
+              : (crc >> 1);
     }
+
+    return crc;
 }
 
 static void
@@ -198,7 +200,7 @@ rfmSend(const void *pData)
      * 2. Send at specified RF power
      * 3. Enter sleep mode
      */
-    crc16_update(&crc, rfmPkt.grp);
+    crc = crc16_update(crc, rfmPkt.grp);
     while (txState < 5)
     {
         if (0 == (rfmReadReg(REG_IRQFLAGS2) & 0x80u))
@@ -232,7 +234,7 @@ rfmSend(const void *pData)
             }
             if (txState < 4)
             {
-                crc16_update(&crc, writeByte);
+                crc = crc16_update(crc, writeByte);
             }
             rfmWriteReg(REG_FIFO, writeByte);
         }

@@ -32,9 +32,8 @@ static void         writeBytes      (wrLocal_t *wr, unsigned int n);
 
 
 /* Precalculate wear limiting addresses */
-static       unsigned int   addrsWL[EEPROM_WL_NUM_BLK];
-static const unsigned int   blkCnt                      = EEPROM_WL_NUM_BLK;
-static const unsigned int   blkSize                     = sizeof(Emon32CumulativeSave_t);
+const unsigned int   blkCnt  = 14;
+const unsigned int   blkSize = sizeof(Emon32CumulativeSave_t);
 
 
 /*! @brief Calculates the LSB and MSB address bytes
@@ -130,13 +129,14 @@ wlFindLast(eepromPktWL_t *pPkt)
      * byte that is different to the 0-th byte is the oldest block. If all
      * blocks are the same, then the 0-th index is the next to be written.
      */
-    eepromRead(addrsWL[0], &firstByte, 1u);
+    eepromRead(EEPROM_WL_OFFSET, &firstByte, 1u);
     pPkt->idxNextWrite = 0;
     for (unsigned int idxBlk = 1u; idxBlk < blkCnt; idxBlk++)
     {
         unsigned int validByte;
 
-        eepromRead(addrsWL[idxBlk], &validByte, 1u);
+
+        eepromRead((EEPROM_WL_OFFSET + (idxBlk * blkSize)), &validByte, 1u);
         idxNextWr++;
 
         if (firstByte != validByte)
@@ -271,19 +271,8 @@ eepromReadWL(eepromPktWL_t *pPktRd)
     {
         idxRd = blkCnt + idxRd;
     }
-    addrRd = addrsWL[idxRd];
+    addrRd = EEPROM_WL_OFFSET + (idxRd * blkSize);
     eepromRead(addrRd, pPktRd->pData, pPktRd->dataSize);
-}
-
-
-void
-eepromSetup(const unsigned int wlOffset)
-{
-    /* Precalculate the addresses of the wear limiting blocks */
-    for (unsigned int i = 0; i < blkCnt; i++)
-    {
-        addrsWL[i] = wlOffset + (i * blkSize);
-    }
 }
 
 
@@ -384,7 +373,7 @@ eepromWriteWL(eepromPktWL_t *pPktWr)
     if (-1 == pPktWr->idxNextWrite) wlFindLast(pPktWr);
 
     /* Calculate the next valid byte, and store packet */
-    addrWr = addrsWL[pPktWr->idxNextWrite];
+    addrWr = EEPROM_WL_OFFSET + (pPktWr->idxNextWrite * blkSize);
     /* TODO : this is not correct, unsafe wrap! */
     eepromRead((addrWr - pPktWr->dataSize), &validByte, 1u);
 

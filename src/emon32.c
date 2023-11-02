@@ -60,7 +60,6 @@ static void     ledStatusToggle         ();
 static void     nvmCumulativeConfigure  (eepromPktWL_t *pPkt);
 static void     nvmLoadConfiguration    (Emon32Config_t *pCfg);
 static void     nvmLoadCumulative       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
-static void     nvmSetup                ();
 static void     nvmStoreCumulative      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     processCumulative       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     pulseConfigure          (const Emon32Config_t *pCfg);
@@ -146,7 +145,11 @@ dataTxConfigure(const Emon32Config_t *pCfg)
         uart_data_cfg.pin_tx    = PIN_UART_DATA_TX;
         uart_data_cfg.pin_rx    = PIN_UART_DATA_RX;
         uart_data_cfg.pmux      = PMUX_UART_DATA;
-        sercomSetupUART(&uart_data_cfg);
+        /* REVISIT : for emon32-Pi2 v0.1, configure the data UART. Not present in
+         * 0.1dev
+         * sercomSetupUART(&uart_data_cfg);
+         */
+        (void)uart_data_cfg;
     }
     return rfmPkt;
 }
@@ -428,13 +431,6 @@ nvmLoadCumulative(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
 }
 
 
-/*! @brief Do any required setup for the NVM used */
-static void
-nvmSetup()
-{
-    eepromSetup(EEPROM_WL_OFFSET);
-}
-
 /*! @brief Store cumulative energy and pulse values
  *  @param [in] pRes : pointer to cumulative values
  */
@@ -611,6 +607,7 @@ main()
     unsigned int    tempCount               = 0;
 
     ucSetup();
+    ledStatusOn     ();
 
     /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
     uartConfigureDMA();
@@ -622,11 +619,11 @@ main()
      * store default configuration and 0 energy accumulator area.
      * REVISIT add check that firmware version matches stored config.
      */
-    nvmSetup                ();
+
     nvmLoadConfiguration    (&e32Config);
     datasetInit             (&dataset, &ecmDataset);
     nvmCumulativeConfigure  (&nvmCumulative);
-    nvmLoadCumulative       (&nvmCumulative, &dataset);
+    // nvmLoadCumulative       (&nvmCumulative, &dataset);
 
     lastStoredWh = totalEnergy(&dataset);
 
@@ -646,7 +643,6 @@ main()
     numTempSensors = tempSetup();
 
     /* Set up buffers for ADC data, configure energy processing, and start */
-    ledStatusOn     ();
     emon32StateSet  (EMON_STATE_ACTIVE);
     ecmConfigure    (&e32Config);
     adcStartDMAC    ((uint32_t)ecmDataBuffer());
