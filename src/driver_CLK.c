@@ -4,6 +4,35 @@
 void
 clkSetup()
 {
+    /* Set up brown out detector to catch:
+     *   - Brown in at startup before setting waiting states @ 48 MHz
+           Suspend setting up the 48 MHz clock until the power is established
+     *   - Brown out trigger reset
+     * https://blog.thea.codes/sam-d21-brown-out-detector/
+     */
+
+    /* Disable BOD during configuration to avoid spurious reset */
+    SYSCTRL->BOD33.reg &= ~SYSCTRL_BOD33_ENABLE;
+    while(!(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_B33SRDY));
+
+    /* Configure BOD to watch the system voltage @3V3
+     *   - Vmin = Vmin = 2V77 - 2V84 (Table 37-21)
+     *   - Take no action
+     *   - Enable hysteresis
+     */
+    SYSCTRL->BOD33.reg =   SYSCTRL_BOD33_LEVEL(39)
+                         | SYSCTRL_BOD33_ACTION_NONE
+                         | SYSCTRL_BOD33_HYST;
+
+    SYSCTRL->BOD33.reg |= SYSCTRL_BOD33_ENABLE;
+    while(!(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_B33SRDY));
+
+    /* PCLKSR.BOD33DET is 1 when the voltage is too low */
+    while (SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_BOD33DET);
+
+    /* Now at ~3V3, set BOD33 to reset the micro on brown out */
+    SYSCTRL->BOD33.reg |= SYSCTRL_BOD33_ACTION_RESET;
+
     /* 48 MHz DFLL for core - adapted from Arduino core library
      *  1. Set flash wait state to 1 for 48 MHz core
      *  2. Enable OSC32K clock (assuming no external crystal)
@@ -65,7 +94,6 @@ clkSetup()
 
     SYSCTRL->DFLLCTRL.reg =   SYSCTRL_DFLLCTRL_MODE
                             | SYSCTRL_DFLLCTRL_CCDIS
-                            | SYSCTRL_DFLLCTRL_USBCRM
                             | SYSCTRL_DFLLCTRL_BPLCKC;
     while (0 == (SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_DFLLRDY));
     SYSCTRL->DFLLCTRL.reg |= SYSCTRL_DFLLCTRL_ENABLE;
