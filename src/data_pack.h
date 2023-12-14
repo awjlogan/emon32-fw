@@ -2,7 +2,6 @@
 #define DATA_PACK_H
 
 #include "emon32.h"
-#include "util.h"
 
 /*! @brief Packs the emon_CM packet into EmonESP format.
  *         ct1:X,ct1:x,t1:x,t2:x
@@ -15,7 +14,7 @@
  *  @param [in] n : width of the destination buffer
  *  @return : the number of the characters that would be packed
  */
-unsigned int dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, unsigned int n);
+unsigned int dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int n);
 
 /*! @brief Pack the voltage, power, energy, temperature, and pulse data into a
  *         packed structure for transmission over RFM link.

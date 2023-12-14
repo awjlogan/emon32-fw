@@ -20,6 +20,7 @@
 #include "periph_rfm69.h"
 #include "pulse.h"
 #include "temperature.h"
+#include "util.h"
 
 #include "printf.h"
 

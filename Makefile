@@ -42,6 +42,7 @@ INCLUDES += \
   -I./include/samd11 \
   -I./include/samd21 \
   -I./third_party/printf \
+  -I./third_party/qfplib \
   -I./src/
 
 SRCS += \
@@ -93,15 +94,15 @@ $(BUILD)/$(BIN).bin: $(BUILD)/$(BIN).elf
 	@echo OBJCOPY $@
 	@$(OBJCOPY) -O binary $^ $@
 
-build/qfplib.o: src/qfplib.s src/qfplib.h
+build/qfplib.o:
 	@echo AS $@
-	@$(CC) $(CFLAGS) src/qfplib.s -c -o $@
+	@$(CC) $(CFLAGS) third_party/qfplib/qfplib.s -c -o $@
 
-build/qfpio.o: src/qfpio.s src/qfpio.h
+build/qfpio.o:
 	@echo AS $@
-	@$(CC) $(CFLAGS) src/qfpio.s -c -o $@
+	@$(CC) $(CFLAGS) third_party/qfplib/qfpio.s -c -o $@
 
-%.o: src/qfpio.h src/qfplib.h
+%.o:
 	@echo CC $@
 	@$(CC) $(CFLAGS) $(filter %/$(subst .o,.c,$(notdir $@)), $(SRCS)) -c -o $@
 
@@ -118,20 +119,3 @@ clean:
 
 -include $(wildcard $(BUILD)/*.d)
 
-# Fetch Qfplib
-$(QFPLIB_ARC):
-	curl -O $(QFPLIB_URL)
-$(QFPLIB_BUNDLE): $(QFPLIB_ARC)
-	tar xvf $(QFPLIB_ARC)
-$(QFPLIB_BUNDLE)/qfplib.s:	$(QFPLIB_BUNDLE)
-$(QFPLIB_BUNDLE)/qfplib.h:	$(QFPLIB_BUNDLE)
-$(QFPLIB_BUNDLE)/qfpio.s:	$(QFPLIB_BUNDLE)
-$(QFPLIB_BUNDLE)/qfpio.h:	$(QFPLIB_BUNDLE)
-src/qfplib.s:	$(QFPLIB_BUNDLE)/qfplib.s
-	ln -sf ../$(QFPLIB_BUNDLE)/qfplib.s ./src/
-src/qfplib.h:	$(QFPLIB_BUNDLE)/qfplib.h
-	ln -sf ../$(QFPLIB_BUNDLE)/qfplib.h ./src/
-src/qfpio.s:	$(QFPLIB_BUNDLE)/qfpio.s
-	ln -sf ../$(QFPLIB_BUNDLE)/qfpio.s ./src/
-src/qfpio.h:	$(QFPLIB_BUNDLE)/qfpio.h
-	ln -sf ../$(QFPLIB_BUNDLE)/qfpio.h ./src/

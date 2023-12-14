@@ -1,101 +1,48 @@
 #include <string.h>
+#include <inttypes.h>
 
 #include "data_pack.h"
+#include "util.h"
 #include "qfpio.h"
+#include "printf.h"
 
 unsigned int
-dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, unsigned int n)
+dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int n)
 {
-    unsigned int    charCnt = 0;
-    char            tmpBuf[16];
-    unsigned int    cursor = 0u;
-    unsigned int    insLen;
+    unsigned int    bufLen = 0;
 
     /* Clear destination buffer */
     memset(pDst, 0, n);
 
-    /* Message number */
-    charCnt += 4;
-    if (charCnt <= n)
+    bufLen = snprintf_(pDst, n, "MSG:%u", (unsigned int)pData->msgNum);
+    
+    /* V channels */
+    for (unsigned int i = 0; i < NUM_V; i++)
     {
-        cursor = utilStrInsert(pDst, "MSG:", 0, 4);
-    }
-    insLen = utilItoa(tmpBuf, pData->msgNum, ITOA_BASE10) - 1u;
-    charCnt += insLen;
-    if (charCnt <= n)
-    {
-        cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-    }
-
-    /* V RMS for each channel.
-     * REVISIT : how should this look for multiple V channels?
-     */
-    charCnt += 6;
-    if (charCnt <= n)
-    {
-        cursor = utilStrInsert(pDst, ",Vrms:", cursor, 6);
-    }
-    qfp_float2str(pData->pECM->rmsV[0], tmpBuf, 0);
-    insLen = utilStrlen(tmpBuf);
-    charCnt += insLen;
-    if (charCnt <= n)
-    {
-        cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
+        bufLen = snprintf_(pDst, n, "%s,V%d:%.2f", 
+                           pDst, i, pData->pECM->rmsV[i]);
     }
 
     /* CT channels */
-    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
+    for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        charCnt += 2;
-        if (charCnt <= n)
-        {
-            cursor = utilStrInsert(pDst, ",P", cursor, 2);
-        }
-        insLen = utilItoa(tmpBuf, (idxCT + 1u), ITOA_BASE10) - 1u;
-        charCnt += insLen;
-        if (charCnt <= n)
-        {
-            cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-        }
-        charCnt += 1;
-        if (charCnt <= n)
-        {
-            cursor = utilStrInsert(pDst, ":", cursor, 1);
-        }
-        qfp_float2str(pData->pECM->CT[idxCT].realPower, tmpBuf, 0);
-        insLen = utilStrlen(tmpBuf);
-        charCnt += insLen;
-        if (charCnt <= n)
-        {
-            cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-        }
-        charCnt += 2;
-        if (charCnt <= n)
-        {
-            cursor = utilStrInsert(pDst, ",E", cursor, 2);
-        }
-        insLen = utilItoa(tmpBuf, (idxCT + 1u), ITOA_BASE10) - 1u;
-        charCnt += insLen;
-        if (charCnt <= n)
-        {
-            cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-        }
-        charCnt += 1;
-        if (charCnt <= n)
-        {
-            cursor = utilStrInsert(pDst, ":", cursor, 1);
-        }
-        insLen = utilItoa(tmpBuf, pData->pECM->CT[idxCT].wattHour, ITOA_BASE10) - 1u;
-        charCnt += insLen;
-        if (charCnt <= n)
-        {
-            cursor = utilStrInsert(pDst, tmpBuf, cursor, insLen);
-        }
+        bufLen = snprintf_(pDst, n, "%s,P%d:%.2f",
+                           pDst, i, pData->pECM->CT[i].realPower);
     }
 
-    /* TODO : temperature and pulse count are not implemented */
+    for (unsigned int i = 0; i < NUM_CT; i++)
+    {
+        bufLen = snprintf_(pDst, n, "%s,E%d:%u",
+                           pDst, i, (unsigned int)pData->pECM->CT[i].wattHour);
+    }
 
-    return charCnt;
+    for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
+    {
+        bufLen = snprintf_(pDst, n, "%s,pulse%d:%"PRIu64"",
+                           pDst, i, pData->pulseCnt[i]);
+    }
+
+    return bufLen;
 }
 
 void
