@@ -28,17 +28,20 @@ CFLAGS += -W -Wall -Wpedantic --std=gnu99 -Os
 CFLAGS += -fno-diagnostics-show-caret
 CFLAGS += -fdata-sections -ffunction-sections
 CFLAGS += -funsigned-char -funsigned-bitfields
+CFLAGS += -Wuninitialized
 CFLAGS += -mcpu=cortex-m0plus -mthumb
 CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 
 LDFLAGS += -mcpu=cortex-m0plus -mthumb
 LDFLAGS += -Wl,--gc-sections
 # LDFLAGS += -Wl,--script=./linker/samd11d14.ld
+LDFLAGS += -Wl,--print-memory-usage
 LDFLAGS += -Wl,--script=./linker/samd21j17.ld
 
 INCLUDES += \
   -I./include/samd11 \
   -I./include/samd21 \
+  -I./third_party/printf \
   -I./src/
 
 SRCS += \
@@ -62,7 +65,8 @@ SRCS += \
   ./src/periph_DS18B20.c \
   ./src/pulse.c \
   ./src/temperature.c \
-  ./src/util.c
+  ./src/util.c \
+  ./third_party/printf/printf.c
 
 
 #-D__SAMD11D14AM__

@@ -21,6 +21,8 @@
 #include "pulse.h"
 #include "temperature.h"
 
+#include "printf.h"
+
 
 /*************************************
  * Types
@@ -159,7 +161,6 @@ dataTxConfigure(const Emon32Config_t *pCfg)
 static void
 dbgPutBoard()
 {
-    char            wr_buf[4];
     const int       board_id    = BOARD_ID;
     const RCAUSE_t  lastReset   = (RCAUSE_t)PM->RCAUSE.reg;
 
@@ -205,20 +206,21 @@ dbgPutBoard()
             dbgPuts("Power on cold reset");
             break;
     }
-    dbgPuts         ("\r\n");
-    dbgPuts         ("Firmware:   ");
-    (void)utilItoa  (wr_buf, VERSION_FW_MAJ, ITOA_BASE10);
-    dbgPuts         (wr_buf);
-    uartPutcBlocking(SERCOM_UART_DBG, '.');
-    (void)utilItoa  (wr_buf, VERSION_FW_MIN, ITOA_BASE10);
-    dbgPuts         (wr_buf);
-    dbgPuts         ("\r\n\r\n");
+    printf_("\r\nFirmware:   %d.%d\r\n\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
 }
 
 void
 dbgPuts(const char *s)
 {
     uartPutsBlocking(SERCOM_UART_DBG, s);
+}
+
+
+/* This allows the printf function to be used to print to the debug console */
+void
+putchar_(char c)
+{
+    uartPutcBlocking(SERCOM_UART_DBG, c);
 }
 
 
@@ -619,11 +621,11 @@ main()
      * store default configuration and 0 energy accumulator area.
      * REVISIT add check that firmware version matches stored config.
      */
-
+    dbgPuts("Loading config...\r\n");
     nvmLoadConfiguration    (&e32Config);
     datasetInit             (&dataset, &ecmDataset);
     nvmCumulativeConfigure  (&nvmCumulative);
-    // nvmLoadCumulative       (&nvmCumulative, &dataset);
+    nvmLoadCumulative       (&nvmCumulative, &dataset);
 
     lastStoredWh = totalEnergy(&dataset);
 
