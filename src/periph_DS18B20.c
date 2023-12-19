@@ -3,6 +3,7 @@
 #include "driver_PORT.h"
 #include "driver_TIME.h"
 #include "periph_DS18B20.h"
+#include "qfplib.h"
 
 /* Driver for DS18B20 OneWire temperature sensor
  * https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf
@@ -355,3 +356,10 @@ ds18b20ReadSample(const unsigned int dev)
     /* Second byte is the MSB, shift to top 8 */
     return (int16_t)tempData;
 }
+
+float
+ds18b20SampleToCelsius(const int16_t fix)
+{
+    return qfp_fix2float(fix, 4);
+}
+

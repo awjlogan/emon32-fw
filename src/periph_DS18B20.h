@@ -25,4 +25,10 @@ int ds18b20StartSample();
  */
 int16_t ds18b20ReadSample(const unsigned int dev);
 
+/*! @brief Convert the DS18B20 value into a float
+ *  @param [in] fix : 8.4 fixed point value
+ *  @return : temperature in C
+ */
+float ds18b20SampleToCelsius(const int16_t fix);
+
 #endif
