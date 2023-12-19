@@ -1,6 +1,6 @@
-# _emon32_ Firmware
+# _emon32-Pi2_ Firmware
 
-This describes the firmware provided for the _emon32_. The software is intended to be modular, and easily portable to other microcontrollers and implementations.
+This describes the firmware provided for the _emon32_ energy monitoring platform. The software is intended to be modular, and easily portable to other microcontrollers and implementations.
 
 ## emonLibCM Comparison
 
@@ -26,30 +26,32 @@ Most compile time options are contained in `firmware/src/emon32.h`. The followin
 
 ## Compiling
 
-Compiling the firmware requires the correct toolchain. The Makefile is for a Cortex-M0+ based microcontroller, specifically the Atmel ATSAMD10D14. You will need the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution).
+Compiling the firmware requires the correct toolchain. The Makefile is for a Cortex-M0+ based microcontrollers, specifically the Atmel ATSAMD11D14 and ATSAMD21J. You will need the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution).
 
 To build the firmware:
 
-  `firmware > make`
+  `> make`
 
 This will generate `firmware/build/emon32.elf` which can then be flashed to the microcontroller.
 
+If you do not have the Arm gcc toolchain on $PATH, you can specify the path in `> Makefile`
+
 ### Bootloader
 
-It is possible to use a small USB bootloader with the ATSAMD11. This can be [found here](https://github.com/majbthrd/SAMDx1-USB-DFU-Bootloader). For the ATSAMD11, there is a limited number of pins available, so the USB functionality is muxed externally.
+The emon32-Pi2 comes preloaded with a UF2 bootloader.
 
 #### Preparing the firmware
 
-The bootloader occupies the first 1KB of flash. The linker must be modified to account for the change of address. In `firmware/linker/samd11d14.ld`, in the `MEMORY` section, uncomment the line with `OFFSET = 0x00000400` and comment the line with `OFFSET = 0x00000000`. Recompile the firmware as normal. Note that the maximum size of the emon32 is now 1 KB less than without the bootloader.
+The bootloader occupies the first 8KB of flash. The linker must be modified to account for the change of address. In `firmware/linker/samd11d14.ld`, in the `MEMORY` section, uncomment the line with `OFFSET = 0x00000400` and comment the line with `OFFSET = 0x00000000`. Recompile the firmware as normal. Note that the maximum size of the emon32 is now 1 KB less than without the bootloader.
 
 The new `emon32.elf` file must then be converted to a DFU file for upload.
 
 #### Uploading the firmware
 
-  1. Power off the emon32
+  1. Power off the emon32-Pi2
   2. Connect one end of the USB-C cable
-  3. While holding down the emon32's button, connect the other end of the USB cable
-  4. The emon32 will enter the bootloader, as indicated by XX.
+  3. While holding down the emon32's `RESET` button, connect the other end of the USB cable
+  4. The emon32 will enter the bootloader, as indicated by the **PROG** LED lighting up.
 
 #### Installing the bootloader
 
@@ -64,7 +66,7 @@ Fixed point (Q15) calibration values for a given CT phase shift can be generated
 
 ### Designing a new board
 
-The file `firmware/src/board_def.h` contains options for configuring the microcontroller for a given board. For example, different pin mappings may be required.
+The files `firmware/src/board_def.h` and `firmware/src/board_def.c` contain options for configuring the microcontroller for a given board. For example, different pin mappings may be required.
 
 ### Porting to different microcontroller
 
@@ -76,8 +78,15 @@ You will also need to ensure that the vendor's headers are included and visible 
 
 ### Digital filter
 
-The base configuration has an oversampling factor of 2X, to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to *f/2* with a half band filter (**ecmFilterSample()**). The half band filter is exposed for testing. Filter coefficients can be generated using the **filter.py** script (*./helpers/filter.py*). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need **scipy** and **matplotlib** to use the filter designer,
+The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to *f/2* with a half band filter (**ecmFilterSample()**). The half band filter is exposed for testing. Filter coefficients can be generated using the **filter.py** script (*./helpers/filter.py*). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need **scipy** and **matplotlib** to use the filter designer,
 
 ### Hosted testing
 
 There are tests available to run on local system (tested on macOS and Linux), rather than on a physical device, for some functions. These are in *./tests*. In that folder, run `make all` to build the tests. These allow for development on a faster system with better debug options. The firmware is structured to remove, as far as possible, direct calls to hardware. Do note that some functions will not behave identically. For example, in the configuration menu terminal entry may be different to that through a UART.
+
+## Acknowledgements
+
+### Third party
+
+  -
+
