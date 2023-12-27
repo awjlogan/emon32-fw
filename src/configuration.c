@@ -44,6 +44,8 @@
     #include "qfpio.h"
     #include "util.h"
 
+    #include "printf.h"
+
 #endif
 
 #define GENBUF_W        16u
@@ -694,12 +696,24 @@ configEnter(Emon32Config_t *pConfig)
 }
 
 
+static void
+configInitialiseNVM(Emon32Config_t *pCfg)
+{
+    dbgPuts                 ("> Initialising NVM... ");
+    configDefault           (pCfg);
+    eepromInitConfig        (pCfg, sizeof(Emon32Config_t));
+    (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
+    dbgPuts("Done!\r\n");
+}
+
+
 void
 configLoadFromNVM(Emon32Config_t *pCfg)
 {
-    uint32_t    key         = 0u;
-    uint32_t    cfgSize     = sizeof(Emon32Config_t);
-    uint16_t    crc16_ccitt = 0;
+    uint32_t        key         = 0u;
+    const uint32_t  cfgSize     = sizeof(Emon32Config_t);
+    uint16_t        crc16_ccitt = 0;
+    char            c           = 0;
 
     /* Load 32bit key from "static" part of EEPROM. If the key does not match
      * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
@@ -709,11 +723,7 @@ configLoadFromNVM(Emon32Config_t *pCfg)
 
     if (CONFIG_NVM_KEY != key)
     {
-        dbgPuts                 ("> Initialising NVM... ");
-        configDefault           (pCfg);
-        eepromInitConfig        (pCfg, cfgSize);
-        (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
-        dbgPuts("Done!\r\n");
+        configInitialiseNVM(pCfg);
     }
     else
     {
@@ -727,7 +737,16 @@ configLoadFromNVM(Emon32Config_t *pCfg)
         crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
         if (crc16_ccitt != pCfg->crc16_ccitt)
         {
-            dbgPuts("> CRC mismatch, NVM may be corrupt.\r\n");
+            printf_("    - CRC mismatch. Found: 0x%x -- expected: 0x%x\r\n", pCfg->crc16_ccitt, crc16_ccitt);
+            dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
+            while ('y' != c && 'n' != c)
+            {
+                c = waitForChar();
+            }
+            if ('y' == c)
+            {
+                configInitialiseNVM(pCfg);
+            }
         }
     }
 }
@@ -760,4 +779,74 @@ configDefault(Emon32Config_t *pCfg)
     pCfg->ctActive = (1 << NUM_CT_ACTIVE_DEF) - 1u;
 
     pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
+}
+
+
+typedef enum {
+    CU_IDLE,
+    CU_PERIOD,
+    CU_SERIAL_LOG,
+    CU_LINE_FREQUENCY,
+    CU_CALI_AN,
+    CU_ASSUMED_V,
+    CU_PULSE_COUNT
+} CUState_t;
+
+#define IN_BUFFER_W 64u
+
+static unsigned int inBufferIdx = 0;
+static uint8_t      inBuffer[IN_BUFFER_W];
+
+void
+configUpdate()
+{
+    /* Simple state machine to progress through the configuration values like
+     * the emonPi2.
+     * Base commands:
+     *  - l         : list settings
+     *  - r         : restore defaults
+     *  - s         : save settings to NVM
+     *  - v         : firmware information
+     *  - z         : zero energy accumulators
+     *  - x         : exit, lock, and continue
+     *  - ?         : show this text again
+     *  - d<xx.x>   : data log period (s)
+     *  - c<n>      : log to serial output. N = 0: OFF, N = 1: ON
+     *  - f<xx>     : line frequency (Hz)
+     *  - k<x> <yy.y> <zz.z>
+     *    - Calibrate an analogue input
+     *    - x:      : channel
+     *  - a<xxx>    : assumed voltage if no AC detected
+     *  - m<x> <yy> : pulse counting. X = 0: OFF, X = 1, ON. yy
+    */
+
+    /* Terminate buffer at index, shouldn't fill but just in case */
+    if (IN_BUFFER_W == inBufferIdx)
+    {
+        inBuffer[IN_BUFFER_W - 1u] = '\0';
+    }
+    else
+    {
+        inBuffer[inBufferIdx] = '\0';
+    }
+
+    switch (inBuffer[0])
+    {
+
+    }
+}
+
+void
+configGetChar(uint8_t c)
+{
+    if ('\n' == c)
+    {
+        configUpdate();
+        inBufferIdx = 0;
+        (void)memset(inBuffer, 0, IN_BUFFER_W);
+    }
+    else if (inBufferIdx < IN_BUFFER_W)
+    {
+        inBuffer[inBufferIdx++] = c;
+    }
 }

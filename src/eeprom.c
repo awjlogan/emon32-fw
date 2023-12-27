@@ -6,8 +6,12 @@
 #include "driver_TIME.h"
 #include "emon32.h"
 #include "util.h"
+
+#include "printf.h"
 #else
+
 #include "test_eeprom.h"
+
 #endif /* HOSTED */
 
 #include "eeprom.h"
@@ -154,29 +158,18 @@ eepromDump()
     /* Write out EEPROM content to debug UART 16 bytes (one page) at a time.
      * Each byte is written out as hex with a space in between
      */
-    char wrBuffer[49] = {0};
+    uint8_t eeprom[16];
 
-    for (unsigned int i = 0; i < EEPROM_SIZE_BYTES; i+=16)
+    /* Pages */
+    for (unsigned int i = 0; i < (EEPROM_SIZE_BYTES / 16); i++)
     {
-        uint8_t         dataBuf[16];
-        uint8_t         *pSrc = dataBuf;
-        Address_t       addressCalc;
-        unsigned int    addr;
-
-        addressCalc = calcAddress(i);
-        addr        = (addressCalc.msb << 8) | addressCalc.lsb;
-        eepromRead(addr, dataBuf, 16);
-
+        /* Bytes in page */
+        eepromRead((i * 16), eeprom, 16);
         for (unsigned int j = 0; j < 16; j++)
         {
-            char charBuf[3] = {0};
-            (void)utilItoa(charBuf, *pSrc++, ITOA_BASE16);
-            utilStrInsert(wrBuffer, charBuf, j*3, 2);
-            charBuf[2] = ' ';
+            printf_("%02x ", eeprom[j]);
         }
-
-        dbgPuts(wrBuffer);
-        dbgPuts("\r\n");
+        printf_("\r\n");
     }
 }
 
@@ -277,7 +270,7 @@ eepromReadWL(eepromPktWL_t *pPktRd)
 
 
 eepromWrStatus_t
-eepromWrite(uint16_t addr, const void *pSrc, unsigned int n)
+eepromWrite(unsigned int addr, const void *pSrc, unsigned int n)
 {
     /* Make byte count and address static to allow re-entrant writes */
     static wrLocal_t    wrLocal;

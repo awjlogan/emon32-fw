@@ -16,7 +16,7 @@ typedef enum {
 } eepromWrStatus_t;
 
 
-/*! Dump all the EEPROM data out on to the debug UART
+/*! @brief Dump all the EEPROM data out on to the debug UART
  */
 void eepromDump();
 
@@ -61,7 +61,7 @@ void eepromSetup(const unsigned int wlOffset);
  *            EEPROM_WR_BUSY -> tried to send data while previous pending
  *            EEPROM_WR_COMPLETE -> tried to continue, but all data sent
  */
-eepromWrStatus_t eepromWrite(uint16_t addr, const void *pSrc, unsigned int n);
+eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc, unsigned int n);
 
 /*! @brief Callback function for allow async write to EEPROM from timer
  */

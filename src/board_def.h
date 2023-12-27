@@ -55,12 +55,14 @@
 #define EEPROM_PAGE_SIZE    16u
 /* Worst case EEPROM write time (microseconds) */
 #define EEPROM_WR_TIME      5000ul
-/* Size (bytes) of EEPROM */
-#define EEPROM_SIZE_BYTES   512u
+/* Size (bytes) of EEPROM -> (kb / 8) */
+#define EEPROM_SIZE_BYTES   1024u
+/* Size of configuration area */
+#define EEPROM_CONFIG_SIZE  256
 /* Size (bytes) of wear levelled portion */
-#define EEPROM_WL_SIZE      384u
+#define EEPROM_WL_SIZE      (EEPROM_SIZE_BYTES - EEPROM_CONFIG_SIZE)
 /* Offset of wear levelled area */
-#define EEPROM_WL_OFFSET    (EEPROM_SIZE_BYTES - EEPROM_WL_SIZE)
+#define EEPROM_WL_OFFSET    (EEPROM_CONFIG_SIZE)
 
 /* SERCOM peripheral defines */
 #if (BOARD_ID == BOARD_ID_LC)
@@ -111,6 +113,9 @@
 #define PMUX_UART_DBG0              PORT_PMUX_PMUXE_C
 #define PMUX_UART_DBG1              PORT_PMUX_PMUXE_D
 #define PMUX_UART_DATA              PORT_PMUX_PMUXE_C
+
+#define SERCOM_UART_INTERACTIVE_HANDLER irq_handler_sercom2()
+#define SERCOM_UART_INTERACTIVE     SERCOM2
 
 #define SERCOM_UART_DBG_NVIC_IRQn   SERCOM2_IRQn
 #define SERCOM_I2CM_NVIC_IRQn       SERCOM3_IRQn
