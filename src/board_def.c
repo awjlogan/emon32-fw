@@ -3,7 +3,6 @@
 /* Each pin are defined in {GROUP, PIN} pairs. Pin numberings are logical,
  * not physical. Each collection of pins is terminated with a {0xFF, 0} pair.
  */
-#if (BOARD_ID == BOARD_ID_EMONPI)
 
 const uint8_t pinsGPIO_Out[][2] = {
     {GRP_PINB,      PIN_LED_STATUS},
@@ -56,31 +55,3 @@ const uint8_t pinsADC[][2] = {
     {GRP_PINB,  9u},
     {0xFF,      0}
 };
-
-#elif (BOARD_ID == BOARD_ID_LC)
-
-const uint8_t pinsGPIO_Out[][2] = {
-    {GRP_PIN,   PIN_LED_STATUS},
-    {0xFF,      0}
-};
-
-const uint8_t pinsGPIO_In[][2] = {
-    {0xFF,      0}
-};
-
-const uint8_t pinsUnused[][2] = {
-    {GRP_PIN,   PIN_LED_PROG},
-    {GRP_PIN,   27},
-    {0xFF,      0}
-};
-
-const uint8_t pinsADC[][2] = {
-    {GRP_PIN,   2u},
-    {GRP_PIN,   3u},
-    {GRP_PIN,   4u},
-    {GRP_PIN,   5u},
-    {GRP_PIN,   6u},
-    {0xFF,      0}
-};
-
-#endif

@@ -164,14 +164,10 @@ irq_handler_sys_tick()
     }
 }
 
-/*! @brief On delay timer (TC2) expiration, call the callback function
+/*! @brief On delay timer (TIMER2) expiration, call the callback function
  */
 void
-#if (BOARD_ID == BOARD_ID_LC)
-irq_handler_tc2()
-#else
-irq_handler_tc4()
-#endif
+IRQ_TIMER2()
 {
     if (0 != tc2_cb)
     {
