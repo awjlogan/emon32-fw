@@ -1,14 +1,6 @@
 ##############################################################################
 BUILD = build
 BIN = emon32
-
-# Qfplib-M0 floating point library
-# https://www.quinapalus.com/qfplib-m0-tiny.html
-QFPLIB_VER=20200617
-QFPLIB_BUNDLE=qfplib-$(QFPLIB_VER)
-QFPLIB_ARC=$(QFPLIB_BUNDLE).tar.gz
-QFPLIB_URL=https://www.quinapalus.com/$(QFPLIB_ARC)
-
 ##############################################################################
 .PHONY: all directory clean size
 
@@ -34,43 +26,18 @@ CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 
 LDFLAGS += -mcpu=cortex-m0plus -mthumb
 LDFLAGS += -Wl,--gc-sections
-# LDFLAGS += -Wl,--script=./linker/samd11d14.ld
 LDFLAGS += -Wl,--print-memory-usage
 LDFLAGS += -Wl,--script=./linker/samd21j17.ld
 
 INCLUDES += \
-  -I./include/samd11 \
   -I./include/samd21 \
   -I./third_party/printf \
   -I./third_party/qfplib \
   -I./src/
 
-SRCS += \
-  ./src/startup_samd21.c \
-  ./src/driver_ADC.c \
-  ./src/driver_CLK.c \
-  ./src/driver_DMAC.c \
-  ./src/driver_EVSYS.c \
-  ./src/driver_PORT.c \
-  ./src/driver_SAMD.c \
-  ./src/driver_SERCOM.c \
-  ./src/driver_TIME.c \
-  ./src/driver_WDT.c \
-  ./src/board_def.c \
-  ./src/configuration.c \
-  ./src/data_pack.c \
-  ./src/eeprom.c \
-  ./src/emon_CM.c \
-  ./src/emon32.c \
-  ./src/periph_rfm69.c \
-  ./src/periph_DS18B20.c \
-  ./src/pulse.c \
-  ./src/temperature.c \
-  ./src/util.c \
-  ./third_party/printf/printf.c
+SRCS += $(wildcard ./src/*.c) \
+  $(wildcard ./third_party/printf/*.c)
 
-
-#-D__SAMD11D14AM__
 DEFINES += \
   -D__SAMD21J17A__ \
   -DDONT_USE_CMSIS_INIT
@@ -78,7 +45,7 @@ DEFINES += \
 CFLAGS += $(INCLUDES) $(DEFINES)
 
 OBJS = $(addprefix $(BUILD)/, $(notdir %/$(subst .c,.o, $(SRCS))))
-OBJS += build/qfplib.o build/qfpio.o
+OBJS += $(BUILD)/qfplib.o $(BUILD)/qfpio.o
 
 all: directory $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).hex $(BUILD)/$(BIN).bin size
 
@@ -94,11 +61,11 @@ $(BUILD)/$(BIN).bin: $(BUILD)/$(BIN).elf
 	@echo OBJCOPY $@
 	@$(OBJCOPY) -O binary $^ $@
 
-build/qfplib.o:
+$(BUILD)/qfplib.o:
 	@echo AS $@
 	@$(CC) $(CFLAGS) third_party/qfplib/qfplib.s -c -o $@
 
-build/qfpio.o:
+$(BUILD)/qfpio.o:
 	@echo AS $@
 	@$(CC) $(CFLAGS) third_party/qfplib/qfpio.s -c -o $@
 
@@ -118,4 +85,3 @@ clean:
 	@-rm -rf $(BUILD)
 
 -include $(wildcard $(BUILD)/*.d)
-
