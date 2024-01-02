@@ -11,10 +11,10 @@ typedef enum {
     CAL_DFLL48M_COARSE
 } Calibration_t;
 
-/* @brief Return the calibration value from the NVM Calibration Row, described
- *        in Table 9-4
- * @param [in] cal : enumeration of the calibration value required
- * @return : calibration value
+/*! @brief Return the calibration value from the NVM Calibration Row, described
+ *         in Table 9-4
+ *  @param [in] cal : enumeration of the calibration value required
+ *  @return : calibration value
  */
 uint32_t samdCalibration(const Calibration_t cal);
 

@@ -126,7 +126,7 @@ typedef enum {
  */
 typedef enum {
     EVT_DMA             = 0u,
-    EVT_SYSTICK_100Hz   = 1u,
+    EVT_TICK_1kHz       = 1u,
     EVT_TCC             = 2u,
     EVT_UART            = 3u,
     EVT_ADC             = 4u,

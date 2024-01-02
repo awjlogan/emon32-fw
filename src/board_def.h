@@ -96,10 +96,18 @@
 
 /* Timer Instances */
 
-/* TIMER1 drives ADC conversion tick, TIMER2 used for delay timing */
+/* TIMER1 drives ADC conversion tick, TIMER2 used for delay timing. TIMER2
+ * must be a 32 bit timer. For SAMD21, TC4 is combined with TC5 (30.6.2.4)
+ * to build a 32 bit timer.
+ *
+ * There is also accurate millisecond/microsecond counters. The 1ms tick is
+ * also used to wake up the core for events and USB handling.
+ */
 #define TIMER1                      TC3
 #define TIMER2                      TC4
+#define TIMER_TICK                  TC6
 #define IRQ_TIMER2                  irq_handler_tc4
+#define IRQ_TIMER_TICK              irq_handler_tc6
 
 #define TIMER1_GCLK_ID              TC3_GCLK_ID
 #define TIMER1_APBCMASK             PM_APBCMASK_TC3
@@ -108,6 +116,10 @@
 #define TIMER2_GCLK_ID              TC4_GCLK_ID
 #define TIMER2_APBCMASK             PM_APBCMASK_TC4
 #define TIMER2_IRQn                 TC4_IRQn
+
+#define TIMER_TICK_GCLK_ID          TC6_GCLK_ID
+#define TIMER_TICK_APBCMASK         PM_APBCMASK_TC6
+#define TIMER_TICK_IRQn             TC6_IRQn
 
 
 /* Pin Configuration (nb. logical, not physical) */

@@ -8,11 +8,13 @@ portSetup()
     extern const uint8_t pinsGPIO_In[][2];
     extern const uint8_t pinsUnused[][2];
 
-    /* GPIOs */
+    /* GPIO outputs */
     for (unsigned int i = 0; pinsGPIO_Out[i][0] != 0xFF; i++)
     {
         portPinDir(pinsGPIO_Out[i][0], pinsGPIO_Out[i][1], PIN_DIR_OUT);
     }
+
+    /* GPIO inputs */
     for (unsigned int i = 0; pinsGPIO_In[i][0] != 0xFF; i++)
     {
         portPinDir(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PIN_DIR_IN);

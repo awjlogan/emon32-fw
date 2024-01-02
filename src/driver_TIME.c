@@ -5,56 +5,19 @@
 #include "driver_WDT.h"
 
 
+/*! @brief Common setup for 1 us resolution timer
+ *  @param [in] delay : delay in us
+ */
+static void commonSetup(uint32_t delay);
+
+
+static uint32_t timeMillisCounter = 0;
+static uint32_t timeSecondsCounter = 0;
+
+
+/* Function pointer for non-blocking timer callback */
 void (*tc2_cb)();
 
-void
-timerSetup()
-{
-    /* SysTick is used as the general purpose 100 Hz timer. The tick value is
-     * reloaded on underflow SysTick is part of CMSIS so should be portable
-     * across Cortex-M cores
-     */
-    const uint32_t tickkHz = (F_CORE / 100u) - 1u;
-    SysTick_Config(tickkHz);
-
-    /* TIMER1 is used to trigger ADC sampling at constant rate */
-    /* Enable APB clock, set TC1 to generator 3 (OSC8M @ F_PERIPH)  */
-    PM->APBCMASK.reg |= TIMER1_APBCMASK;
-    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(TIMER1_GCLK_ID)
-                        | GCLK_CLKCTRL_GEN(3u)
-                        | GCLK_CLKCTRL_CLKEN;
-
-    /* Configure as 8bit counter (F_PERIPH - /8 -> F_TIMER1 */
-    TIMER1->COUNT8.CTRLA.reg =   TC_CTRLA_MODE_COUNT8
-                               | TC_CTRLA_PRESCALER_DIV8
-                               | TC_CTRLA_PRESCSYNC_RESYNC;
-
-    /* TIMER1 overflow event output to trigger ADC */
-    TIMER1->COUNT8.EVCTRL.reg |= TC_EVCTRL_OVFEO;
-
-    /* TIMER1 is running at 1 MHz, each tick is 1 us
-     * PER, COUNT, and Enable require synchronisation (28.6.6)
-     */
-    const unsigned int cntPer = F_TIMER1 / SAMPLE_RATE / (VCT_TOTAL);
-    TIMER1->COUNT8.PER.reg = (uint8_t)cntPer;
-    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
-    TIMER1->COUNT8.COUNT.reg = 0u;
-    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
-    TIMER1->COUNT8.CTRLA.reg |= TC_CTRLA_ENABLE;
-    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
-
-    /* TIMER2 is used as the delay and elapsed time counter
-     * Enable APB clock, set TIMER2 to generator 3 @ F_PERIPH
-     * Enable the interrupt for Compare Match, do not route to NVIC
-     */
-    PM->APBCMASK.reg |= TIMER2_APBCMASK;
-    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(TIMER2_GCLK_ID)
-                        | GCLK_CLKCTRL_GEN(3u)
-                        | GCLK_CLKCTRL_CLKEN;
-    TIMER2->COUNT32.CTRLA.reg =   TC_CTRLA_MODE_COUNT32
-                                | TC_CTRLA_PRESCALER_DIV8
-                                | TC_CTRLA_PRESCSYNC_RESYNC;
-}
 
 void
 commonSetup(uint32_t delay)
@@ -69,27 +32,13 @@ commonSetup(uint32_t delay)
     while (TIMER2->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
 }
 
-void
-timerDisable()
-{
-    TIMER2->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
-    NVIC_DisableIRQ(TIMER2_IRQn);
-}
 
 int
-timerDelayNB_us(uint32_t delay, void (*cb)())
+timerDelay_ms(uint16_t delay)
 {
-    tc2_cb = cb;
-    if (TIMER2->COUNT32.CTRLA.reg & TC_CTRLA_ENABLE)
-    {
-        return -1;
-    }
-
-    NVIC_EnableIRQ(TIMER2_IRQn);
-    commonSetup(delay);
-
-    return 0;
+    return timerDelay_us(delay * 1000u);
 }
+
 
 int
 timerDelay_us(uint32_t delay)
@@ -111,11 +60,30 @@ timerDelay_us(uint32_t delay)
     return 0;
 }
 
+
 int
-timerDelay_ms(uint16_t delay)
+timerDelayNB_us(uint32_t delay, void (*cb)())
 {
-    return timerDelay_us(delay * 1000u);
+    tc2_cb = cb;
+    if (TIMER2->COUNT32.CTRLA.reg & TC_CTRLA_ENABLE)
+    {
+        return -1;
+    }
+
+    NVIC_EnableIRQ(TIMER2_IRQn);
+    commonSetup(delay);
+
+    return 0;
 }
+
+
+void
+timerDisable()
+{
+    TIMER2->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
+    NVIC_DisableIRQ(TIMER2_IRQn);
+}
+
 
 int
 timerElapsedStart()
@@ -148,20 +116,136 @@ timerElapsedStop()
 }
 
 
-/*! @brief On SysTick overflow, set the event in the main loop
- */
-void
-irq_handler_sys_tick()
+uint32_t
+timerMicros()
 {
-    emon32EventSet(EVT_SYSTICK_100Hz);
+    /* Resynchronise COUNT32.COUNT, and then return the result */
+    TIMER_TICK->COUNT32.READREQ.reg =   TC_READREQ_RREQ
+                                      | TC_READREQ_ADDR(0x10);
+    while (TIMER1->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+    return TIMER_TICK->COUNT32.COUNT.reg;
+}
 
-    /* Clear the watchdog if in the configuration state, as the normal 1 kHz
-     * tick event will not be serviced.
-     */
-    if (EMON_STATE_CONFIG == emon32StateGet())
+uint32_t
+timerMicrosDelta(const uint32_t prevMicros)
+{
+    uint32_t delta = 0;
+    uint32_t timeMicrosNow = timerMicros();
+
+    /* Check for wrap (every ~1 h) */
+    if (prevMicros > timeMicrosNow)
     {
-        wdtFeed();
+        delta = (UINT32_MAX - prevMicros) + timeMicrosNow;
     }
+    else
+    {
+        delta = timeMicrosNow - prevMicros;
+    }
+
+    return delta;
+}
+
+
+uint32_t
+timerMillis()
+{
+    return timeMillisCounter;
+}
+
+
+uint32_t
+timerMillisDelta(const uint32_t prevMillis)
+{
+    uint32_t delta = 0;
+
+    /* Check for wrap around (every 49 days, so rare!) */
+    if (prevMillis > timeMillisCounter)
+    {
+        delta = (UINT32_MAX - prevMillis) + timeMillisCounter;
+    }
+    else
+    {
+        delta = timeMillisCounter - prevMillis;
+    }
+    return delta;
+}
+
+
+void
+timerSetup()
+{
+    /* TIMER1 is used to trigger ADC sampling at constant rate */
+    /* Enable APB clock, set TC1 to generator 3 (OSC8M @ F_PERIPH)  */
+    PM->APBCMASK.reg |= TIMER1_APBCMASK;
+    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(TIMER1_GCLK_ID)
+                        | GCLK_CLKCTRL_GEN(3u)
+                        | GCLK_CLKCTRL_CLKEN;
+
+    /* Configure as 8bit counter (F_PERIPH - /8 -> F_TIMER1 */
+    TIMER1->COUNT8.CTRLA.reg =   TC_CTRLA_MODE_COUNT8
+                               | TC_CTRLA_PRESCALER_DIV8
+                               | TC_CTRLA_RUNSTDBY
+                               | TC_CTRLA_PRESCSYNC_RESYNC;
+
+    /* TIMER1 overflow event output to trigger ADC */
+    TIMER1->COUNT8.EVCTRL.reg |= TC_EVCTRL_OVFEO;
+
+    /* TIMER1 is running at 1 MHz, each tick is 1 us
+     * PER, COUNT, and Enable require synchronisation (28.6.6)
+     */
+    const unsigned int cntPer = F_TIMER1 / SAMPLE_RATE / (VCT_TOTAL);
+    TIMER1->COUNT8.PER.reg = (uint8_t)cntPer;
+    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
+    TIMER1->COUNT8.COUNT.reg = 0u;
+    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
+    TIMER1->COUNT8.CTRLA.reg |= TC_CTRLA_ENABLE;
+    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
+
+    /* TIMER2 is used as the delay and elapsed time counter
+     * Enable APB clock, set TIMER2 to generator 3 @ F_PERIPH
+     * Enable the interrupt for Compare Match, do not route to NVIC
+     */
+    PM->APBCMASK.reg |= TIMER2_APBCMASK;
+    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(TIMER2_GCLK_ID)
+                        | GCLK_CLKCTRL_GEN(3u)
+                        | GCLK_CLKCTRL_CLKEN;
+    TIMER2->COUNT32.CTRLA.reg =   TC_CTRLA_MODE_COUNT32
+                                | TC_CTRLA_PRESCALER_DIV8
+                                | TC_CTRLA_RUNSTDBY
+                                | TC_CTRLA_PRESCSYNC_RESYNC;
+
+    /* TIMER_TICK is used for accurate micro and millisecond time keeping and
+     * provides a periodic wakeup to handle non-interrupting events and USB
+     * management. Setup at 1 MHz (1 us), and route to NVIC for Compare Match.
+     * The compare match is updated by 1000 on each interrupt for 1 ms time.
+     */
+    PM->APBCMASK.reg |= TIMER_TICK_APBCMASK;
+    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(TIMER_TICK_GCLK_ID)
+                        | GCLK_CLKCTRL_GEN(3u)
+                        | GCLK_CLKCTRL_CLKEN;
+    TIMER_TICK->COUNT32.CTRLA.reg =   TC_CTRLA_MODE_COUNT32
+                                    | TC_CTRLA_PRESCALER_DIV8
+                                    | TC_CTRLA_RUNSTDBY
+                                    | TC_CTRLA_PRESCSYNC_PRESC;
+
+    /* Setup match interrupt for 1 ms and 1 minute */
+    TIMER_TICK->COUNT32.INTENSET.reg |= TC_INTENSET_MC0;
+    TIMER_TICK->COUNT32.INTENSET.reg |= TC_INTENSET_MC1;
+    TIMER_TICK->COUNT32.CC[0].reg = 1000u;
+    while (TIMER1->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+    TIMER_TICK->COUNT32.CC[1].reg = 60000u;
+    while (TIMER1->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+
+    NVIC_EnableIRQ(TIMER_TICK_IRQn);
+    TIMER_TICK->COUNT32.CTRLA.reg |= TC_CTRLA_ENABLE;
+    while (TIMER1->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+}
+
+
+uint32_t
+timerUptime()
+{
+    return timeSecondsCounter;
 }
 
 /*! @brief On delay timer (TIMER2) expiration, call the callback function
@@ -172,5 +256,38 @@ IRQ_TIMER2()
     if (0 != tc2_cb)
     {
         tc2_cb();
+    }
+}
+
+/*! @brief 1 ms timer overflow. Update for the next ms / s match, set the event
+ *         and handle any immediate priority actions.
+ */
+void
+IRQ_TIMER_TICK()
+{
+    if (TIMER_TICK->COUNT32.INTFLAG.reg & TC_INTFLAG_MC0)
+    {
+        TIMER_TICK->COUNT32.INTENCLR.reg |= TC_INTENCLR_MC0;
+        TIMER_TICK->COUNT32.CC[0].reg += 1000u;
+        while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+        timeMillisCounter++;
+    }
+
+    if (TIMER_TICK->COUNT32.INTFLAG.reg & TC_INTFLAG_MC1)
+    {
+        TIMER_TICK->COUNT32.INTENCLR.reg |= TC_INTFLAG_MC1;
+        TIMER_TICK->COUNT32.CC[1].reg += 60000u;
+        while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+        timeSecondsCounter++;
+    }
+
+    emon32EventSet(EVT_TICK_1kHz);
+
+    /* Clear the watchdog if in the configuration state, as the normal 1 kHz
+     * tick event will not be serviced.
+     */
+    if (EMON_STATE_CONFIG == emon32StateGet())
+    {
+        wdtFeed();
     }
 }

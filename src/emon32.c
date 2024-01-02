@@ -302,7 +302,7 @@ emon32StateSet(const EmonState_t state)
 }
 
 
-/*! @brief This function is called when the 10 ms timer overflows (SYSTICK).
+/*! @brief This function is called when the 1 ms timer fires.
  *         Latency is not guaranteed, so only non-timing critical things
  *         should be done here (UI update, watchdog etc)
  */
@@ -383,27 +383,29 @@ nvmLoadConfiguration(Emon32Config_t *pCfg)
             break;
         }
 
-        if (evtPend & (1u << EVT_SYSTICK_100Hz))
+        if (evtPend & (1u << EVT_TICK_1kHz))
         {
             wdtFeed();
-            emon32EventClr(EVT_SYSTICK_100Hz);
+            emon32EventClr(EVT_TICK_1kHz);
             systickCnt++;
 
             /* Countdown every second, tick every 200 ms to debug UART */
-            if (0 == (systickCnt % 100))
+            if (0 == (systickCnt % 1000))
             {
                 ledStatusToggle ();
                 uartPutcBlocking(SERCOM_UART_DBG, '0' + seconds);
                 seconds--;
             }
-            else if (0 == (systickCnt % 20))
+            else if (0 == (systickCnt % 200))
             {
                 ledStatusToggle ();
                 uartPutcBlocking(SERCOM_UART_DBG, '.');
             }
         }
     }
-    dbgPuts("\r\n");
+
+    /* Clear the countdown line */
+    dbgPuts("\033[2K\r\n");
 }
 
 
@@ -561,19 +563,12 @@ tempSetup()
 {
     unsigned int    numTempSensors  = 0;
     DS18B20_conf_t  dsCfg           = {0};
-    char            txBuffer[4]     = {0};
 
     dsCfg.grp       = GRP_ONEWIRE;
     dsCfg.pin       = PIN_ONEWIRE;
-    dsCfg.t_wait_us = 3;
-
-    dbgPuts         ("> Searching for DS18B20 sensors... ");
+    dsCfg.t_wait_us = 5;
 
     numTempSensors = tempInitSensors(TEMP_INTF_ONEWIRE, &dsCfg);
-
-    (void)utilItoa  (txBuffer, numTempSensors, ITOA_BASE10);
-    dbgPuts         (txBuffer);
-    dbgPuts         (" found.\r\n");
 
     return numTempSensors;
 }
@@ -609,13 +604,14 @@ main()
     unsigned int    numTempSensors          = 0;
     unsigned int    tempCount               = 0;
 
-    ucSetup();
-    ledStatusOn     ();
+    ucSetup     ();
+    ledStatusOn ();
 
     /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
-    uartConfigureDMA();
-    uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
-    uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
+    uartConfigureDMA    ();
+    uartInterruptEnable (SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
+    uartInterruptEnable (SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
+
 
     /* Load stored values (configuration and accumulated energy) from
      * non-volatile memory (NVM). If the NVM has not been used before then
@@ -643,7 +639,6 @@ main()
 
     /* Set up pulse and temperature sensors, if present */
     pulseConfigure(&e32Config);
-    numTempSensors = tempSetup();
 
     /* Set up buffers for ADC data, configure energy processing, and start */
     emon32StateSet  (EMON_STATE_ACTIVE);
@@ -658,11 +653,11 @@ main()
          */
         while(0 != evtPend)
         {
-            /* 10 ms timer flag */
-            if (evtPending(EVT_SYSTICK_100Hz))
+            /* 1 ms timer flag */
+            if (evtPending(EVT_TICK_1kHz))
             {
                 evtKiloHertz    ();
-                emon32EventClr  (EVT_SYSTICK_100Hz);
+                emon32EventClr  (EVT_TICK_1kHz);
             }
 
             /* A full mains cycle has completed. Calculate power/energy. When
