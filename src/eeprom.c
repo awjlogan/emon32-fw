@@ -35,6 +35,10 @@ static void         wlFindLast      (eepromPktWL_t *pPkt);
 static void         writeBytes      (wrLocal_t *wr, unsigned int n);
 
 
+/* Local values */
+static unsigned int eepromSizeBytes = 0;
+
+
 /* Precalculate wear limiting addresses */
 const unsigned int   blkCnt  = 14;
 const unsigned int   blkSize = sizeof(Emon32CumulativeSave_t);
@@ -152,6 +156,43 @@ wlFindLast(eepromPktWL_t *pPkt)
 }
 
 
+unsigned int
+eepromDiscoverSize()
+{
+    /* Read the first 16 bytes as the key value, then search on each power-of-2
+     * boundary for a match. Store the found value so it only has to be done
+     * once. Start at index 256, minimum possible size.
+     */
+
+    uint8_t         keys[16];
+    uint8_t         trial[16];
+    uint32_t        index = 0x80; /* Shifted at least once */
+    unsigned int    matchbytes = 0;
+
+    if (0 != eepromSizeBytes)
+    {
+        return eepromSizeBytes;
+    }
+
+    eepromRead(EEPROM_WL_OFFSET, keys, 16);
+
+    while (0xFFFF != matchbytes)
+    {
+        matchbytes = 0;
+        index <<= 1;
+        eepromRead(index, trial, 16);
+        for (unsigned int i = 0; i < 16; i++)
+        {
+            if (keys[i] == trial[i])
+            {
+                matchbytes |= (1 << i);
+            }
+        }
+    }
+
+    return index;
+}
+
 void
 eepromDump()
 {
@@ -161,7 +202,7 @@ eepromDump()
     uint8_t eeprom[16];
 
     /* Pages */
-    for (unsigned int i = 0; i < (EEPROM_SIZE_BYTES / 16); i++)
+    for (unsigned int i = 0; i < (eepromSizeBytes / 16); i++)
     {
         /* Bytes in page */
         eepromRead((i * 16), eeprom, 16);
@@ -174,7 +215,7 @@ eepromDump()
 }
 
 int
-eepromInitBlocking(unsigned int startAddr, const unsigned int val, unsigned int n)
+eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n)
 {
     Address_t address;
 
@@ -185,7 +226,7 @@ eepromInitBlocking(unsigned int startAddr, const unsigned int val, unsigned int 
      */
     if (   (0 != (startAddr & 0xF))
         || (0 != (n & 0xF))
-        || ((startAddr + n) > EEPROM_SIZE_BYTES))
+        || ((startAddr + n) > eepromSizeBytes))
     {
         return -1;
     }

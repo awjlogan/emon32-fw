@@ -28,12 +28,6 @@
 /* Temperature sensor setup */
 #define NUM_TEMP            0
 
-/* Precalculate the size of the EEPROM storage required to capture cumulative
- * energy and pulse count values. 2 bytes for CRC, 1 for valid
- */
-#define EEPROM_WL_SIZE_BLK  (NUM_CT * 4) + (NUM_PULSECOUNT * 4) + 2 + 1
-#define EEPROM_WL_NUM_BLK   EEPROM_WL_SIZE / EEPROM_WL_SIZE_BLK
-
 /* Uncomment to downsample the sample rate by low pass filter
  * Otherwise, the second sample from each set will be discarded
  */

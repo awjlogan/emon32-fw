@@ -16,6 +16,11 @@ typedef enum {
 } eepromWrStatus_t;
 
 
+/*! @brief Discover the size of the EEPROM
+ *  @return : size (in bytes) of the EEPROM. This should be a power-of-2.
+ */
+unsigned int eepromDiscoverSize();
+
 /*! @brief Dump all the EEPROM data out on to the debug UART
  */
 void eepromDump();
@@ -27,7 +32,7 @@ void eepromDump();
  *  @return : 0 for success, -1 if startAddress is unaligned, n is not a
  *            multiple of 16, or if n is too large.
  */
-int eepromInitBlocking(unsigned int startAddr, const unsigned int val, unsigned int n);
+int eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n);
 
 /*! @brief Store values at address 0
  *  @param [in] pCfg : pointer to the data source

@@ -55,12 +55,8 @@
 #define EEPROM_PAGE_SIZE    16u
 /* Worst case EEPROM write time (microseconds) */
 #define EEPROM_WR_TIME      5000ul
-/* Size (bytes) of EEPROM -> (kb / 8) */
-#define EEPROM_SIZE_BYTES   1024u
 /* Size of configuration area */
 #define EEPROM_CONFIG_SIZE  256
-/* Size (bytes) of wear levelled portion */
-#define EEPROM_WL_SIZE      (EEPROM_SIZE_BYTES - EEPROM_CONFIG_SIZE)
 /* Offset of wear levelled area */
 #define EEPROM_WL_OFFSET    (EEPROM_CONFIG_SIZE)
 
@@ -118,6 +114,8 @@
 
 #define GRP_PINA            0u
 #define GRP_PINB            1u
+
+
 #define GRP_LED_STATUS      GRP_PINB
 #define PIN_LED_STATUS      23u
 #define GRP_LED_PROG        GRP_PINA
@@ -125,6 +123,13 @@
 #define GRP_LED_USER        GRP_PINB
 #define PIN_LED_USER0       10u
 #define PIN_LED_USER1       11u
+
+#define GRP_ONEWIRE         GRP_PINA
+#define PIN_ONEWIRE         16u
+
+#define GRP_PULSE           GRP_PINA
+#define PIN_PULSE1          17u
+#define PIN_PULSE2          18u
 
 #define GRP_TEST_SENSE      0
 #define PIN_TEST_SENSE      28
@@ -162,10 +167,6 @@
 #define UART_DATA_PAD_RX    3u
 #define UART_DATA_PAD_TX    1u
 #define UART_DATA_BAUD      115200u
-
-/* OneWire defines */
-#define GRP_ONEWIRE         0u
-#define PIN_ONEWIRE         18u
 
 /* DMA defines */
 #define NUM_CHAN_DMA        4u

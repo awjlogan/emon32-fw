@@ -8,7 +8,6 @@
 
     #define SERCOM_UART_DBG     0u
     #define EEPROM_WL_OFFSET    0u
-    #define EEPROM_WL_SIZE      0u
 
     void
     qfp_str2float(float *f, const char *s, char **endptr)
@@ -25,7 +24,7 @@
 
     /* Dummy functions called from emon32 top level */
     void
-    eepromInitBlocking(int a, int b, int c)
+    eepromInitBlock(int a, int b, int c)
     {
         (void)a;
         (void)b;
@@ -230,7 +229,8 @@ menuReset()
 
             if ('y' == c)
             {
-                (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
+                (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
+                                      (eepromDiscoverSize() - EEPROM_WL_OFFSET));
             }
         }
         else if ('2' == c)
@@ -699,10 +699,19 @@ configEnter(Emon32Config_t *pConfig)
 static void
 configInitialiseNVM(Emon32Config_t *pCfg)
 {
+    /* Write the configuration values to index 0, and set the accumulator space
+     * to all zero.
+     */
+    unsigned int eepromSize = 0;
+
     dbgPuts                 ("> Initialising NVM... ");
+
     configDefault           (pCfg);
     eepromInitConfig        (pCfg, sizeof(Emon32Config_t));
-    (void)eepromInitBlocking(EEPROM_WL_OFFSET, 0, EEPROM_WL_SIZE);
+
+    eepromSize = eepromDiscoverSize();
+    (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
+                          (eepromSize - EEPROM_WL_OFFSET));
     dbgPuts("Done!\r\n");
 }
 
@@ -729,6 +738,7 @@ configLoadFromNVM(Emon32Config_t *pCfg)
     {
         dbgPuts     ("> Reading configuration from NVM... ");
         eepromRead  (0, pCfg, cfgSize);
+        (void)eepromDiscoverSize();
         dbgPuts     ("Done!\r\n");
 
         /* Check the CRC and raise a warning if no matched. -2 from the base
@@ -737,7 +747,8 @@ configLoadFromNVM(Emon32Config_t *pCfg)
         crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
         if (crc16_ccitt != pCfg->crc16_ccitt)
         {
-            printf_("    - CRC mismatch. Found: 0x%x -- expected: 0x%x\r\n", pCfg->crc16_ccitt, crc16_ccitt);
+            printf_("    - CRC mismatch. Found: 0x%x -- expected: 0x%x\r\n",
+                    pCfg->crc16_ccitt, crc16_ccitt);
             dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
             while ('y' != c && 'n' != c)
             {
