@@ -44,19 +44,52 @@ typedef struct UART_Cfg_ {
     DMACCfgCh_t dmaCfg;
 } UART_Cfg_t;
 
-/* @brief configure the serial communication module. This function starts the
- *        debug UART and I2C modules. Further SPI and UART modules are
- *        configured separately
+/*! @brief configure the serial communication module. This function starts the
+ *         debug UART and I2C modules. Further SPI and UART modules are
+ *         configured separately
  */
 void sercomSetup();
 
-/* @brief Configure a SERCOM module for UART functions.
- * @param [in] pCfg : pointer to configuration struct
+/*! @brief Configure a SERCOM module for SPI */
+void sercomSetupSPI();
+
+/*! @brief Configure a SERCOM module for UART functions.
+ *  @param [in] pCfg : pointer to configuration struct
  */
 void sercomSetupUART(const UART_Cfg_t *pCfg);
 
-/* @brief Configure a SERCOM module for SPI */
-void sercomSetupSPI();
+/*! @brief Configure the DMA for non-blocking transactions
+ */
+void uartConfigureDMA();
+
+/*! @brief Get a character from the USART data buffer. Only valid when the
+ *         INTFLAG.RXC bit it set.
+ *  @param [in] sercom : SERCOM instance
+ */
+char uartGetc(const Sercom *sercom);
+
+/*! @brief Clear the interrupt status for the UART instance
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] interrupt : interrupt to clear
+ */
+void uartInterruptClear(Sercom *sercom, uint32_t interrupt);
+
+/*! @brief Disable the an interrupt for the UART instance
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] interrupt : interrupt to disable
+ */
+void uartInterruptDisable(Sercom *sercom, uint32_t interrupt);
+
+/*! @brief Enable the an interrupt for the UART instance
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] interrupt : interrupt to enable
+ */
+void uartInterruptEnable(Sercom *sercom, uint32_t interrupt);
+
+/*! @brief Return the interrupt status for the UART instance
+ *  @param [in] sercom : SERCOM instance
+ */
+uint32_t uartInterruptStatus(const Sercom *sercom);
 
 /*! @brief Send a single character (blocking) on UART
  *  @param [in] sercom : pointer to the SERCOM instance
@@ -70,10 +103,6 @@ void uartPutcBlocking(Sercom *sercom, char c);
  */
 void uartPutsBlocking(Sercom *sercom, const char *s);
 
-/*! @brief Configure the DMA for non-blocking transactions
- */
-void uartConfigureDMA();
-
 /*! @brief Send a string (non-blocking) on UART by DMA
  *  @param [in] dma_chan : DMA channel to send on
  *  @param [in] s : Pointer to the string
@@ -81,34 +110,11 @@ void uartConfigureDMA();
  */
 void uartPutsNonBlocking(unsigned int dma_chan, const char * const s, uint16_t len);
 
-/*! @brief Get a character from the USART data buffer. Only valid when the
- *         INTFLAG.RXC bit it set.
- *  @param [in] sercom : SERCOM instance
+/*! @brief Set up a UART SERCOM to be an interactive device. Characters will
+ *         be echoed to the RX channel, and passed to a callback function.
+ *  @param [in] sercom : pointer to the SERCOM instance§
  */
-char uartGetc(const Sercom *sercom);
-
-/*! @brief Enable the an interrupt for the UART instance
- *  @param [in] sercom : SERCOM instance
- *  @param [in] interrupt : interrupt to enable
- */
-void uartInterruptEnable(Sercom *sercom, uint32_t interrupt);
-
-/*! @brief Disable the an interrupt for the UART instance
- *  @param [in] sercom : SERCOM instance
- *  @param [in] interrupt : interrupt to disable
- */
-void uartInterruptDisable(Sercom *sercom, uint32_t interrupt);
-
-/*! @brief Return the interrupt status for the UART instance
- *  @param [in] sercom : SERCOM instance
- */
-uint32_t uartInterruptStatus(const Sercom *sercom);
-
-/*! @brief Clear the interrupt status for the UART instance
- *  @param [in] sercom : SERCOM instance
- *  @param [in] interrupt : interrupt to clear
- */
-void uartInterruptClear(Sercom *sercom, uint32_t interrupt);
+void uartSetInteractive(Sercom *sercom);
 
 /*! @brief Set I2C address. If dma is 1, then a packet of len bytes is sent
  *         or received.
@@ -136,13 +142,12 @@ void i2cDataWrite(Sercom *sercom, uint8_t data);
  */
 uint8_t i2cDataRead(Sercom *sercom);
 
-/*! @brief Write a byte to a configured SPI channel. Blocks until transfer
- *         is complete.
+/*! @brief Read a byte from a configured SPI channel
  *  @param [in] sercom : SERCOM instance
- *  @param [in] addr : address to write to
- *  @param [in] data : data to write
+ *  @param [in] addr : address to read from
+ *  @return : the byte that has been read
  */
-void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
+uint8_t spiReadByte(Sercom *sercom, const uint8_t addr);
 
 /*! @brief Write a set of bytes to a configured SPI channel.
  *  @param [in] sercom : SERCOM instance
@@ -151,11 +156,12 @@ void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
  */
 void spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n);
 
-/*! @brief Read a byte from a configured SPI channel
+/*! @brief Write a byte to a configured SPI channel. Blocks until transfer
+ *         is complete.
  *  @param [in] sercom : SERCOM instance
- *  @param [in] addr : address to read from
- *  @return : the byte that has been read
+ *  @param [in] addr : address to write to
+ *  @param [in] data : data to write
  */
-uint8_t spiReadByte(Sercom *sercom, const uint8_t addr);
+void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
 
 #endif

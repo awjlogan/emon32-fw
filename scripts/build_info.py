@@ -113,7 +113,7 @@ def generate_build_info_c(configuration):
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--config", "--configuration", default="Unknown")
+    parser.add_argument("--config", "--configuration", default="Default")
     parser.add_argument("output", type=argparse.FileType("w", encoding="utf-8"))
 
     args = parser.parse_args()
