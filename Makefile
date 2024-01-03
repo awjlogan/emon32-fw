@@ -50,7 +50,7 @@ OBJS += $(BUILD)/qfplib.o $(BUILD)/qfpio.o
 # Always update the build information. This forces this to run every time
 BUILD_INFO := $(shell python3 ./scripts/build_info.py ./src/emon32_build_info.c)
 
-all: directory $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).hex $(BUILD)/$(BIN).bin size
+all: directory $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).hex $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2 size
 
 $(BUILD)/$(BIN).elf: $(OBJS)
 	@echo LD $@
@@ -63,6 +63,10 @@ $(BUILD)/$(BIN).hex: $(BUILD)/$(BIN).elf
 $(BUILD)/$(BIN).bin: $(BUILD)/$(BIN).elf
 	@echo OBJCOPY $@
 	@$(OBJCOPY) -O binary $^ $@
+
+$(BUILD)/$(BIN).uf2: $(BUILD)/$(BIN).bin
+	@echo BIN_TO_UF2 $@
+	@python3 ./scripts/bin_to_uf2.py $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2
 
 $(BUILD)/qfplib.o:
 	@echo AS $@
