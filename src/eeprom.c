@@ -36,7 +36,7 @@ static void         writeBytes      (wrLocal_t *wr, unsigned int n);
 
 
 /* Local values */
-static unsigned int eepromSizeBytes = 0;
+static unsigned int eepromSizeBytes = 1024;
 
 
 /* Precalculate wear limiting addresses */
@@ -116,6 +116,7 @@ writeBytes(wrLocal_t *wr, unsigned int n)
     /* Write to select, then lower address */
     i2cActivate (SERCOM_I2CM, address.msb);
     i2cDataWrite(SERCOM_I2CM, address.lsb);
+
     while (n--)
     {
         i2cDataWrite(SERCOM_I2CM, *wr->pData++);
@@ -174,7 +175,7 @@ eepromDiscoverSize()
         return eepromSizeBytes;
     }
 
-    eepromRead(EEPROM_WL_OFFSET, keys, 16);
+    eepromRead(0, keys, 16);
 
     while (0xFFFF != matchbytes)
     {
@@ -188,6 +189,7 @@ eepromDiscoverSize()
                 matchbytes |= (1 << i);
             }
         }
+        timerDelay_ms(1);
     }
 
     return index;
@@ -252,9 +254,15 @@ eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n)
 void
 eepromInitConfig(const void *pSrc, const unsigned int n)
 {
+    /* Write the first line and wait, then loop through until all n bytes have
+     * been written.
+     */
+
     const uint8_t *p = (uint8_t *)pSrc;
 
     eepromWrite(0, p, n);
+    timerDelay_us(EEPROM_WR_TIME);
+
     while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
     {
         timerDelay_us(EEPROM_WR_TIME);
