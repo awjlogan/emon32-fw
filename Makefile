@@ -47,6 +47,9 @@ CFLAGS += $(INCLUDES) $(DEFINES)
 OBJS = $(addprefix $(BUILD)/, $(notdir %/$(subst .c,.o, $(SRCS))))
 OBJS += $(BUILD)/qfplib.o $(BUILD)/qfpio.o
 
+# Always update the build information. This forces this to run every time
+BUILD_INFO := $(shell python3 ./scripts/build_info.py ./src/emon32_build_info.c)
+
 all: directory $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).hex $(BUILD)/$(BIN).bin size
 
 $(BUILD)/$(BIN).elf: $(OBJS)

@@ -41,3 +41,4 @@ fp-info-cache
 *.csv
 .DS_Store
 helpers/
+emon32_build_info.c
