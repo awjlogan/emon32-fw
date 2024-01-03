@@ -77,6 +77,7 @@ There are tests available to run on local system (tested on macOS and Linux), ra
 
   - [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M.
   - [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation.
+  - [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build scripts from Winterbloom.
 
 ### Others
 
