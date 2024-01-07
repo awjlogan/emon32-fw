@@ -1,779 +1,77 @@
+#include <inttypes.h>
 #include <string.h>
-#ifdef HOSTED
-    #include <stdio.h>
-    #include <stdlib.h>
 
-    #include "configuration.h"
-    #include "util.h"
+#include "emon32_samd.h"
 
-    #define SERCOM_UART_DBG     0u
-    #define EEPROM_WL_OFFSET    0u
+#include "emon32_build_info.h"
+#include "driver_SERCOM.h"
+#include "configuration.h"
+#include "eeprom.h"
+#include "emon32.h"
+#include "driver_PORT.h"
+#include "qfplib.h"
+#include "util.h"
 
-    void
-    qfp_str2float(float *f, const char *s, char **endptr)
-    {
-        *f = strtof(s, endptr);
-    }
+#include "printf.h"
 
-    void
-    qfp_float2str(float f, char *s, unsigned int fmt)
-    {
-        (void)snprintf(s, 16, "%f.2", f);
-        (void)fmt;
-    }
 
-    /* Dummy functions called from emon32 top level */
-    void
-    eepromInitBlock(int a, int b, int c)
-    {
-        (void)a;
-        (void)b;
-        (void)c;
-    }
+/*************************************
+ * Types
+ *************************************/
 
-#else
+typedef enum {
+    RCAUSE_SYST     = 0x40,
+    RCAUSE_WDT      = 0x20,
+    RCAUSE_EXT      = 0x10,
+    RCAUSE_BOD33    = 0x04,
+    RCAUSE_BOD12    = 0x02,
+    RCAUSE_POR      = 0x01
+} RCAUSE_t;
 
-    #include "emon32_samd.h"
 
-    #include "driver_SERCOM.h"
-    #include "configuration.h"
-    #include "eeprom.h"
-    #include "emon32.h"
-    #include "qfplib.h"
-    #include "qfpio.h"
-    #include "util.h"
+/*************************************
+ * Prototypes
+ *************************************/
 
-    #include "printf.h"
+static void     configDefault       ();
+static void     configInitialiseNVM ();
+static void     configureAnalog     ();
+static void     configurePulse      ();
+static uint32_t getBoardRevision    ();
+static char*    getLastReset        ();
+static uint32_t getUniqueID         (unsigned int idx);
+static void     printSettings       ();
+static void     processCmd          ();
+static char     waitForChar         ();
+static void     zeroAccumulators    ();
 
-#endif
 
-#define GENBUF_W        16u
+/*************************************
+ * Local variables
+ *************************************/
 
-static unsigned int     valChanged;
+#define                 IN_BUFFER_W 64u
+static char             inBuffer[IN_BUFFER_W];
+static unsigned int     inBufferIdx = 0;
 static Emon32Config_t   *pCfg;
-static char             genBuf[GENBUF_W];
 
-/*! @brief Fetch the board's unique ID, and place in genBuf
- *         For SAMD series, there is a unique value in the IC
- */
-static uint32_t
-getUniqueID(unsigned int idx)
-{
-    #ifdef HOSTED
-        return 1 << (idx * 2);
-    #else
-        /* Section 9.6 Serial Number */
-        const uint32_t id_addr_lut[4] = {
-            0x0080A00C, 0x0080A040, 0x0080A044, 0x0080A048
-        };
-        return *(volatile uint32_t *)id_addr_lut[idx];
-    #endif
-}
 
+/*! @brief Set all configuration values to defaults */
 static void
-putString(const char *s)
-{
-    #ifndef HOSTED
-        dbgPuts(s);
-    #else
-        printf("%s", s);
-    #endif
-
-}
-
-static void
-putChar(const char c)
-{
-    #ifndef HOSTED
-        uartPutcBlocking(SERCOM_UART_DBG, c);
-    #else
-        printf("%c", c);
-    #endif
-}
-
-static void
-enterConfigText()
-{
-    putString("Enter the channel index to configure. (b)ack\r\n");
-}
-
-static char
-waitForChar()
-{
-#ifndef HOSTED
-    while (0 == (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC));
-    return uartGetc(SERCOM_UART_DBG);
-#else
-    char c;
-    c = getchar();
-    if ('\n' == c) c = getchar();
-    return c;
-#endif
-}
-
-static void
-getInputStr()
-{
-    char            *pBuf = genBuf;
-    unsigned int    charCnt = 0;
-    char            c = 0;
-
-    memset(genBuf, 0, GENBUF_W);
-
-    /* Exit when # is received, or out of bounds */
-    while ('#' != c && (charCnt < GENBUF_W))
-    {
-        c = waitForChar();
-        if ('#' != c)
-        {
-            *pBuf++ = c;
-            charCnt++;
-        }
-    }
-}
-
-static char
-getChar()
-{
-    getInputStr();
-    return *genBuf;
-}
-
-static unsigned int
-getValue()
-{
-    getInputStr();
-    return utilAtoi(genBuf, ITOA_BASE10);
-}
-
-static float
-getValue_float()
-{
-    float f;
-    getInputStr();
-    qfp_str2float(&f, genBuf, 0);
-    return f;
-}
-
-static void
-infoEdit()
-{
-    putString("\r\nTo edit, enter the index, the value (base 10), then #. Go (b)ack\r\n");
-}
-
-static void
-putValueEnd()
-{
-    putString(genBuf);
-    putString("\r\n");
-}
-
-static void
-putValueEnd_10(unsigned int val)
-{
-//     memset(genBuf, 0, GENBUF_W);
-    (void)utilItoa  (genBuf, val, ITOA_BASE10);
-    putValueEnd     ();
-}
-
-static void
-putValueEnd_Float(float val)
-{
-    qfp_float2str   (val, genBuf, 0);
-    putValueEnd     ();
-}
-
-static void
-clearTerm()
-{
-    putString("\033c");
-}
-
-static void
-menuReset()
-{
-    char c = 0;
-
-    while ('b' != c)
-    {
-        clearTerm();
-        putString("---- RESET DEVICE ----\r\n");
-        putString("0: Restore default configuration.\r\n");
-        putString("1: Clear stored energy accumulators.\r\n");
-        putString("2: Dump NVM conents.\r\n");
-        putString("(b)ack\r\n");
-
-        c = waitForChar();
-
-        if ('0' == c)
-        {
-            while ('y' != c && 'n' != c)
-            {
-                putString("Restore default configuration? (y/n)\r\n");
-                c = waitForChar();
-            }
-
-            if ('y' == c)
-            {
-                valChanged = 1u;
-                configDefault(pCfg);
-            }
-        }
-        else if ('1' == c)
-        {
-            while ('y' != c && 'n' != c)
-            {
-                putString       ("Clear stored energy accumulators? (y/n)\r\n");
-                c = waitForChar ();
-            }
-
-            if ('y' == c)
-            {
-                (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
-                                      (eepromDiscoverSize() - EEPROM_WL_OFFSET));
-            }
-        }
-        else if ('2' == c)
-        {
-            eepromDump();
-        }
-    }
-}
-
-static void
-menuPulseChan(unsigned int chanP)
-{
-    char c = 0;
-    unsigned int activeMask = (1 << chanP);
-    unsigned int idxChange  = 0;
-    unsigned int val        = 0;
-    char         input      = 0;
-
-    while ('b' != c)
-    {
-        clearTerm       ();
-        putString       ("---- PULSE CHANNEL ");
-        (void)utilItoa  (genBuf, chanP, ITOA_BASE10);
-        putString       (genBuf);
-        putString       (" ----\r\n\r\n");
-        putString       ("0: Active:           ");
-        if (0 == (pCfg->pulseActive & activeMask))
-        {
-            putString   ("N\r\n");
-        }
-        else
-        {
-            putString   ("Y\r\n");
-        }
-        putString       ("1: Sensitive edge:   ");
-        switch(pCfg->pulseCfg[chanP].edge)
-        {
-            case 0:
-                putString("R\r\n");
-                break;
-            case 1:
-                putString("F\r\n");
-                break;
-            case 2:
-                putString("B\r\n");
-                break;
-        }
-        putString       ("2: Debounce periods: ");
-        (void)utilItoa(genBuf, pCfg->pulseCfg[chanP].period, ITOA_BASE10);
-        putString(genBuf);
-        putString("\r\n");
-        infoEdit();
-
-        c = waitForChar();
-        if ((c >= '0') && (c <= '2'))
-        {
-            idxChange = c - '0';
-            valChanged = 1;
-            if (idxChange < 2)
-            {
-                input = getChar();
-                if (0 == idxChange)
-                {
-                    if ('Y' == input)
-                    {
-                        pCfg->pulseActive |= activeMask;
-                    }
-                    else if ('N' == input)
-                    {
-                        pCfg->pulseActive &= ~activeMask;
-                    }
-                }
-                else
-                {
-                    /* Values here match the PulseEdge_t enum */
-                    if ('R' == input)
-                    {
-                        pCfg->pulseCfg[chanP].edge = 0;
-                    }
-                    else if ('F' == input)
-                    {
-                        pCfg->pulseCfg[chanP].edge = 1;
-                    }
-                    else if ('B' == input)
-                    {
-                        pCfg->pulseCfg[chanP].edge = 2;
-                    }
-                }
-            }
-            else
-            {
-                val = getValue();
-                pCfg->pulseCfg[chanP].period = (uint8_t)val;
-            }
-        }
-    }
-}
-
-
-static void
-menuPulse()
-{
-    char c = 0;
-    while ('b' != c)
-    {
-        clearTerm           ();
-        putString           ("---- PULSE CHANNELS ----\r\n\r\n");
-        for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
-        {
-            (void)utilItoa  (genBuf, i, ITOA_BASE10);
-            putString       (genBuf);
-            putString       (": Pulse Channel ");
-            putString       (genBuf);
-            putString       ("\r\n");
-        }
-        enterConfigText();
-        c = waitForChar();
-
-        if ('b' != c)
-        {
-            menuPulseChan(c - '0');
-        }
-    }
-}
-
-static void
-menuVoltageChan(unsigned int chanV)
-{
-    char c = 0;
-
-    while ('b' != c)
-    {
-        clearTerm       ();
-        putString       ("---- VOLTAGE CHANNEL ");
-        (void)utilItoa  (genBuf, chanV, ITOA_BASE10);
-        putString       (genBuf);
-        putString       (" ----\r\n\r\n");
-        putString       ("0: Conversion factor: ");
-        putValueEnd_Float(pCfg->voltageCfg[chanV].voltageCal);
-        infoEdit();
-
-        c = waitForChar();
-
-        /* (Currently) only a single option for Voltage channel */
-        if ('0' == c)
-        {
-            valChanged = 1;
-            pCfg->voltageCfg[chanV].voltageCal = getValue_float();
-        }
-    }
-}
-
-static void
-menuVoltage()
-{
-    char c = 0;
-
-    while ('b' != c)
-    {
-        clearTerm           ();
-        putString           ("---- VOLTAGE CHANNELS ----\r\n\r\n");
-        for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
-        {
-            (void)utilItoa  (genBuf, idxV, ITOA_BASE10);
-            putString       (genBuf);
-            putString       (": Voltage Channel ");
-            putString       (genBuf);
-            putString       ("\r\n");
-        }
-        enterConfigText();
-
-        c = waitForChar();
-
-        if ('b' != c)
-        {
-            menuVoltageChan(c - '0');
-        }
-    }
-}
-
-static void
-menuCTChan(unsigned int chanCT)
-{
-    unsigned int activeMask = (1 << chanCT);
-    char         c          = 0;
-    unsigned int idxChange  = 0;
-    char         input      = 0;
-
-    while ('b' != c)
-    {
-        clearTerm       ();
-        putString       ("---- CT CHANNEL ");
-        (void)utilItoa  (genBuf, chanCT, ITOA_BASE10);
-        putString       (genBuf);
-        putString       (" ----\r\n\r\n");
-        putString       ("0: Active:              ");
-        if (0 == (activeMask & pCfg->ctActive))
-        {
-            putString   ("N\r\n");
-        }
-        else
-        {
-            putString   ("Y\r\n");
-        }
-        putString       ("1: Conversion factor:   ");
-        putValueEnd_Float(pCfg->ctCfg[chanCT].ctCal);
-        putString       ("2: Phase calibration X: ");
-        putValueEnd_10  (pCfg->ctCfg[chanCT].phaseX);
-        putString       ("3: Phase calibration Y: ");
-        putValueEnd_10  (pCfg->ctCfg[chanCT].phaseY);
-        putString       ("4: V Channel:           ");
-        putValueEnd_10  (pCfg->ctCfg[chanCT].vChan);
-        infoEdit();
-
-        c = waitForChar();
-
-        if ((c >= '0') && (c <= '4'))
-        {
-            idxChange = c - '0';
-            valChanged = 1u;
-
-            if (0 == idxChange)
-            {
-                input = getChar();
-                if ('Y' == input)
-                {
-                    pCfg->ctActive |= activeMask;
-                }
-                else if ('N' == input)
-                {
-                    pCfg->ctActive &= ~activeMask;
-                }
-            }
-            else if (1 == idxChange)
-            {
-                pCfg->ctCfg[chanCT].ctCal = getValue_float();
-            }
-            else
-            {
-                int16_t val_fixed = getValue();
-                switch (idxChange)
-                {
-                    case 2:
-                        pCfg->ctCfg[chanCT].phaseX = val_fixed;
-                        break;
-                    case 3:
-                        pCfg->ctCfg[chanCT].phaseY = val_fixed;
-                        break;
-                    case 4:
-                        pCfg->ctCfg[chanCT].vChan = val_fixed;
-                        break;
-                    default:
-                        break;
-                }
-            }
-        }
-    }
-}
-
-static void
-menuCT()
-{
-    char c = 0;
-    while ('b' != c)
-    {
-        clearTerm           ();
-        putString           ("---- CT CHANNELS ----\r\n\r\n");
-        for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
-        {
-            (void)utilItoa  (genBuf, idxCT, ITOA_BASE10);
-            putString       (genBuf);
-            putString       (": CT Channel ");
-            putString       (genBuf);
-            putString       ("\r\n");
-        }
-        enterConfigText();
-
-        c = waitForChar();
-
-        if ('b' != c)
-        {
-            menuCTChan(c - '0');
-        }
-    }
-}
-
-static void
-menuConfiguration()
-{
-    char c = 0;
-    unsigned int idxChange;
-
-    while ('b' != c)
-    {
-        clearTerm       ();
-        putString       ("---- CONFIGURATION ----\r\n\r\n");
-        putString       ("0: Node ID:                    ");
-        putValueEnd_10  (pCfg->baseCfg.nodeID);
-        putString       ("1: Cycles to report:           ");
-        putValueEnd_10  (pCfg->baseCfg.reportCycles);
-        putString       ("2: Mains frequency (Hz):       ");
-        putValueEnd_10  (pCfg->baseCfg.mainsFreq);
-        putString       ("3: Energy delta to store (Wh): ");
-        putValueEnd_10  (pCfg->baseCfg.whDeltaStore);
-        infoEdit();
-
-        c = waitForChar();
-
-        if ((c >= '0') && (c <= '3'))
-        {
-            uint32_t val;
-            idxChange = c - '0';
-            val = getValue();
-
-            valChanged = 1u;
-            switch (idxChange)
-            {
-                case 0:
-                    pCfg->baseCfg.nodeID = val;
-                    break;
-                case 1:
-                    pCfg->baseCfg.reportCycles = val;
-                    break;
-                case 2:
-                    pCfg->baseCfg.mainsFreq = val;
-                    break;
-                case 3:
-                    pCfg->baseCfg.whDeltaStore = val;
-                    break;
-                default:
-                    valChanged = 0;
-                    break;
-            }
-        }
-    }
-}
-
-static void
-menuAbout()
-{
-    char c = 0;
-
-    clearTerm       ();
-    putString       ("---- ABOUT ----\r\n\r\n");
-    putString       ("Firmware version: ");
-    (void)utilItoa  (genBuf, VERSION_FW_MAJ, ITOA_BASE10);
-    putString       (genBuf);
-    putChar         ('.');
-    putValueEnd_10  (VERSION_FW_MIN);
-
-    putString("Serial number:    ");
-    for (unsigned int i = 0; i < 4; i++)
-    {
-        utilItoa (genBuf, getUniqueID(i), ITOA_BASE16);
-        putString(genBuf);
-    }
-    putString("\r\n\r\n");
-
-    putString       ("Voltage channels: ");
-    putValueEnd_10  (NUM_V);
-
-    putString       ("CT channels:      ");
-    putValueEnd_10  (NUM_CT);
-
-    putString       ("\r\n(c) Angus Logan 2022-23\r\n");
-    putString       ("For Bear and Moose\r\n\r\n");
-    putString       ("(b)ack");
-
-    while ('b' != c)
-    {
-        c = waitForChar();
-    }
-}
-
-static void
-menuBase()
-{
-    char c = 'a';
-
-    while ('s' != c && 'e' != c)
-    {
-        /* Clear terminal and print menu */
-        clearTerm();
-
-        putString("== Energy Monitor 32 ==\r\n\r\n");
-        putString("  0: About\r\n");
-        putString("  1: Configuration\r\n");
-        putString("  2: Voltage\r\n");
-        putString("  3: CT\r\n");
-        putString("  4: Pulse counter\r\n");
-        putString("  9: Reset device\r\n");
-        putString("Enter number, or (e)xit");
-
-        if (valChanged)
-        {
-            putString(" do not save, or (s)ave and exit.");
-        }
-        putString("\r\n");
-
-        c = waitForChar();
-
-        switch (c)
-        {
-            case '0':
-                menuAbout();
-                break;
-            case '1':
-                menuConfiguration();
-                break;
-            case '2':
-                menuVoltage();
-                break;
-            case '3':
-                menuCT();
-                break;
-            case '4':
-                menuPulse();
-                break;
-            case '9':
-                menuReset();
-                break;
-            /* Fall through save or exit */
-            case 's':
-            case 'e':
-                break;
-            default:
-                /* Terminal ping/flash */
-                putChar('\a');
-        }
-    }
-
-    /* Warn if the changes are going to be discarded. If yes is selected,
-     * then just exit, otherwise save.
-     */
-    if ((0 != valChanged) && ('e' == c))
-    {
-        putString("Discard changes? (y/n)\r\n");
-        while (('y' != c) && ('n' != c))
-        {
-            c = waitForChar();
-
-        }
-        c = ('y' == c) ? 'e' : 's';
-    }
-
-    /* Save configuration if requested, then reset the system */
-    if ('s' == c)
-    {
-        #ifndef HOSTED
-        pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
-        eepromInitConfig(pCfg, sizeof(Emon32Config_t));
-        #endif
-    }
-    NVIC_SystemReset();
-}
-
-
-void
-configEnter(Emon32Config_t *pConfig)
-{
-    pCfg = pConfig;
-    menuBase();
-}
-
-
-static void
-configInitialiseNVM(Emon32Config_t *pCfg)
-{
-    /* Write the configuration values to index 0, and set the accumulator space
-     * to all zero.
-     */
-    unsigned int eepromSize = 0;
-
-    dbgPuts                 ("> Initialising NVM... ");
-
-    configDefault           (pCfg);
-    eepromInitConfig        (pCfg, sizeof(Emon32Config_t));
-
-    eepromSize = eepromDiscoverSize();
-    (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
-                          (eepromSize - EEPROM_WL_OFFSET));
-    dbgPuts("Done!\r\n");
-}
-
-
-void
-configLoadFromNVM(Emon32Config_t *pCfg)
-{
-    uint32_t        key         = 0u;
-    const uint32_t  cfgSize     = sizeof(Emon32Config_t);
-    uint16_t        crc16_ccitt = 0;
-    char            c           = 0;
-
-    /* Load 32bit key from "static" part of EEPROM. If the key does not match
-     * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
-     * wear levelled portion. Otherwise, read configuration from EEPROM.
-     */
-    eepromRead(0, &key, 4u);
-
-    if (CONFIG_NVM_KEY != key)
-    {
-        configInitialiseNVM(pCfg);
-    }
-    else
-    {
-        dbgPuts     ("> Reading configuration from NVM... ");
-        eepromRead  (0, pCfg, cfgSize);
-        (void)eepromDiscoverSize();
-        dbgPuts     ("Done!\r\n");
-
-        /* Check the CRC and raise a warning if no matched. -2 from the base
-         * size to account for the stored 16 bit CRC.
-         */
-        crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
-        if (crc16_ccitt != pCfg->crc16_ccitt)
-        {
-            printf_("    - CRC mismatch. Found: 0x%x -- expected: 0x%x\r\n",
-                    pCfg->crc16_ccitt, crc16_ccitt);
-            dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
-            while ('y' != c && 'n' != c)
-            {
-                c = waitForChar();
-            }
-            if ('y' == c)
-            {
-                configInitialiseNVM(pCfg);
-            }
-        }
-    }
-}
-
-void
-configDefault(Emon32Config_t *pCfg)
+configDefault()
 {
     pCfg->key = CONFIG_NVM_KEY;
 
-    /* Default configuration: single phase, 50 Hz, 240 VAC */
+    /* Single phase, 50 Hz, 240 VAC, 10 s report period */
     pCfg->baseCfg.nodeID        = NODE_ID;  /* Node ID to transmit */
     pCfg->baseCfg.mainsFreq     = 50u;  /* Mains frequency */
-    pCfg->baseCfg.reportCycles  = 500u; /* 10 s @ 50 Hz */
+    pCfg->baseCfg.reportTime    = 9.8f;
     pCfg->baseCfg.whDeltaStore  = DELTA_WH_STORE; /* 200 */
     pCfg->baseCfg.dataTx        = DATATX_UART;
+    pCfg->baseCfg.dataGrp       = 210u;
+    pCfg->baseCfg.logToSerial   = 1u;
 
+    pCfg->voltageAssumed        = 230.0f;
     for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
     {
         pCfg->voltageCfg[idxV].voltageCal = 268.97;
@@ -789,70 +87,421 @@ configDefault(Emon32Config_t *pCfg)
     }
     pCfg->ctActive = (1 << NUM_CT_ACTIVE_DEF) - 1u;
 
+    /* Pulse counters:
+     *   - Period: 100 ms
+     *   - Rising edge trigger
+     *   - All disabled
+    */
+    pCfg->pulseActive = 0u;
+    for (unsigned int i = 0u; i < NUM_PULSECOUNT; i++)
+    {
+        pCfg->pulseCfg[i].period = 100u;
+        pCfg->pulseCfg[i].edge   = 0u;
+    }
+
     pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
 }
 
 
-typedef enum {
-    CU_IDLE,
-    CU_PERIOD,
-    CU_SERIAL_LOG,
-    CU_LINE_FREQUENCY,
-    CU_CALI_AN,
-    CU_ASSUMED_V,
-    CU_PULSE_COUNT
-} CUState_t;
-
-#define IN_BUFFER_W 64u
-
-static unsigned int inBufferIdx = 0;
-static uint8_t      inBuffer[IN_BUFFER_W];
-
-void
-configUpdate()
+/*! @brief Write the configuration values to index 0, and zero the
+ *         accumulator space to.
+ */
+static void
+configInitialiseNVM()
 {
-    /* Simple state machine to progress through the configuration values like
-     * the emonPi2.
-     * Base commands:
-     *  - l         : list settings
-     *  - r         : restore defaults
-     *  - s         : save settings to NVM
-     *  - v         : firmware information
-     *  - z         : zero energy accumulators
-     *  - x         : exit, lock, and continue
-     *  - ?         : show this text again
-     *  - d<xx.x>   : data log period (s)
-     *  - c<n>      : log to serial output. N = 0: OFF, N = 1: ON
-     *  - f<xx>     : line frequency (Hz)
-     *  - k<x> <yy.y> <zz.z>
-     *    - Calibrate an analogue input
-     *    - x:      : channel
-     *  - a<xxx>    : assumed voltage if no AC detected
-     *  - m<x> <yy> : pulse counting. X = 0: OFF, X = 1, ON. yy
-    */
+    unsigned int eepromSize = 0;
 
-    /* Terminate buffer at index, shouldn't fill but just in case */
-    if (IN_BUFFER_W == inBufferIdx)
+    dbgPuts                 ("> Initialising NVM... ");
+
+    configDefault           (pCfg);
+    eepromInitBlock         (0, 2, 256);
+    eepromInitConfig        (pCfg, sizeof(Emon32Config_t));
+
+    // eepromSize = eepromDiscoverSize();
+    eepromSize = 1024;
+    (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
+                          (eepromSize - EEPROM_WL_OFFSET));
+    dbgPuts("Done!\r\n");
+}
+
+
+/*! @brief Configure an analog channel. */
+static void
+configureAnalog()
+{
+    /* String format: k<x> <yy.y> <zz.z>
+     * Find space delimiters, then convert to null and a->i/f
+     */
+    unsigned int    ch          = 0;
+    unsigned int    posCalib    = 0;
+    float           cal         = 0.0f;
+    unsigned int    posPhase    = 0;
+
+    for (unsigned int i = 0; i < IN_BUFFER_W; i++)
     {
-        inBuffer[IN_BUFFER_W - 1u] = '\0';
+        if (' ' == inBuffer[i])
+        {
+            inBuffer[i] = 0;
+            if (0 == posCalib)
+            {
+                posCalib = i + 1u;
+            }
+            else
+            {
+                posPhase = i + 1u;
+                break;
+            }
+        }
+    }
+
+    /* Didn't find a space, so exit early */
+    if (0 == posCalib)
+    {
+        return;
+    }
+
+    /* Voltage channels are [0..2], CTs are [3..]. */
+    ch = utilAtoi(inBuffer + 1u, ITOA_BASE10);
+    cal = utilAtof(inBuffer + posCalib);
+
+    if (3 > ch)
+    {
+        pCfg->voltageCfg[ch].voltageCal = cal;
+        return;
     }
     else
     {
-        inBuffer[inBufferIdx] = '\0';
+        pCfg->ctCfg[ch - 3u].ctCal = cal;
     }
 
-    switch (inBuffer[0])
+    /* Didn't find a space for value "z", so exit early */
+    if (0 == posPhase)
     {
+        return;
+    }
 
+    cal = utilAtof(inBuffer + posPhase);
+    /* REVISIT : phase -> X/Y correction */
+    (void)cal;
+}
+
+/*! @brief Configure a pulse channel. */
+static void
+configurePulse()
+{
+    /* String format in inBuffer:
+     *      [1] -> ch;
+     *      [3] -> active;
+     *      [5] -> edge (rising, falling, both)
+     *      [7] -> NULL: blank time
+     */
+    const unsigned int ch       = inBuffer[1] - 48u;
+    const unsigned int active   = inBuffer[3] - 48u;
+    const unsigned int edgePos  = 5u;
+    const unsigned int timePos  = 7u;
+
+    /* If inactive, clear active flag, no decode for the rest */
+    if (0 == active)
+    {
+        pCfg->pulseActive &= ~(1 << ch);
+    }
+    else
+    {
+        pCfg->pulseActive |= (1 << ch);
+        switch (inBuffer[edgePos])
+        {
+            case 'r':
+                pCfg->pulseCfg[ch].edge = 0u;
+                break;
+            case 'f':
+                pCfg->pulseCfg[ch].edge = 1u;
+                break;
+            case 'b':
+                pCfg->pulseCfg[ch].edge = 2u;
+                break;
+        }
+        pCfg->pulseCfg[ch].period = utilAtoi((inBuffer + timePos), ITOA_BASE10);
     }
 }
 
+
+/*! @brief Get the board revision, software visible changes only
+ *  @return : board revision, 0-7
+ */
+static uint32_t
+getBoardRevision()
+{
+    uint32_t boardRev = 0;
+    boardRev |= portPinValue(GRP_REV, PIN_REV0);
+    boardRev |= portPinValue(GRP_REV, PIN_REV1) << 1;
+    boardRev |= portPinValue(GRP_REV, PIN_REV2) << 2;
+    return boardRev;
+}
+
+
+/*! @brief Get the last reset cause (16.8.14)
+ *  @return : null-terminated string with the last cause.
+ */
+static char*
+getLastReset()
+{
+    const RCAUSE_t lastReset = (RCAUSE_t)PM->RCAUSE.reg;
+    switch (lastReset)
+    {
+        case RCAUSE_SYST:
+            return "Reset request";
+            break;
+        case RCAUSE_WDT:
+            return "Watchdog timeout";
+            break;
+        case RCAUSE_EXT:
+            return "External reset";
+            break;
+        case RCAUSE_BOD33:
+            return "3V3 brownout";
+            break;
+        case RCAUSE_BOD12:
+            return "1V2 brownout";
+            break;
+        case RCAUSE_POR:
+            return "Power on cold reset";
+            break;
+    }
+    return "Unknown";
+}
+
+
+/*! @brief Fetch the SAMD's 128bit unique ID
+ *  @param [in] idx : index of 32bit word
+ *  @return : 32bit word from index
+ */
+static uint32_t
+getUniqueID(unsigned int idx)
+{
+    /* Section 9.6 Serial Number */
+    const uint32_t id_addr_lut[4] = {
+        0x0080A00C, 0x0080A040, 0x0080A044, 0x0080A048
+    };
+    return *(volatile uint32_t *)id_addr_lut[idx];
+}
+
+
+/*! @brief Print the emon32's configuration settings */
+static void
+printSettings()
+{
+    dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
+    printf_("Datalog time:              %f\r\n",
+            pCfg->baseCfg.reportTime);
+    printf_("Minimum accumulation (Wh): %d\r\n",
+            pCfg->baseCfg.whDeltaStore);
+    printf_("Data transmission:         ");
+    if (DATATX_RFM69 == pCfg->baseCfg.dataTx)
+    {
+        dbgPuts("RFM69\r\n");
+        printf_("Frequency: 868 MHz\r\n");
+        printf_("Power:     REVISIT\r\n");
+        printf_("Group ID:  %d\r\n", pCfg->baseCfg.dataGrp);
+    }
+    else
+    {
+        dbgPuts("Serial\r\n");
+    }
+    for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
+    {
+        unsigned int enabled = pCfg->pulseActive & (1 << i);
+        printf_("Pulse Channel %d:\r\n", i);
+        printf_("  - Enabled:    %c\r\n", enabled ? 'Y' : 'N');
+        printf_("  - Hysteresis: %d\r\n", pCfg->pulseCfg[i].period);
+        /* REVISIT : resolve "edge" into rising, falling, both */
+        printf_("  - Edge:       %d\r\n", pCfg->pulseCfg[i].edge);
+    }
+
+    dbgPuts("\r\n\r\n==== Calibration ====\r\n\r\n");
+    for (unsigned int i = 0; i < NUM_V; i++)
+    {
+        printf_("Voltage Channel %d\r\n", i);
+        printf_("  - Conversion: %.02f\r\n", pCfg->voltageCfg[i].voltageCal);
+    }
+    dbgPuts("\r\n");
+    for (unsigned int i = 0; i < NUM_CT; i++)
+    {
+        printf_("CT Channel %d", i);
+        printf_("  - Conversion:      %.02f\r\n", pCfg->ctCfg[i].ctCal);
+        /* REVISIT : store a float, and convert at runtime to angles */
+        printf_("  - Lead:            %d\r\n", pCfg->ctCfg[i].phaseX);
+        printf_("  - Voltage channel: %d\r\n", pCfg->ctCfg[i].vChan);
+    }
+}
+
+
+static void
+processCmd()
+{
+    unsigned int arglen = 0;
+    unsigned int termFound = 0;
+
+    /* Help text - serves as documentation interally as well */
+    const char helpText[] = "\r\n"
+    "emon32 information and configuration commands\r\n\r\n"
+    " - ?           : show this text again\r\n"
+    " - a<xxx>      : assumed voltage if no AC detected\r\n"
+    " - b<n>        : set RF band. n = 4 -> 433 MHz, 8 -> 868 MHz, 9 -> 915 MHz\r\n"
+    " - c<n>        : log to serial output. n = 0: OFF, n = 1: ON\r\n"
+    " - d<xx.x>     : data log period (s)\r\n"
+    " - f<xx>       : line frequency (Hz)\r\n"
+    " - g<nnn>      : set network group (default = 210)\r\n"
+    " - k<x> <yy.y> <zz.z>\r\n"
+    "   - Calibrate an analogue input\r\n"
+    "   - x:        : channel (0-2 -> V; 3... -> CT)\r\n"
+    "   - yy.y      : V/CT calibration constant\r\n"
+    "   - zz.z      : CT phase calibration value\r\n"
+    " - l           : list settings\r\n"
+    " - m<w> <x> <y> <zz>\r\n"
+    "   - Pulse counting.\r\n"
+    "     - w : pulse channel index\r\n"
+    "     - x = 0: OFF, x = 1, ON.\r\n"
+    "     - y : edge sensitivity (r,f,b). Ignored if x = 0\r\n"
+    "     - zz : minimum period (ms). Ignored if x = 0\r\n"
+    " - n<nn>       : set node ID [1..60]\r\n"
+    " - p<xx>       : set the RF power level\r\n"
+    " - r           : restore defaults\r\n"
+    " - s           : save settings to NVM\r\n"
+    " - v           : firmware and board information\r\n"
+    " - z           : zero energy accumulators\r\n\r\n";
+
+    /* Convert \r or \n to 0, and get the length until then. */
+    while (arglen < IN_BUFFER_W)
+    {
+        const uint8_t c = inBuffer[arglen];
+        if (('\r' == c) || ('\n' == c))
+        {
+            inBuffer[arglen] = 0;
+            termFound = 1u;
+            break;
+        }
+        arglen++;
+    }
+
+    /* Early exit if no terminator found */
+    if (0 == termFound)
+    {
+        return;
+    }
+
+    /* Decode on first character in the buffer */
+    switch (inBuffer[0])
+    {
+        case '?':
+            /* Print help text */
+            dbgPuts(helpText);
+            break;
+        case 'a':
+            /* Set assumed voltage.
+             * Format: a230.0
+             */
+            pCfg->voltageAssumed = utilAtof(inBuffer + 1);
+            emon32EventSet(EVT_CONFIG_CHANGED);
+            break;
+        case 'c':
+            /* Log to serial output, default TRUE
+             * Format: c0 | c1
+             */
+            if (2u == arglen)
+            {
+                pCfg->baseCfg.logToSerial = utilAtoi(inBuffer + 1, ITOA_BASE10);
+                emon32EventSet(EVT_CONFIG_CHANGED);
+            }
+            break;
+        case 'd':
+            /* Set the datalog period (s) */
+            pCfg->baseCfg.reportTime = utilAtof(inBuffer + 1);
+            emon32EventSet(EVT_CONFIG_CHANGED);
+            break;
+        case 'f':
+            /* Set line frequency.
+             * Format: f50 | f60
+             */
+            if (3u == arglen)
+            {
+                pCfg->baseCfg.mainsFreq = utilAtoi(inBuffer + 1,
+                                                   ITOA_BASE10);
+                emon32EventSet(EVT_CONFIG_CHANGED);
+            }
+            break;
+        case 'k':
+            /* Configure analog channel */
+            configureAnalog();
+            break;
+        case 'l':
+            /* Print settings */
+            printSettings();
+            break;
+        case 'm':
+            /* Configure pulse channel */
+            configurePulse();
+            break;
+        case 'p':
+            /* Configure RF power */
+            break;
+        case 'r':
+            /* Restore defaults */
+            configDefault(pCfg);
+            emon32EventSet(EVT_CONFIG_CHANGED);
+            break;
+        case 's':
+            /* Save to EEPROM config space */
+            eepromInitConfig(pCfg, sizeof(Emon32Config_t));
+            emon32EventSet(EVT_CONFIG_SAVED);
+            break;
+        case 'v':
+            /* Print firmware and board information */
+            configFirmwareBoardInfo();
+            break;
+        case 'z':
+            /* Clear accumulator space */
+            zeroAccumulators();
+            break;
+    }
+}
+
+
+/*! @brief Blocking wait for a key from the serial link. */
+static char
+waitForChar()
+{
+    while (0 == (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC));
+    return uartGetc(SERCOM_UART_DBG);
+}
+
+
+/*! @brief Zero the accumulator portion of the NVM */
+static void
+zeroAccumulators()
+{
+    char c;
+    dbgPuts("> Zero accumulators. This can not be undone. 'y' to proceed.\r\n");
+
+    c = waitForChar();
+    if ('y' == c)
+    {
+        (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
+                              (1024 - EEPROM_WL_OFFSET));
+        dbgPuts("    - Accumulators cleared.\r\n");
+    }
+    else
+    {
+        dbgPuts("    - Cancelled.\r\n");
+    }
+}
+
+
 void
-configGetChar(uint8_t c)
+configCmdChar(const uint8_t c)
 {
     if ('\n' == c)
     {
-        configUpdate();
+        processCmd();
         inBufferIdx = 0;
         (void)memset(inBuffer, 0, IN_BUFFER_W);
     }
@@ -860,4 +509,75 @@ configGetChar(uint8_t c)
     {
         inBuffer[inBufferIdx++] = c;
     }
+}
+
+
+void
+configFirmwareBoardInfo()
+{
+    dbgPuts("\033c==== emon32 ====\r\n\r\n");
+
+    dbgPuts("> Board:\r\n");
+    /* REVISIT : don't hardcode board type */
+    printf_("  - emon32-Pi2 (%"PRIu32")\r\n", getBoardRevision());
+    printf_("  - Serial: %"PRIu32"%"PRIu32"%"PRIu32"%"PRIu32"\r\n",
+            getUniqueID(0), getUniqueID(1), getUniqueID(2), getUniqueID(3));
+    printf_("  - Last reset: %s\r\n", getLastReset());
+
+    dbgPuts("> Firmware:\r\n");
+    printf_("  - %d.%d\r\n\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
+    dbgPuts(emon32_build_info_string());
+}
+
+
+void
+configLoadFromNVM(Emon32Config_t *pConfig)
+{
+    const uint32_t  cfgSize     = sizeof(Emon32Config_t);
+    uint16_t        crc16_ccitt = 0;
+    char            c           = 0;
+    uint32_t        eepromSize  = 0;
+
+    pCfg = pConfig;
+
+    /* Load from "static" part of EEPROM. If the key does not match
+     * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
+     * wear levelled portion. Otherwise, read configuration from EEPROM.
+     */
+    eepromRead(0, pCfg, cfgSize);
+
+    if (CONFIG_NVM_KEY != pCfg->key)
+    {
+        configInitialiseNVM(pCfg);
+    }
+    else
+    {
+        eepromSize = 1024;
+        printf_("  - NVM size: %d\r\n", (int)eepromSize);
+
+        /* Check the CRC and raise a warning if not matched. -2 from the base
+         * size to account for the stored 16 bit CRC.
+         */
+        crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
+        if (crc16_ccitt != pCfg->crc16_ccitt)
+        {
+            printf_("  - CRC mismatch. Found: 0x%x -- Expected: 0x%x\r\n",
+                    pCfg->crc16_ccitt, crc16_ccitt);
+            dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
+            while ('y' != c && 'n' != c)
+            {
+                c = waitForChar();
+            }
+            if ('y' == c)
+            {
+                configInitialiseNVM(pCfg);
+            }
+        }
+    }
+}
+
+unsigned int
+configTimeToCycles(const float repTime, const unsigned int mainsFreq)
+{
+    return qfp_float2uint(qfp_fmul(repTime, qfp_uint2float(mainsFreq)));
 }

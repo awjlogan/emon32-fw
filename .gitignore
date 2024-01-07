@@ -42,3 +42,4 @@ fp-info-cache
 .DS_Store
 helpers/
 emon32_build_info.c
+.vscode/

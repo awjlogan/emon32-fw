@@ -92,6 +92,7 @@
 #define SERCOM_UART_INTERACTIVE     SERCOM2
 
 #define SERCOM_UART_DBG_NVIC_IRQn   SERCOM2_IRQn
+#define SERCOM_UART_INTERACTIVE_IRQn SERCOM2_IRQn
 #define SERCOM_I2CM_NVIC_IRQn       SERCOM3_IRQn
 
 /* Timer Instances */
@@ -127,6 +128,11 @@
 #define GRP_PINA            0u
 #define GRP_PINB            1u
 
+
+#define GRP_REV             GRP_PINA
+#define PIN_REV0            19u
+#define PIN_REV1            20u
+#define PIN_REV2            21u
 
 #define GRP_LED_STATUS      GRP_PINB
 #define PIN_LED_STATUS      23u

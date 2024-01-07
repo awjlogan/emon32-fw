@@ -282,12 +282,5 @@ IRQ_TIMER_TICK()
     }
 
     emon32EventSet(EVT_TICK_1kHz);
-
-    /* Clear the watchdog if in the configuration state, as the normal 1 kHz
-     * tick event will not be serviced.
-     */
-    if (EMON_STATE_CONFIG == emon32StateGet())
-    {
-        wdtFeed();
-    }
+    wdtFeed();
 }

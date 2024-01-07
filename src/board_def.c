@@ -1,3 +1,5 @@
+#include <stdint.h>
+
 #include "emon32_samd.h"
 
 /* Each pin are defined in {GROUP, PIN} pairs. Pin numberings are logical,
@@ -13,23 +15,20 @@ const uint8_t pinsGPIO_Out[][2] = {
 };
 
 const uint8_t pinsGPIO_In[][2] = {
-    {GRP_TEST_SENSE, PIN_TEST_SENSE},
-    {0xFF,      0}
+    {GRP_TEST_SENSE,    PIN_TEST_SENSE},
+    {GRP_PULSE,         PIN_PULSE1},
+    {GRP_PULSE,         PIN_PULSE2},
+    {GRP_ONEWIRE,       PIN_ONEWIRE},
+    {GRP_PINA,          PIN_REV0},
+    {GRP_PINA,          PIN_REV1},
+    {GRP_PINB,          PIN_REV2},
+    {0xFF,              0}
 };
 
 const uint8_t pinsUnused[][2] = {
     {GRP_PINA,  0},
     {GRP_PINA,  1},
     {GRP_PINA,  19},
-    {GRP_PINA,  20},
-    {GRP_PINA,  21},
-    {GRP_PINB,  22},
-    {0xFF,      0}
-};
-
-const uint8_t pinsPulse[][2] = {
-    {GRP_PINA,  17},
-    {GRP_PINA,  16},
     {0xFF,      0}
 };
 

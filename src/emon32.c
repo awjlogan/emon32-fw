@@ -26,25 +26,10 @@
 
 
 /*************************************
- * Types
- *************************************/
-
-typedef enum {
-    RCAUSE_SYST     = 0x40,
-    RCAUSE_WDT      = 0x20,
-    RCAUSE_EXT      = 0x10,
-    RCAUSE_BOD33    = 0x04,
-    RCAUSE_BOD12    = 0x02,
-    RCAUSE_POR      = 0x01
-} RCAUSE_t;
-
-/*************************************
  * Persistent state variables
  *************************************/
 
 static volatile uint32_t    evtPend;
-static volatile EmonState_t emonState = EMON_STATE_IDLE;
-
 static unsigned int         lastStoredWh;
 
 /*************************************
@@ -54,19 +39,17 @@ static unsigned int         lastStoredWh;
 static void     datasetInit             (Emon32Dataset_t *pDst, ECMDataset_t *pECM);
 static void     datasetUpdate           (Emon32Dataset_t *pDst);
 static RFMPkt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
-static void     dbgPutBoard             ();
-static void     ecmConfigure            (const Emon32Config_t *pCfg);
+static void     ecmConfigure            (const Emon32Config_t *pCfg, const unsigned int reportCycles);
 static void     evtKiloHertz            ();
 static uint32_t evtPending              (EVTSRC_t evt);
 static void     ledStatusOn             ();
-static void     ledStatusToggle         ();
+static void     ledProgOn               ();
+static void     ledProgOff              ();
 static void     nvmCumulativeConfigure  (eepromPktWL_t *pPkt);
-static void     nvmLoadConfiguration    (Emon32Config_t *pCfg);
 static void     nvmLoadCumulative       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
 static void     nvmStoreCumulative      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     processCumulative       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     pulseConfigure          (const Emon32Config_t *pCfg);
-static void     emon32StateSet          (const EmonState_t state);
 static uint32_t tempSetup               ();
 static uint32_t totalEnergy             (const Emon32Dataset_t *pData);
 static void     ucSetup                 ();
@@ -76,9 +59,9 @@ static void     ucSetup                 ();
  *************************************/
 
 
-/* @brief Initialise the data set
- * @param [out] pDst : pointer to the data struct
- * @param [in] pECM : pointer to the emon Continuous Monitoring struct
+/*! @brief Initialise the data set
+ *  @param [out] pDst : pointer to the data struct
+ *  @param [in] pECM : pointer to the emon Continuous Monitoring struct
  */
 static void
 datasetInit(Emon32Dataset_t *pDst, ECMDataset_t *pECM)
@@ -97,8 +80,8 @@ datasetInit(Emon32Dataset_t *pDst, ECMDataset_t *pECM)
 }
 
 
-/* @brief Add pulse counting information to the dataset to be sent
- * @param [out] pDst : pointer to the data struct
+/*! @brief Add pulse counting information to the dataset to be sent
+ *  @param [out] pDst : pointer to the data struct
  */
 static void
 datasetUpdate(Emon32Dataset_t *pDst)
@@ -114,9 +97,9 @@ datasetUpdate(Emon32Dataset_t *pDst)
 }
 
 
-/* @brief Configure the data transmission output.
- * @param [in] pCfg : pointer to the configuration struct
- * @return : pointer to an RFM packet if using RFM, 0 if not.
+/*! @brief Configure the data transmission output.
+ *  @param [in] pCfg : pointer to the configuration struct
+ *  @return : pointer to an RFM packet if using RFM, 0 if not.
  */
 static RFMPkt_t *
 dataTxConfigure(const Emon32Config_t *pCfg)
@@ -158,58 +141,6 @@ dataTxConfigure(const Emon32Config_t *pCfg)
 }
 
 
-/*! @brief Print the board and firmware info to the debug UART */
-static void
-dbgPutBoard()
-{
-    const int       board_id    = BOARD_ID;
-    const RCAUSE_t  lastReset   = (RCAUSE_t)PM->RCAUSE.reg;
-
-    dbgPuts         ("\033c== Energy Monitor 32 ==\r\n\r\n");
-
-    dbgPuts         ("Board:      ");
-    switch (board_id)
-    {
-        case (BOARD_ID_LC):
-            dbgPuts ("emon32 Low Cost");
-            break;
-        case (BOARD_ID_STANDARD):
-            dbgPuts ("emon32 Standard");
-            break;
-        case (BOARD_ID_EMONPI):
-            dbgPuts ("emon32-Pi2");
-            break;
-        default:
-            dbgPuts ("Unknown");
-    }
-    dbgPuts         ("\r\n");
-
-    /* Display the cause of the last system reset (16.8.14) */
-    dbgPuts         ("Last reset: ");
-    switch (lastReset)
-    {
-        case RCAUSE_SYST:
-            dbgPuts("Reset request");
-            break;
-        case RCAUSE_WDT:
-            dbgPuts("Watchdog timeout");
-            break;
-        case RCAUSE_EXT:
-            dbgPuts("External reset");
-            break;
-        case RCAUSE_BOD33:
-            dbgPuts("3V3 brownout");
-            break;
-        case RCAUSE_BOD12:
-            dbgPuts("1V2 brownout");
-            break;
-        case RCAUSE_POR:
-            dbgPuts("Power on cold reset");
-            break;
-    }
-    printf_("\r\nFirmware:   %d.%d\r\n\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
-}
-
 void
 dbgPuts(const char *s)
 {
@@ -229,12 +160,12 @@ putchar_(char c)
  *  @param [in] pCfg : pointer to the configuration struct
  */
 void
-ecmConfigure(const Emon32Config_t *pCfg)
+ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
 {
     ECMCfg_t *ecmCfg;
     ecmCfg = ecmGetConfig();
 
-    ecmCfg->reportCycles = pCfg->baseCfg.reportCycles;
+    ecmCfg->reportCycles = reportCycles;
     for (unsigned int i = 0; i < NUM_V; i ++)
     {
         ecmCfg->voltageCal[i] = pCfg->voltageCfg[i].voltageCal;
@@ -282,26 +213,6 @@ emon32EventClr(const EVTSRC_t evt)
 }
 
 
-/*! @brief Get the current state of the emon32 system
- *  @return : state of the system
- */
-EmonState_t
-emon32StateGet()
-{
-    return emonState;
-}
-
-
-/*! @brief Set the state of the emon32 system
- *  @param [in] state : state to set to
- */
-void
-emon32StateSet(const EmonState_t state)
-{
-    emonState = state;
-}
-
-
 /*! @brief This function is called when the 1 ms timer fires.
  *         Latency is not guaranteed, so only non-timing critical things
  *         should be done here (UI update, watchdog etc)
@@ -332,20 +243,30 @@ evtPending(EVTSRC_t evt)
 }
 
 
+/*! @brief Turn on the PROG LED */
+static void
+ledProgOn()
+{
+    /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
+    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_SET);
+}
+
+
+/*! @brief Turn off the PROG LED */
+static void
+ledProgOff()
+{
+    /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
+    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_SET);
+}
+
+
 /*! @brief Turn on the STATUS LED */
 static void
 ledStatusOn()
 {
     /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
     portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
-}
-
-
-/*! @brief Toggle the STATUS LED */
-static void
-ledStatusToggle()
-{
-    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_TGL);
 }
 
 
@@ -357,55 +278,6 @@ nvmCumulativeConfigure(eepromPktWL_t *pPkt)
 {
     pPkt->dataSize      = sizeof(Emon32CumulativeSave_t);
     pPkt->idxNextWrite  = -1;
-}
-
-
-/*! @brief This function handles loading of configuration data
- *  @param [out] pCfg : pointer to the configuration struct
- */
-static void
-nvmLoadConfiguration(Emon32Config_t *pCfg)
-{
-    unsigned int    systickCnt  = 0u;
-    unsigned int    seconds     = 3u;
-
-    configLoadFromNVM(pCfg);
-
-    /* Wait for 3 s, if a key is pressed then enter interactive configuration */
-    dbgPuts("> Press any key to enter configuration ");
-    while (systickCnt < 400)
-    {
-        if (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC)
-        {
-            emon32StateSet  (EMON_STATE_CONFIG);
-            (void)uartGetc  (SERCOM_UART_DBG);
-            configEnter     (pCfg);
-            break;
-        }
-
-        if (evtPend & (1u << EVT_TICK_1kHz))
-        {
-            wdtFeed();
-            emon32EventClr(EVT_TICK_1kHz);
-            systickCnt++;
-
-            /* Countdown every second, tick every 200 ms to debug UART */
-            if (0 == (systickCnt % 1000))
-            {
-                ledStatusToggle ();
-                uartPutcBlocking(SERCOM_UART_DBG, '0' + seconds);
-                seconds--;
-            }
-            else if (0 == (systickCnt % 200))
-            {
-                ledStatusToggle ();
-                uartPutcBlocking(SERCOM_UART_DBG, '.');
-            }
-        }
-    }
-
-    /* Clear the countdown line */
-    dbgPuts("\033[2K\r\n");
 }
 
 
@@ -427,12 +299,10 @@ nvmLoadCumulative(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
         pData->pECM->CT[idxCT].wattHour = data.report.wattHour[idxCT];
     }
 
-    #if (NUM_PULSECOUNT > 0)
     for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse ++)
     {
         pData->pulseCnt[idxPulse] = data.report.pulseCnt[idxPulse];
     }
-    #endif
 }
 
 
@@ -511,7 +381,10 @@ processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsig
 static void
 pulseConfigure(const Emon32Config_t *pCfg)
 {
-    extern uint8_t pinsPulse[][2];
+    uint8_t pinsPulse[][2] = {
+        {GRP_PULSE, PIN_PULSE1},
+        {GRP_PULSE, PIN_PULSE2}
+    };
 
     dbgPuts("> Setting up pulse counters... ");
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
@@ -546,9 +419,6 @@ ucSetup()
     portSetup   ();
     dmacSetup   ();
     sercomSetup ();
-
-    dbgPutBoard ();
-
     adcSetup    ();
     evsysSetup  ();
     // wdtSetup    (WDT_PER_4K);
@@ -603,6 +473,7 @@ main()
     unsigned int    cyclesProcessed         = 0u;
     unsigned int    numTempSensors          = 0;
     unsigned int    tempCount               = 0;
+    unsigned int    reportCycles            = 0;
 
     ucSetup     ();
     ledStatusOn ();
@@ -612,17 +483,22 @@ main()
     uartInterruptEnable (SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
     uartInterruptEnable (SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
 
+    configFirmwareBoardInfo();
 
     /* Load stored values (configuration and accumulated energy) from
      * non-volatile memory (NVM). If the NVM has not been used before then
      * store default configuration and 0 energy accumulator area.
      * REVISIT add check that firmware version matches stored config.
      */
-    dbgPuts("Loading config...\r\n");
-    nvmLoadConfiguration    (&e32Config);
+    dbgPuts                 ("> Reading configuration and accumulators from NVM...\r\n");
+    configLoadFromNVM       (&e32Config);
+    reportCycles = configTimeToCycles(e32Config.baseCfg.reportTime,
+                                      e32Config.baseCfg.mainsFreq);
+
     datasetInit             (&dataset, &ecmDataset);
     nvmCumulativeConfigure  (&nvmCumulative);
     nvmLoadCumulative       (&nvmCumulative, &dataset);
+    NVIC_EnableIRQ          (SERCOM_UART_INTERACTIVE_IRQn);
 
     lastStoredWh = totalEnergy(&dataset);
 
@@ -641,9 +517,8 @@ main()
     pulseConfigure(&e32Config);
 
     /* Set up buffers for ADC data, configure energy processing, and start */
-    emon32StateSet  (EMON_STATE_ACTIVE);
-    ecmConfigure    (&e32Config);
-    adcStartDMAC    ((uint32_t)ecmDataBuffer());
+    ecmConfigure    (&e32Config, reportCycles);
+    // adcStartDMAC    ((uint32_t)ecmDataBuffer());
     dbgPuts("> Start monitoring...\r\n");
 
     for (;;)
@@ -676,7 +551,7 @@ main()
                  * In 12bit mode (default), DS18B20 takes 750 ms to acquire.
                  */
                 cyclesProcessed++;
-                if ((e32Config.baseCfg.reportCycles - cyclesProcessed) == e32Config.baseCfg.mainsFreq)
+                if ((reportCycles - cyclesProcessed) == e32Config.baseCfg.mainsFreq)
                 {
                     emon32EventSet(EVT_TEMP_SAMPLE);
                 }
@@ -768,6 +643,21 @@ main()
                     emon32EventClr(EVT_EEPROM_TMR);
                 }
             }
+
+            /* Configuration change / save. Set or clear the PROG LED
+             * respectively.
+             */
+            if (evtPending(EVT_CONFIG_CHANGED))
+            {
+                ledProgOn();
+                emon32EventClr(EVT_CONFIG_CHANGED);
+            }
+            if (evtPending(EVT_CONFIG_SAVED))
+            {
+                ledProgOff();
+                emon32EventClr(EVT_CONFIG_SAVED);
+            }
+
         }
         /* Enter WFI until woken by an interrupt */
         __WFI();

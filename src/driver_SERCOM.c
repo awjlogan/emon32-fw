@@ -4,6 +4,8 @@
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
 
+#include "configuration.h"
+
 void
 sercomSetup()
 {
@@ -337,4 +339,31 @@ spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n)
         while(0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_TXC));
     }
     portPinDrv(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DRV_SET);
+}
+
+
+/* =============================
+ * Interrupt handlers
+ * ============================= */
+
+void
+SERCOM_UART_INTERACTIVE_HANDLER
+{
+    /* Echo the received character to the TX channel, and send to the command
+     * stream. Echo to the console.
+     */
+    uint8_t rx_char = 0;
+
+    if (SERCOM_UART_INTERACTIVE->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_RXC)
+    {
+        SERCOM_UART_INTERACTIVE->USART.INTFLAG.reg |= SERCOM_USART_INTFLAG_RXC;
+        rx_char = SERCOM_UART_INTERACTIVE->USART.DATA.reg;
+        configCmdChar(rx_char);
+
+        /* REVISIT : this may result in lost characters? */
+        if (SERCOM_UART_INTERACTIVE->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE)
+        {
+            SERCOM_UART_INTERACTIVE->USART.DATA.reg = rx_char;
+        }
+    }
 }
