@@ -1,5 +1,4 @@
-#ifndef DRIVER_CLK_H
-#define DRIVER_CLK_H
+#pragma once
 
 /*! @brief Set up the SAMD clock system
  *         The following architecture is used:
@@ -9,4 +8,3 @@
 
 void clkSetup();
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef UTIL_H
-#define UTIL_H
+#pragma once
 
 #include <stdint.h>
 
@@ -54,4 +53,3 @@ unsigned int utilStrlen(const char *pBuf);
  */
 unsigned int utilStrInsert(char *pDst, const char *pIns, unsigned int pos, unsigned int len);
 
-#endif

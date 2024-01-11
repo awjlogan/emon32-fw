@@ -4,8 +4,7 @@
     Full text available at: https://opensource.org/licenses/MIT
 */
 
-#ifndef BUILD_INFO_H_
-#define BUILD_INFO_H_
+#pragma once
 
 /*
     Methods for obtaining information about the firmware build.
@@ -75,6 +74,4 @@ struct Emon32BuildInfo emon32_build_info();
    stargirl@stargirls-mbp.lan"
 */
 const char* emon32_build_info_string();
-
-#endif
 

@@ -1,5 +1,4 @@
-#ifndef PERIPH_DS18B20_H
-#define PERIPH_DS18B20_H
+#pragma once
 
 #include <stdint.h>
 
@@ -31,4 +30,3 @@ int16_t ds18b20ReadSample(const unsigned int dev);
  */
 float ds18b20SampleToCelsius(const int16_t fix);
 
-#endif

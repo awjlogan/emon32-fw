@@ -1,5 +1,4 @@
-#ifndef DRIVER_SERCOM_H
-#define DRIVER_SERCOM_H
+#pragma once
 
 #include <stdint.h>
 
@@ -164,4 +163,3 @@ void spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n);
  */
 void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
 
-#endif

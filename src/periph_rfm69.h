@@ -1,5 +1,4 @@
-#ifndef RFM69_H
-#define RFM69_H
+#pragma once
 
 typedef enum {
     RF12_868MHz,
@@ -30,4 +29,3 @@ void rfmInit(RFM_Freq_t freq);
  */
 int rfmSend(const void *pData);
 
-#endif

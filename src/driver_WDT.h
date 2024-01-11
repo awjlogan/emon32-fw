@@ -1,5 +1,4 @@
-#ifndef DRIVER_WDT_H
-#define DRIVER_WDT_H
+#pragma once
 
 #include <stdint.h>
 
@@ -27,4 +26,3 @@ void wdtSetup(WDT_PER_t per);
  */
 void wdtFeed();
 
-#endif

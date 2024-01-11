@@ -1,5 +1,4 @@
-#ifndef DRIVER_DMAC_H
-#define DRIVER_DMAC_H
+#pragma once
 
 #include "emon32_samd.h"
 
@@ -55,4 +54,3 @@ void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg);
  */
 uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n);
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef EMON32_H
-#define EMON32_H
+#pragma once
 
 #include <stdint.h>
 #include "emon_CM.h"
@@ -143,4 +142,3 @@ void emon32EventSet(const EVTSRC_t evt);
  */
 void dbgPuts(const char *s);
 
-#endif

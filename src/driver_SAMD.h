@@ -1,5 +1,4 @@
-#ifndef DRIVER_SAMD_H
-#define DRIVER_SAMD_H
+#pragma once
 
 typedef enum {
     CAL_ADC_LINEARITY,
@@ -18,4 +17,3 @@ typedef enum {
  */
 uint32_t samdCalibration(const Calibration_t cal);
 
-#endif

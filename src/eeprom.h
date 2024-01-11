@@ -1,5 +1,4 @@
-#ifndef EEPROM_H
-#define EEPROM_H
+#pragma once 
 
 #include <stdint.h>
 
@@ -77,4 +76,3 @@ void eepromWriteCB();
  */
 void eepromWriteWL(eepromPktWL_t *pPktWr);
 
-#endif

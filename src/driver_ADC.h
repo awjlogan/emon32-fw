@@ -1,5 +1,4 @@
-#ifndef DRIVER_ADC_H
-#define DRIVER_ADC_H
+#pragma once
 
 #include <stdint.h>
 
@@ -11,4 +10,3 @@ void adcSetup();
  */
 void adcStartDMAC(uint32_t buf);
 
-#endif

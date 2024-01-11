@@ -1,5 +1,4 @@
-#ifndef BOARD_DEF_H
-#define BOARD_DEF_H
+#pragma once
 
 /* This file contains defines specific to the board that is being used. To
  * extend this, the base SAMD11 configuration can be bracketed in IFDEF
@@ -193,4 +192,3 @@
 #define DMA_CHAN_UART_DBG   1u
 #define DMA_CHAN_ADC        0u
 
-#endif

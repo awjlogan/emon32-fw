@@ -1,5 +1,4 @@
-#ifndef DRIVER_PORT_H
-#define DRIVER_PORT_H
+#pragma once
 
 #include <stdint.h>
 
@@ -60,5 +59,3 @@ void portPinDrv(unsigned int grp, unsigned int pin, PINDRV_t drv);
  */
 unsigned int portPinValue(unsigned int grp, unsigned int pin);
 
-
-#endif

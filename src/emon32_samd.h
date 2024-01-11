@@ -1,5 +1,4 @@
-#ifndef EMON32_SAMD_H
-#define EMON32_SAMD_H
+#pragma once
 
 #include "board_def.h"
 
@@ -9,4 +8,3 @@
     #include "samd21.h"
 #endif /* BOARD_ID */
 
-#endif

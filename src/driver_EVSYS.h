@@ -1,7 +1,5 @@
-#ifndef DRIVER_EVSYS_H
-#define DRIVER_EVSYS_H
+#pragma once
 
 /*! @brief Setup the SAMD event system */
 void evsysSetup();
 
-#endif

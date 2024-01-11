@@ -1,5 +1,4 @@
-#ifndef DATA_PACK_H
-#define DATA_PACK_H
+#pragma once
 
 #include "emon32.h"
 
@@ -23,4 +22,3 @@ unsigned int dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const un
  */
 void dataPackagePacked(const Emon32Dataset_t *pData, PackedData_t *pPacked);
 
-#endif

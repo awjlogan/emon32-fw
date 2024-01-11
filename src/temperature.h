@@ -1,5 +1,4 @@
-#ifndef TEMPERATURE_H
-#define TEMPERATURE_H
+#pragma once
 
 #include <stdint.h>
 
@@ -28,4 +27,3 @@ int8_t tempStartSample(const TEMP_INTF_t intf, const uint32_t dev);
  */
 int16_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev);
 
-#endif

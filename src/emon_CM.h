@@ -1,5 +1,4 @@
-#ifndef EMON_CM_H
-#define EMON_CM_H
+#pragma once
 
 #include <stdint.h>
 
@@ -148,4 +147,3 @@ ECM_STATUS_t ecmProcessCycle();
  */
 void ecmProcessSet(ECMDataset_t *pData);
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef CONFIGURATION_H
-#define CONFIGURATION_H
+#pragma once
 
 #include "emon32.h"
 
@@ -24,4 +23,3 @@ void configLoadFromNVM(Emon32Config_t *pConfig);
  */
 unsigned int configTimeToCycles(const float repTime, const unsigned int mainsFreq);
 
-#endif

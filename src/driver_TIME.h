@@ -1,5 +1,4 @@
-#ifndef DRIVER_TIME_H
-#define DRIVER_TIME_H
+#pragma once
 
 #include <stdint.h>
 
@@ -64,4 +63,3 @@ void timerSetup();
  */
 uint32_t timerUptime();
 
-#endif
