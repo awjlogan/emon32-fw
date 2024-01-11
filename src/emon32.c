@@ -165,7 +165,9 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
     ECMCfg_t *ecmCfg;
     ecmCfg = ecmGetConfig();
 
-    ecmCfg->reportCycles = reportCycles;
+    ecmCfg->downsample      = DOWNSAMPLE_DSP;
+    ecmCfg->reportCycles    = reportCycles;
+
     for (unsigned int i = 0; i < NUM_V; i ++)
     {
         ecmCfg->voltageCal[i] = pCfg->voltageCfg[i].voltageCal;

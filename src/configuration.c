@@ -527,6 +527,10 @@ configFirmwareBoardInfo()
     dbgPuts("> Firmware:\r\n");
     printf_("  - %d.%d\r\n\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
     dbgPuts(emon32_build_info_string());
+    dbgPuts("\r\n");
+    dbgPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
+    dbgPuts("  - emon32 Copyright (C) 2023-24 Angus Logan\r\n");
+    dbgPuts("  - For Bear and Moose\r\n");
 }
 
 

@@ -11,7 +11,6 @@
 #define BOARD_ID_STANDARD   1
 #define BOARD_ID_EMONPI     2
 #define BOARD_ID_DEV        255
-/* LC */
 #define BOARD_ID            BOARD_ID_EMONPI
 
 /* Online configuration takes around 2.5 KB of flash. Comment out this define to
@@ -31,10 +30,11 @@
 #define NUM_V               3u
 #define NUM_CT              11u
 #define VCT_TOTAL           NUM_V + NUM_CT
-#define NUM_CT_ACTIVE_DEF   6
+#define NUM_CT_ACTIVE_DEF   6u          /* Onboard CTs only*/
 #define SAMPLE_RATE         4800u
 #define SAMPLES_IN_SET      2u
 #define SAMPLE_BUF_DEPTH    2u
+#define DOWNSAMPLE_TAPS     19u
 
 /* Oversampling
  * There will be a fixed anti-aliasing filter on the board. This should be the

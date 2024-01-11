@@ -21,11 +21,10 @@
 /* Pulse count setup */
 #define NUM_PULSECOUNT      2
 
-/* Uncomment to downsample the sample rate by low pass filter
- * Otherwise, the second sample from each set will be discarded
+/* Set to 1 to downsample the sample rate by low pass filter. Otherwise, the
+ * second sample from each set will be discarded.
  */
-#define DOWNSAMPLE_DSP
-#define DOWNSAMPLE_TAPS     19u
+#define DOWNSAMPLE_DSP      1u
 
 /* Configurable options. All the structs are packed to allow simple write to
  * EEPROM as a contiguous set.

@@ -1,13 +1,24 @@
 #include <string.h>
 
-#include "qfplib.h"
 #include "emon_CM.h"
+#include "qfplib.h"
 
 #ifdef HOSTED
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
 #endif /* HOSTED */
+
+/*************************************
+ * Function prototypes
+ *************************************/
+
+static inline uint8_t   __CLZ(uint32_t data);
+static inline int32_t   __SSAT(int32_t val);
+static inline q15_t     __STRUNCATE(int32_t val);
+static void             ecmSwapPtr(void **pIn1, void **pIn2);
+static q15_t            sqrt_q15(q15_t in);
+static int              zeroCrossing(q15_t smpV);
 
 /******** FIXED POINT MATHS FUNCTIONS ********
  *
@@ -89,7 +100,7 @@ __CLZ(uint32_t data)
  *  @return square root of the input value
  */
 
-q15_t
+static q15_t
 sqrt_q15(q15_t in)
 {
     q15_t number, var1, signBits1, temp;
@@ -170,7 +181,7 @@ static volatile RawSampleSetPacked_t *volatile adc_active = adc_samples;
 static volatile RawSampleSetPacked_t *volatile adc_proc = adc_samples + 1;
 
 void
-ecmSwapDataBuffer()
+ecmDataBufferSwap()
 {
     ecmSwapPtr((void **)&adc_active, (void **)&adc_proc);
 }
@@ -234,130 +245,126 @@ zeroCrossing(q15_t smpV)
     return 0;
 }
 
-/*! @brief Unpack and optionally low pass filter the raw sample
- *         The struct from the DMA has no partition into V/CT channels, so
- *         alter this function to move data from the implementation specific
- *         DMA addressess to the defined SampleSet_t fields
- * @param [in] pDst : pointer to the SampleSet_t destination
- */
+
 void
 ecmFilterSample(SampleSet_t *pDst)
 {
-#ifndef DOWNSAMPLE_DSP
-
-    /* No filtering, discard the second sample in the set */
-    for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
+    if (ecmCfg.downsample)
     {
-        pDst->smpV[idxV] = adc_proc->samples[0].smp[idxV];
+        /* No filtering, discard the second sample in the set */
+        for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
+        {
+            pDst->smpV[idxV] = adc_proc->samples[0].smp[idxV];
+        }
+
+        for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
+        {
+            pDst->smpCT[idxCT] = adc_proc->samples[0].smp[idxCT + NUM_V];
+        }
     }
-
-    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
+    else
     {
-        pDst->smpCT[idxCT] = adc_proc->samples[0].smp[idxCT + NUM_V];
-    }
+        /* The FIR half band filter is symmetric, so the coefficients are folded.
+        * Alternating coefficients are 0, so are not included in any outputs.
+        * For an ODD number of taps, the centre coefficent is handled
+        * individually, then the other taps in a loop.
+        *
+        * b_0 | b_2 | .. | b_X | .. | b_2 | b_0
+        *
+        * For an EVEN number of taps, loop across all the coefficients:
+        *
+        * b_0 | b_2 | .. | b_2 | b_0
+        */
 
-#else
+        static unsigned int idxInj = 0;
+        static              RawSampleSetUnpacked_t smpBuffer[DOWNSAMPLE_TAPS];
+        int32_t             intRes[VCT_TOTAL] = {0};
+        const unsigned int  numCoeffUnique = 6u;
+        const int16_t       firCoeffs[6] = {
+                                            92,
+                                            -279,
+                                            957,
+                                            -2670,
+                                            10113,
+                                            16339
+                                            };
 
-    /* The FIR half band filter is symmetric, so the coefficients are folded.
-     * Alternating coefficients are 0, so are not included in any outputs.
-     * For an ODD number of taps, the centre coefficent is handled
-     * individually, then the other taps in a loop.
-     *
-     * b_0 | b_2 | .. | b_X | .. | b_2 | b_0
-     *
-     * For an EVEN number of taps, loop across all the coefficients:
-     *
-     * b_0 | b_2 | .. | b_2 | b_0
-     */
+        const unsigned int downsample_taps = DOWNSAMPLE_TAPS;
+        const unsigned int idxInjPrev =   (0 == idxInj)
+                                        ? (downsample_taps - 1u)
+                                        : (idxInj - 1u);
 
-    static unsigned int idxInj = 0;
-    static              RawSampleSetUnpacked_t smpBuffer[DOWNSAMPLE_TAPS];
-    int32_t             intRes[VCT_TOTAL] = {0};
-    const unsigned int  numCoeffUnique = 6u;
-    const int16_t       firCoeffs[6] = {
-                                        92,
-                                        -279,
-                                        957,
-                                        -2670,
-                                        10113,
-                                        16339
-                                        };
+        /* Copy the packed raw ADC value into the unpacked buffer; index 1 is the
+        * most recent sample.
+        */
+        for (unsigned int idxSmp = 0; idxSmp < VCT_TOTAL; idxSmp++)
+        {
+            smpBuffer[idxInj].smp[idxSmp] = adc_active->samples[1].smp[idxSmp];
+            smpBuffer[idxInjPrev].smp[idxSmp] = adc_active->samples[0].smp[idxSmp];
+        }
 
-    const unsigned int downsample_taps = DOWNSAMPLE_TAPS;
-    const unsigned int idxInjPrev =   (0 == idxInj)
-                                    ? (downsample_taps - 1u)
-                                    : (idxInj - 1u);
+        /* For an ODD number of taps, take the unique middle value to start. As
+        * the filter is symmetric, this is the final element in the array */
 
-    /* Copy the packed raw ADC value into the unpacked buffer; index 1 is the
-     * most recent sample.
-     */
-    for (unsigned int idxSmp = 0; idxSmp < VCT_TOTAL; idxSmp++)
-    {
-        smpBuffer[idxInj].smp[idxSmp] = adc_active->samples[1].smp[idxSmp];
-        smpBuffer[idxInjPrev].smp[idxSmp] = adc_active->samples[0].smp[idxSmp];
-    }
+        const           q15_t coeff = firCoeffs[numCoeffUnique - 1u];
+        unsigned int    idxMid = idxInj + (downsample_taps / 2) + 1u;
+        if (idxMid >= downsample_taps) idxMid -= downsample_taps;
 
-    /* For an ODD number of taps, take the unique middle value to start. As
-     * the filter is symmetric, this is the final element in the array */
-
-    const           q15_t coeff = firCoeffs[numCoeffUnique - 1u];
-    unsigned int    idxMid = idxInj + (downsample_taps / 2) + 1u;
-    if (idxMid >= downsample_taps) idxMid -= downsample_taps;
-
-    for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
-    {
-        intRes[idxChannel] += coeff * smpBuffer[idxMid].smp[idxChannel];
-    }
-
-    /* Loop over the FIR coefficients, sub loop through channels. The filter
-     * is folded so the symmetric FIR coefficients are used for both samples.
-     */
-    unsigned int idxSmpStart = idxInj;
-    unsigned int idxSmpEnd = ((downsample_taps - 1u) == idxInj) ? 0 : idxInj + 1u;
-    if (idxSmpEnd >= downsample_taps) idxSmpEnd -= downsample_taps;
-
-    for (unsigned int idxCoeff = 0; idxCoeff < (numCoeffUnique - 1u); idxCoeff++)
-    {
-        const q15_t coeff = firCoeffs[idxCoeff];
         for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
         {
-            intRes[idxChannel] +=   coeff
-                                  * (  smpBuffer[idxSmpStart].smp[idxChannel]
-                                     + smpBuffer[idxSmpEnd].smp[idxChannel]);
+            intRes[idxChannel] += coeff * smpBuffer[idxMid].smp[idxChannel];
         }
 
-        /* Converge toward the middle, check for over/underflow */
-        idxSmpStart -= 2u;
-        if (idxSmpStart > downsample_taps) idxSmpStart += downsample_taps;
-
-        idxSmpEnd += 2u;
+        /* Loop over the FIR coefficients, sub loop through channels. The filter
+        * is folded so the symmetric FIR coefficients are used for both samples.
+        */
+        unsigned int idxSmpStart = idxInj;
+        unsigned int idxSmpEnd = ((downsample_taps - 1u) == idxInj) ? 0 : idxInj + 1u;
         if (idxSmpEnd >= downsample_taps) idxSmpEnd -= downsample_taps;
-    }
 
-    /* Truncate with rounding to nearest LSB and place into field */
-    /* TODO This is a fixed implementation for V/CT unpacking; abstract this */
-    for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
-    {
-        const q15_t resTrunc = __STRUNCATE(intRes[idxChannel]);
-        if (idxChannel < NUM_V)
+        for (unsigned int idxCoeff = 0; idxCoeff < (numCoeffUnique - 1u); idxCoeff++)
         {
-            pDst->smpV[idxChannel] = resTrunc;
+            const q15_t coeff = firCoeffs[idxCoeff];
+            for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
+            {
+                intRes[idxChannel] +=   coeff
+                                    * (  smpBuffer[idxSmpStart].smp[idxChannel]
+                                        + smpBuffer[idxSmpEnd].smp[idxChannel]);
+            }
+
+            /* Converge toward the middle, check for over/underflow */
+            idxSmpStart -= 2u;
+            if (idxSmpStart > downsample_taps) idxSmpStart += downsample_taps;
+
+            idxSmpEnd += 2u;
+            if (idxSmpEnd >= downsample_taps) idxSmpEnd -= downsample_taps;
         }
-        else
+
+
+        /* Truncate with rounding to nearest LSB and place into field */
+        /* TODO This is a fixed implementation for V/CT unpacking; abstract this */
+        for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
         {
-            pDst->smpCT[idxChannel - NUM_V] = resTrunc;
+            const q15_t resTrunc = __STRUNCATE(intRes[idxChannel]);
+            if (idxChannel < NUM_V)
+            {
+                pDst->smpV[idxChannel] = resTrunc;
+            }
+            else
+            {
+                pDst->smpCT[idxChannel - NUM_V] = resTrunc;
+            }
+        }
+
+        /* Each injection is 2 samples */
+        idxInj += 2u;
+        if (idxInj > (downsample_taps - 1))
+        {
+            idxInj -= (downsample_taps);
         }
     }
-
-    /* Each injection is 2 samples */
-    idxInj += 2u;
-    if (idxInj > (downsample_taps - 1))
-    {
-        idxInj -= (downsample_taps);
-    }
-
-#endif
 }
+
 
 ECM_STATUS_t
 ecmInjectSample()
@@ -473,6 +480,7 @@ ecmProcessCycle()
     }
     return ECM_REPORT_ONGOING;
 }
+
 
 void
 ecmProcessSet(ECMDataset_t *pData)

@@ -60,7 +60,8 @@ typedef struct {
 } CTCfgUnpacked_t;
 
 typedef struct {
-    uint16_t        reportCycles;
+    unsigned int    downsample;
+    unsigned int    reportCycles;
     CTCfgUnpacked_t ctCfg[NUM_CT];
     float           voltageCal[NUM_V];
 } ECMCfg_t;
@@ -115,24 +116,26 @@ typedef struct {
  * Function prototypes
  *****************************************************************************/
 
-/*! @brief Get the pointer to the configuration struct
- *  @return : pointer to Emon CM configuration struct
- */
-ECMCfg_t *ecmGetConfig();
-
 /*! @brief Swaps the ADC data buffer pointers
  */
-void ecmSwapDataBuffer();
+void ecmDataBufferSwap();
 
 /*! @brief Returns a pointer to the ADC data buffer
  */
 volatile RawSampleSetPacked_t *ecmDataBuffer();
 
-/*! @brief For testing only, this function halves the incoming data rate with
- *         optional low pass filtering.
- *  @param [in] pDst : pointer to the SampleSet struct
+/*! @brief Unpack and optionally low pass filter the raw sample
+ *         The struct from the DMA has no partition into V/CT channels, so
+ *         alter this function to move data from the implementation specific
+ *         DMA addressess to the defined SampleSet_t fields
+ *  @param [out] pDst : pointer to the SampleSet_t destination
  */
 void ecmFilterSample(SampleSet_t *pDst);
+
+/*! @brief Get the pointer to the configuration struct
+ *  @return : pointer to Emon CM configuration struct
+ */
+ECMCfg_t *ecmGetConfig();
 
 /*! @brief Injects a raw sample from the ADC into the accumulators.
  */

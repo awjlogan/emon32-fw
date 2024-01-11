@@ -91,7 +91,7 @@ irq_handler_dmac()
     if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL)
     {
         /* Restart DMA for ADC and inject sample */
-        ecmSwapDataBuffer   ();
+        ecmDataBufferSwap   ();
         adcStartDMAC        ((uint32_t)ecmDataBuffer());
         if (ECM_CYCLE_COMPLETE == ecmInjectSample())
         {
