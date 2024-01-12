@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 
+#include "emon32_samd.h"
 #include "board_def.h"
 
 /* Number of samples available for power calculation. must be power of 2 */
@@ -130,7 +131,7 @@ volatile RawSampleSetPacked_t *ecmDataBuffer();
  *         DMA addressess to the defined SampleSet_t fields
  *  @param [out] pDst : pointer to the SampleSet_t destination
  */
-void ecmFilterSample(SampleSet_t *pDst);
+void ecmFilterSample(SampleSet_t *pDst) RAMFUNC;
 
 /*! @brief Get the pointer to the configuration struct
  *  @return : pointer to Emon CM configuration struct
@@ -139,14 +140,14 @@ ECMCfg_t *ecmGetConfig();
 
 /*! @brief Injects a raw sample from the ADC into the accumulators.
  */
-ECM_STATUS_t ecmInjectSample();
+ECM_STATUS_t ecmInjectSample() RAMFUNC;
 
 /*! @brief Processes a whole cycle
  */
-ECM_STATUS_t ecmProcessCycle();
+ECM_STATUS_t ecmProcessCycle() RAMFUNC;
 
 /*! @brief Processes a whole data set
  *  @param [out] pData : pointer to the processed data structure
  */
-void ecmProcessSet(ECMDataset_t *pData);
+void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
 

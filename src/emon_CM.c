@@ -13,12 +13,12 @@
  * Function prototypes
  *************************************/
 
-static inline uint8_t   __CLZ(uint32_t data);
-static inline int32_t   __SSAT(int32_t val);
-static inline q15_t     __STRUNCATE(int32_t val);
-static void             ecmSwapPtr(void **pIn1, void **pIn2);
-static q15_t            sqrt_q15(q15_t in);
-static int              zeroCrossing(q15_t smpV);
+static inline uint8_t   __CLZ       (uint32_t data) RAMFUNC;
+static inline int32_t   __SSAT      (int32_t val)   RAMFUNC;
+static inline q15_t     __STRUNCATE (int32_t val)   RAMFUNC;
+static void             ecmSwapPtr  (void **pIn1, void **pIn2);
+static q15_t            sqrt_q15    (q15_t in)      RAMFUNC;
+static int              zeroCrossing(q15_t smpV)    RAMFUNC;
 
 /******** FIXED POINT MATHS FUNCTIONS ********
  *
@@ -38,8 +38,8 @@ const q15_t sqrt_initial_lut[16] = {
  *  @param [in] val value to truncate
  *  @return Q15 truncated val
  */
-static inline q15_t
-__STRUNCATE(int32_t val)
+static RAMFUNC inline q15_t
+__STRUNCATE(int32_t val) 
 {
     unsigned int roundUp = 0;
     if (0 != (val & (1u << 14)))
@@ -53,8 +53,8 @@ __STRUNCATE(int32_t val)
  *  @details Modified CMSIS-DSP: Include/dsp/none.h:78, sat is always 16
  *  @param [in] val : input value
  */
-static inline int32_t
-__SSAT(int32_t val)
+static RAMFUNC inline int32_t
+__SSAT(int32_t val) 
 {
     const int32_t max = (int32_t)((1U << (15u)) - 1U);
     const int32_t min = -1 - max ;
@@ -75,7 +75,7 @@ __SSAT(int32_t val)
  */
 
 /* TODO ARMv7-M has a CLZ instruction, use intrinsic */
-static inline uint8_t
+static RAMFUNC inline uint8_t
 __CLZ(uint32_t data)
 {
     uint32_t count = 0u;
@@ -100,7 +100,7 @@ __CLZ(uint32_t data)
  *  @return square root of the input value
  */
 
-static q15_t
+static RAMFUNC q15_t
 sqrt_q15(q15_t in)
 {
     q15_t number, var1, signBits1, temp;
@@ -216,8 +216,8 @@ static ECMCycle_t       ecmCycle;
  *  @return 1 for a negative to positive crossing, -1 for a positive to
  *          negative crossing, 0 otherwise
  */
-int
-zeroCrossing(q15_t smpV)
+RAMFUNC int
+zeroCrossing(q15_t smpV) 
 {
     Polarity_t          polarity_now;
     static Polarity_t   polarity_last = POL_POS;
@@ -246,8 +246,8 @@ zeroCrossing(q15_t smpV)
 }
 
 
-void
-ecmFilterSample(SampleSet_t *pDst)
+RAMFUNC void
+ecmFilterSample(SampleSet_t *pDst) 
 {
     if (ecmCfg.downsample)
     {
@@ -366,8 +366,8 @@ ecmFilterSample(SampleSet_t *pDst)
 }
 
 
-ECM_STATUS_t
-ecmInjectSample()
+RAMFUNC ECM_STATUS_t
+ecmInjectSample() 
 {
     SampleSet_t smpProc;
     SampleSet_t *pSmpProc = &smpProc;
@@ -424,8 +424,8 @@ ecmInjectSample()
     return ECM_CYCLE_ONGOING;
 }
 
-ECM_STATUS_t
-ecmProcessCycle()
+RAMFUNC ECM_STATUS_t
+ecmProcessCycle() 
 {
     ecmCycle.cycleCount++;
 
@@ -482,8 +482,8 @@ ecmProcessCycle()
 }
 
 
-void
-ecmProcessSet(ECMDataset_t *pData)
+RAMFUNC void
+ecmProcessSet(ECMDataset_t *pData) 
 {
     float vCal;
     /* Mean value for each RMS voltage */
