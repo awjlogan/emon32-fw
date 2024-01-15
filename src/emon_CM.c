@@ -73,7 +73,6 @@ __SSAT(int32_t val)
  *  @param[in] data : input value
  *  @return Number of leading 0s in data
  */
-
 /* TODO ARMv7-M has a CLZ instruction, use intrinsic */
 static RAMFUNC inline uint8_t
 __CLZ(uint32_t data)
@@ -99,7 +98,6 @@ __CLZ(uint32_t data)
  *  @param [in] in : input vaue in range [0 +1)
  *  @return square root of the input value
  */
-
 static RAMFUNC q15_t
 sqrt_q15(q15_t in)
 {
@@ -249,7 +247,7 @@ zeroCrossing(q15_t smpV)
 RAMFUNC void
 ecmFilterSample(SampleSet_t *pDst) 
 {
-    if (ecmCfg.downsample)
+    if (0 == ecmCfg.downsample)
     {
         /* No filtering, discard the second sample in the set */
         for (unsigned int idxV = 0; idxV < NUM_V; idxV++)

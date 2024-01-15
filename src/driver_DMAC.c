@@ -116,6 +116,7 @@ irq_handler_dmac()
     }
 }
 
+
 uint16_t
 calcCRC16_ccitt(const void *pSrc, unsigned int n)
 {

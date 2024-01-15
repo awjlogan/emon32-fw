@@ -276,7 +276,7 @@ IRQ_TIMER_TICK()
     if (TIMER_TICK->COUNT32.INTFLAG.reg & TC_INTFLAG_MC1)
     {
         TIMER_TICK->COUNT32.INTENCLR.reg |= TC_INTFLAG_MC1;
-        TIMER_TICK->COUNT32.CC[1].reg += 60000u;
+        TIMER_TICK->COUNT32.CC[1].reg += 1000000u;
         while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
         timeSecondsCounter++;
     }

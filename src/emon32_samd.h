@@ -7,9 +7,4 @@
  */
 #define RAMFUNC __attribute__((section(".ramfunc")))
 
-#if (BOARD_ID == BOARD_ID_LC)
-    #include "samd11.h"
-#else
-    #include "samd21.h"
-#endif /* BOARD_ID */
-
+#include "samd21.h"
