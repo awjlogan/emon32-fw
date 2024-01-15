@@ -388,7 +388,6 @@ pulseConfigure(const Emon32Config_t *pCfg)
         {GRP_PULSE, PIN_PULSE2}
     };
 
-    dbgPuts("> Setting up pulse counters... ");
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
         PulseCfg_t *pulseCfg = pulseGetCfg(i);
@@ -405,7 +404,6 @@ pulseConfigure(const Emon32Config_t *pCfg)
             pulseInit(i);
         }
     }
-    dbgPuts("Done!\r\n");
 }
 
 
@@ -506,14 +504,6 @@ main()
 
     /* Set up data transmission interfaces and configuration */
     rfmPkt = dataTxConfigure(&e32Config);
-    if (0 == rfmPkt)
-    {
-        dbgPuts("> Data TX on UART\r\n");
-    }
-    else
-    {
-        dbgPuts("> Data TX on RFM\r\n");
-    }
 
     /* Set up pulse and temperature sensors, if present */
     pulseConfigure(&e32Config);

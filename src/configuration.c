@@ -111,7 +111,7 @@ configInitialiseNVM()
 {
     unsigned int eepromSize = 0;
 
-    dbgPuts                 ("> Initialising NVM... ");
+    dbgPuts                 ("  - Initialising NVM... ");
 
     configDefault           (pCfg);
     eepromInitBlock         (0, 2, 256);
@@ -291,10 +291,14 @@ static void
 printSettings()
 {
     dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
-    printf_("Datalog time:              %f\r\n",
+    printf_("Mains frequency (Hz)       %d\r\n",
+            pCfg->baseCfg.mainsFreq);
+    printf_("Data log time (s):         %f\r\n",
             pCfg->baseCfg.reportTime);
     printf_("Minimum accumulation (Wh): %d\r\n",
             pCfg->baseCfg.whDeltaStore);
+    printf_("Assumed voltage (V):       %f\r\n",
+            pCfg->voltageAssumed);
     printf_("Data transmission:         ");
     if (DATATX_RFM69 == pCfg->baseCfg.dataTx)
     {
@@ -307,30 +311,46 @@ printSettings()
     {
         dbgPuts("Serial\r\n");
     }
+    dbgPuts("\r\n");
+
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
         unsigned int enabled = pCfg->pulseActive & (1 << i);
         printf_("Pulse Channel %d:\r\n", i);
-        printf_("  - Enabled:    %c\r\n", enabled ? 'Y' : 'N');
-        printf_("  - Hysteresis: %d\r\n", pCfg->pulseCfg[i].period);
-        /* REVISIT : resolve "edge" into rising, falling, both */
-        printf_("  - Edge:       %d\r\n", pCfg->pulseCfg[i].edge);
+        printf_("  - Enabled:         %c\r\n", enabled ? 'Y' : 'N');
+        printf_("  - Hysteresis (ms): %d\r\n", pCfg->pulseCfg[i].period);
+        dbgPuts("  - Edge:            ");
+        switch (pCfg->pulseCfg[i].edge)
+        {
+            case 0:
+                dbgPuts("Rising");
+                break;
+            case 1:
+                dbgPuts("Falling");
+                break;
+            case 2:
+                dbgPuts("Both");
+                break;
+            default:
+                dbgPuts("Unknown");
+        }
+        dbgPuts("\r\n");
     }
 
-    dbgPuts("\r\n\r\n==== Calibration ====\r\n\r\n");
+    dbgPuts("\r\n==== Calibration ====\r\n\r\n");
     for (unsigned int i = 0; i < NUM_V; i++)
     {
-        printf_("Voltage Channel %d\r\n", i);
+        printf_("Voltage Channel %d\r\n", (i + 1u));
         printf_("  - Conversion: %.02f\r\n", pCfg->voltageCfg[i].voltageCal);
     }
     dbgPuts("\r\n");
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        printf_("CT Channel %d", i);
+        printf_("CT Channel %d\r\n", (i + 1u));
         printf_("  - Conversion:      %.02f\r\n", pCfg->ctCfg[i].ctCal);
         /* REVISIT : store a float, and convert at runtime to angles */
         printf_("  - Lead:            %d\r\n", pCfg->ctCfg[i].phaseX);
-        printf_("  - Voltage channel: %d\r\n", pCfg->ctCfg[i].vChan);
+        printf_("  - Voltage channel: %d\r\n", (pCfg->ctCfg[i].vChan + 1u));
     }
 }
 
@@ -519,18 +539,20 @@ configFirmwareBoardInfo()
 
     dbgPuts("> Board:\r\n");
     /* REVISIT : don't hardcode board type */
-    printf_("  - emon32-Pi2 (%"PRIu32")\r\n", getBoardRevision());
-    printf_("  - Serial: %"PRIu32"%"PRIu32"%"PRIu32"%"PRIu32"\r\n",
-            getUniqueID(0), getUniqueID(1), getUniqueID(2), getUniqueID(3));
+    printf_("  - emon32-Pi2 (arch. rev. %"PRIu32")\r\n", getBoardRevision());
+    printf_("  - Serial:     0x%02x%02x%02x%02x\r\n",
+            (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
+            (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
     printf_("  - Last reset: %s\r\n", getLastReset());
 
     dbgPuts("> Firmware:\r\n");
-    printf_("  - %d.%d\r\n\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
+    printf_("  - Version:    %d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
+    dbgPuts("  - Build:      ");
     dbgPuts(emon32_build_info_string());
-    dbgPuts("\r\n");
+    dbgPuts("\r\n\r\n");
     dbgPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
     dbgPuts("  - emon32 Copyright (C) 2023-24 Angus Logan\r\n");
-    dbgPuts("  - For Bear and Moose\r\n");
+    dbgPuts("  - For Bear and Moose\r\n\r\n");
 }
 
 
@@ -540,7 +562,6 @@ configLoadFromNVM(Emon32Config_t *pConfig)
     const uint32_t  cfgSize     = sizeof(Emon32Config_t);
     uint16_t        crc16_ccitt = 0;
     char            c           = 0;
-    uint32_t        eepromSize  = 0;
 
     pCfg = pConfig;
 
@@ -556,16 +577,13 @@ configLoadFromNVM(Emon32Config_t *pConfig)
     }
     else
     {
-        eepromSize = 1024;
-        printf_("  - NVM size: %d\r\n", (int)eepromSize);
-
         /* Check the CRC and raise a warning if not matched. -2 from the base
          * size to account for the stored 16 bit CRC.
          */
         crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
         if (crc16_ccitt != pCfg->crc16_ccitt)
         {
-            printf_("  - CRC mismatch. Found: 0x%x -- Expected: 0x%x\r\n",
+            printf_("  - CRC mismatch. Found: 0x%04x -- Expected: 0x%04x\r\n",
                     pCfg->crc16_ccitt, crc16_ccitt);
             dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
             while ('y' != c && 'n' != c)

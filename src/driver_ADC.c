@@ -7,10 +7,12 @@
 #include "emon32.h"
 #include "qfplib.h"
 
+static void adcCalibrate();
+
+
 /*! @brief Load gain and offset registers for automatic compensation. Only
  *         available when using SAMD21 with sufficient ADC pins.
  * */
-#if (BOARD_ID == BOARD_ID_EMONPI)
 static void
 adcCalibrate()
 {
@@ -28,8 +30,6 @@ adcCalibrate()
 
     float   gain_fp;
     int     gain;
-
-    dbgPuts("> Calibrating ADC... ");
 
     /* Set up ADC for maximum sampling length and averaging.
      * This results in a 16 bit unsigned value in RESULT.
@@ -90,10 +90,8 @@ adcCalibrate()
                      | ADC_CTRLB_DIFFMODE
                      | ADC_CTRLB_CORREN;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
-
-    dbgPuts("Done!\r\n");
 }
-#endif
+
 
 void
 adcSetup()
@@ -121,11 +119,7 @@ adcSetup()
     ADC->REFCTRL.reg =   ADC_REFCTRL_REFCOMP
                        | ADC_REFCTRL_REFSEL_AREFA;
 
-#if (BOARD_ID == BOARD_ID_EMONPI)
-
     adcCalibrate();
-
-#endif
 
     /* Differential mode, /8 prescale of F_PERIPH, right aligned, enable
      * averaging. Requires synchronisation after write (30.6.13)
