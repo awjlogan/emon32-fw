@@ -9,6 +9,7 @@ Converts bin to uf2 files.
 
 import argparse
 import pathlib
+import re
 import struct
 
 UF2_MAGIC_START0 = 0x0A324655  # "UF2\n"
@@ -82,6 +83,19 @@ def with_buf(input_buf, start_address, family_id):
     return output
 
 
+def check_linker(linker):
+    with open(linker, 'r') as f:
+        # Find the flash line and check the origin value
+        for ln in f:
+            if re.match(" +flash", ln):
+                origin = ln.split("ORIGIN = ")[1].strip()
+                offset = int(origin.split(',')[0], 0)
+                if offset == 0:
+                    return False
+                else:
+                    return True
+
+
 def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -101,6 +115,13 @@ def main():
         help="Set the processor family.",
     )
     parser.add_argument(
+        "-l",
+        "--linker",
+        type=pathlib.Path,
+        default="./linker/samd21j17.ld",
+        help="Path to the linker script"
+    )
+    parser.add_argument(
         "input",
         type=pathlib.Path,
         help="input file (.bin)",
@@ -113,9 +134,14 @@ def main():
 
     args = parser.parse_args()
 
+    # Check the linker script to see if we should build the UF2 file
+    if not check_linker(args.linker):
+        print("  - Linker indicated no bootloader. Did not generate UF2.")
+        exit()
+
     with_file(args.input, args.base, FAMILIES[args.family], dest=args.output)
 
-    print(f"Created {args.output} for {args.family} @ 0x{args.base:04x}.")
+    print(f"  - Created {args.output} for {args.family} @ 0x{args.base:04x}.")
 
 
 if __name__ == "__main__":
