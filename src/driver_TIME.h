@@ -55,7 +55,7 @@ uint32_t timerMillis();
  */
 uint32_t timerMillisDelta(const uint32_t prevMillis);
 
-/*! @brief  Sets up the systm timers unit */
+/*! @brief  Sets up the system timer units */
 void timerSetup();
 
 /*! @brief Returns the uptime in seconds of the whole system
@@ -65,4 +65,3 @@ uint32_t timerUptime();
 
 /*! @brief Increment the uptime counter */
 void timerUptimeIncr();
-

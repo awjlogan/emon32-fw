@@ -126,6 +126,7 @@ timerMicros()
     return TIMER_TICK->COUNT32.COUNT.reg;
 }
 
+
 uint32_t
 timerMicrosDelta(const uint32_t prevMicros)
 {
@@ -223,6 +224,7 @@ timerSetup()
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(TIMER_TICK_GCLK_ID)
                         | GCLK_CLKCTRL_GEN(3u)
                         | GCLK_CLKCTRL_CLKEN;
+
     TIMER_TICK->COUNT32.CTRLA.reg = TC_CTRLA_SWRST;
     while(TIMER_TICK->COUNT32.CTRLA.reg & TC_CTRLA_SWRST);
 
@@ -232,7 +234,7 @@ timerSetup()
                                     | TC_CTRLA_PRESCSYNC_PRESC;
 
     /* Setup match interrupt for 1 ms  */
-    TIMER_TICK->COUNT32.INTENSET.reg |=   TC_INTENSET_MC0;
+    TIMER_TICK->COUNT32.INTENSET.reg |= TC_INTENSET_MC0;
     TIMER_TICK->COUNT32.CC[0].reg = 1000u;
     while (TIMER1->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
 
@@ -281,6 +283,5 @@ IRQ_TIMER_TICK()
         timeMillisCounter++;
 
         emon32EventSet(EVT_TICK_1kHz);
-        wdtFeed();
     }
 }

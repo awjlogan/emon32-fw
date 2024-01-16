@@ -120,7 +120,8 @@ typedef enum {
     EVT_TEMP_READ       = 15u,
     EVT_CONFIG_CHANGED  = 16u,
     EVT_CONFIG_SAVED    = 17u,
-    EVT_SAFE_RESET_REQ  = 18u
+    EVT_SAFE_RESET_REQ  = 18u,
+    EVT_PROCESS_CMD     = 19u
 } EVTSRC_t;
 
 

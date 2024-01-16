@@ -43,7 +43,6 @@ static uint32_t getBoardRevision    ();
 static char*    getLastReset        ();
 static uint32_t getUniqueID         (unsigned int idx);
 static void     printSettings       ();
-static void     processCmd          ();
 static char     waitForChar         ();
 static void     zeroAccumulators    ();
 
@@ -368,8 +367,120 @@ printSettings()
 }
 
 
+/*! @brief Blocking wait for a key from the serial link. */
+static char
+waitForChar()
+{
+    while (0 == (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC));
+    return uartGetc(SERCOM_UART_DBG);
+}
+
+
+/*! @brief Zero the accumulator portion of the NVM */
 static void
-processCmd()
+zeroAccumulators()
+{
+    char c;
+    dbgPuts("> Zero accumulators. This can not be undone. 'y' to proceed.\r\n");
+
+    c = waitForChar();
+    if ('y' == c)
+    {
+        (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
+                              (1024 - EEPROM_WL_OFFSET));
+        dbgPuts("    - Accumulators cleared.\r\n");
+    }
+    else
+    {
+        dbgPuts("    - Cancelled.\r\n");
+    }
+}
+
+
+void
+configCmdChar(const uint8_t c)
+{
+    if ('\n' == c)
+    {
+        emon32EventSet(EVT_PROCESS_CMD);
+    }
+    else if (inBufferIdx < IN_BUFFER_W)
+    {
+        inBuffer[inBufferIdx++] = c;
+    }
+}
+
+
+void
+configFirmwareBoardInfo()
+{
+    dbgPuts("\033c==== emon32 ====\r\n\r\n");
+
+    dbgPuts("> Board:\r\n");
+    /* REVISIT : don't hardcode board type */
+    printf_("  - emon32-Pi2 (arch. rev. %"PRIu32")\r\n", getBoardRevision());
+    printf_("  - Serial:     0x%02x%02x%02x%02x\r\n",
+            (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
+            (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
+    printf_("  - Last reset: %s\r\n", getLastReset());
+    printf_("  - Uptime (s): %"PRIu32"\r\n", timerUptime());
+
+    dbgPuts("> Firmware:\r\n");
+    printf_("  - Version:    %d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
+    dbgPuts("  - Build:      ");
+    dbgPuts(emon32_build_info_string());
+    dbgPuts("\r\n\r\n");
+    dbgPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
+    dbgPuts("  - emon32 Copyright (C) 2023-24 Angus Logan\r\n");
+    dbgPuts("  - For Bear and Moose\r\n\r\n");
+}
+
+
+void
+configLoadFromNVM(Emon32Config_t *pConfig)
+{
+    const uint32_t  cfgSize     = sizeof(Emon32Config_t);
+    uint16_t        crc16_ccitt = 0;
+    char            c           = 0;
+
+    pCfg = pConfig;
+
+    /* Load from "static" part of EEPROM. If the key does not match
+     * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
+     * wear levelled portion. Otherwise, read configuration from EEPROM.
+     */
+    eepromRead(0, pCfg, cfgSize);
+
+    if (CONFIG_NVM_KEY != pCfg->key)
+    {
+        configInitialiseNVM(pCfg);
+    }
+    else
+    {
+        /* Check the CRC and raise a warning if not matched. -2 from the base
+         * size to account for the stored 16 bit CRC.
+         */
+        crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
+        if (crc16_ccitt != pCfg->crc16_ccitt)
+        {
+            printf_("  - CRC mismatch. Found: 0x%04x -- Expected: 0x%04x\r\n",
+                    pCfg->crc16_ccitt, crc16_ccitt);
+            dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
+            while ('y' != c && 'n' != c)
+            {
+                c = waitForChar();
+            }
+            if ('y' == c)
+            {
+                configInitialiseNVM(pCfg);
+            }
+        }
+    }
+}
+
+
+void
+configProcessCmd()
 {
     unsigned int arglen = 0;
     unsigned int termFound = 0;
@@ -533,121 +644,12 @@ processCmd()
             emon32EventSet(EVT_CONFIG_CHANGED);
             break;
     }
+
+    /* Clear buffer and reset pointer */
+    inBufferIdx = 0;
+    (void)memset(inBuffer, 0, IN_BUFFER_W);
 }
 
-
-/*! @brief Blocking wait for a key from the serial link. */
-static char
-waitForChar()
-{
-    while (0 == (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC));
-    return uartGetc(SERCOM_UART_DBG);
-}
-
-
-/*! @brief Zero the accumulator portion of the NVM */
-static void
-zeroAccumulators()
-{
-    char c;
-    dbgPuts("> Zero accumulators. This can not be undone. 'y' to proceed.\r\n");
-
-    c = waitForChar();
-    if ('y' == c)
-    {
-        (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
-                              (1024 - EEPROM_WL_OFFSET));
-        dbgPuts("    - Accumulators cleared.\r\n");
-    }
-    else
-    {
-        dbgPuts("    - Cancelled.\r\n");
-    }
-}
-
-
-void
-configCmdChar(const uint8_t c)
-{
-    if ('\n' == c)
-    {
-        processCmd();
-        inBufferIdx = 0;
-        (void)memset(inBuffer, 0, IN_BUFFER_W);
-    }
-    else if (inBufferIdx < IN_BUFFER_W)
-    {
-        inBuffer[inBufferIdx++] = c;
-    }
-}
-
-
-void
-configFirmwareBoardInfo()
-{
-    dbgPuts("\033c==== emon32 ====\r\n\r\n");
-
-    dbgPuts("> Board:\r\n");
-    /* REVISIT : don't hardcode board type */
-    printf_("  - emon32-Pi2 (arch. rev. %"PRIu32")\r\n", getBoardRevision());
-    printf_("  - Serial:     0x%02x%02x%02x%02x\r\n",
-            (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
-            (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
-    printf_("  - Last reset: %s\r\n", getLastReset());
-    printf_("  - Uptime (s): %"PRIu32"\r\n", timerUptime());
-
-    dbgPuts("> Firmware:\r\n");
-    printf_("  - Version:    %d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
-    dbgPuts("  - Build:      ");
-    dbgPuts(emon32_build_info_string());
-    dbgPuts("\r\n\r\n");
-    dbgPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
-    dbgPuts("  - emon32 Copyright (C) 2023-24 Angus Logan\r\n");
-    dbgPuts("  - For Bear and Moose\r\n\r\n");
-}
-
-
-void
-configLoadFromNVM(Emon32Config_t *pConfig)
-{
-    const uint32_t  cfgSize     = sizeof(Emon32Config_t);
-    uint16_t        crc16_ccitt = 0;
-    char            c           = 0;
-
-    pCfg = pConfig;
-
-    /* Load from "static" part of EEPROM. If the key does not match
-     * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
-     * wear levelled portion. Otherwise, read configuration from EEPROM.
-     */
-    eepromRead(0, pCfg, cfgSize);
-
-    if (CONFIG_NVM_KEY != pCfg->key)
-    {
-        configInitialiseNVM(pCfg);
-    }
-    else
-    {
-        /* Check the CRC and raise a warning if not matched. -2 from the base
-         * size to account for the stored 16 bit CRC.
-         */
-        crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
-        if (crc16_ccitt != pCfg->crc16_ccitt)
-        {
-            printf_("  - CRC mismatch. Found: 0x%04x -- Expected: 0x%04x\r\n",
-                    pCfg->crc16_ccitt, crc16_ccitt);
-            dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
-            while ('y' != c && 'n' != c)
-            {
-                c = waitForChar();
-            }
-            if ('y' == c)
-            {
-                configInitialiseNVM(pCfg);
-            }
-        }
-    }
-}
 
 unsigned int
 configTimeToCycles(const float repTime, const unsigned int mainsFreq)

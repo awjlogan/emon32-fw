@@ -16,6 +16,9 @@ void configFirmwareBoardInfo();
  */
 void configLoadFromNVM(Emon32Config_t *pConfig);
 
+/*! @brief Process a pending command from the UART */
+void configProcessCmd();
+
 /*! @brief Convert the reporting time to cycles
  *  @param [in] repTime: reporting time in seconds
  *  @param [in] mainsFreq: mains frequency in Hertz {50, 60}

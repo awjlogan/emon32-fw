@@ -226,7 +226,7 @@ emon32EventClr(const EVTSRC_t evt)
 static void
 evtKiloHertz()
 {
-    static uint32_t msLast;
+    static volatile uint32_t msLast = 0;
 
     /* Feed watchdog - placed in the event handler to allow reset of stuck
      * processing rather than entering the interrupt reliably.
@@ -646,9 +646,16 @@ main()
                 }
             }
 
-            /* Configuration change / save. Set or clear the PROG LED
-             * respectively.
+            /* Configuration:
+             *   - Process command
+             *   - Change (set PROG LED)
+             *   - Save (clear PROG LED)
              */
+            if (evtPending(EVT_PROCESS_CMD))
+            {
+                configProcessCmd();
+                emon32EventClr(EVT_PROCESS_CMD);
+            }
             if (evtPending(EVT_CONFIG_CHANGED))
             {
                 ledProgOn();
