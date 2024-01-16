@@ -63,3 +63,6 @@ void timerSetup();
  */
 uint32_t timerUptime();
 
+/*! @brief Increment the uptime counter */
+void timerUptimeIncr();
+

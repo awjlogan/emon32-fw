@@ -11,8 +11,8 @@
 static void commonSetup(uint32_t delay);
 
 
-static uint32_t timeMillisCounter = 0;
-static uint32_t timeSecondsCounter = 0;
+static volatile uint32_t timeMillisCounter = 0;
+static volatile uint32_t timeSecondsCounter = 0;
 
 
 /* Function pointer for non-blocking timer callback */
@@ -223,17 +223,17 @@ timerSetup()
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(TIMER_TICK_GCLK_ID)
                         | GCLK_CLKCTRL_GEN(3u)
                         | GCLK_CLKCTRL_CLKEN;
+    TIMER_TICK->COUNT32.CTRLA.reg = TC_CTRLA_SWRST;
+    while(TIMER_TICK->COUNT32.CTRLA.reg & TC_CTRLA_SWRST);
+
     TIMER_TICK->COUNT32.CTRLA.reg =   TC_CTRLA_MODE_COUNT32
                                     | TC_CTRLA_PRESCALER_DIV8
                                     | TC_CTRLA_RUNSTDBY
                                     | TC_CTRLA_PRESCSYNC_PRESC;
 
-    /* Setup match interrupt for 1 ms and 1 minute */
-    TIMER_TICK->COUNT32.INTENSET.reg |= TC_INTENSET_MC0;
-    TIMER_TICK->COUNT32.INTENSET.reg |= TC_INTENSET_MC1;
+    /* Setup match interrupt for 1 ms  */
+    TIMER_TICK->COUNT32.INTENSET.reg |=   TC_INTENSET_MC0;
     TIMER_TICK->COUNT32.CC[0].reg = 1000u;
-    while (TIMER1->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
-    TIMER_TICK->COUNT32.CC[1].reg = 60000u;
     while (TIMER1->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
 
     NVIC_EnableIRQ(TIMER_TICK_IRQn);
@@ -247,6 +247,14 @@ timerUptime()
 {
     return timeSecondsCounter;
 }
+
+
+void
+timerUptimeIncr()
+{
+    timeSecondsCounter++;
+}
+
 
 /*! @brief On delay timer (TIMER2) expiration, call the callback function
  */
@@ -267,20 +275,12 @@ IRQ_TIMER_TICK()
 {
     if (TIMER_TICK->COUNT32.INTFLAG.reg & TC_INTFLAG_MC0)
     {
-        TIMER_TICK->COUNT32.INTENCLR.reg |= TC_INTENCLR_MC0;
+        TIMER_TICK->COUNT32.INTFLAG.reg |= TC_INTFLAG_MC0;
         TIMER_TICK->COUNT32.CC[0].reg += 1000u;
         while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
         timeMillisCounter++;
-    }
 
-    if (TIMER_TICK->COUNT32.INTFLAG.reg & TC_INTFLAG_MC1)
-    {
-        TIMER_TICK->COUNT32.INTENCLR.reg |= TC_INTFLAG_MC1;
-        TIMER_TICK->COUNT32.CC[1].reg += 1000000u;
-        while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
-        timeSecondsCounter++;
+        emon32EventSet(EVT_TICK_1kHz);
+        wdtFeed();
     }
-
-    emon32EventSet(EVT_TICK_1kHz);
-    wdtFeed();
 }

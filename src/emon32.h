@@ -55,8 +55,7 @@ typedef struct __attribute__((__packed__)) {
 
 typedef struct __attribute__((__packed__)) {
     float   ctCal;          /* Conversion to real I value */
-    q15_t   phaseX;         /* Phase calibrations for interpolation */
-    q15_t   phaseY;
+    float   phase;          /* Phase angle, recalculated to fixed point */
     uint8_t vChan;
 } CTCfg_t;
 
@@ -121,9 +120,14 @@ typedef enum {
     EVT_TEMP_READ       = 15u,
     EVT_CONFIG_CHANGED  = 16u,
     EVT_CONFIG_SAVED    = 17u,
-    EVT_CONFIG_RESET    = 18u   /* A changed option requires a reset */
+    EVT_SAFE_RESET_REQ  = 18u
 } EVTSRC_t;
 
+
+/*! @brief Output a string to the debug destination
+ *  @param [in] s: pointer to null terminated string s
+ */
+void dbgPuts(const char *s);
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled
  *  @param [in] Event source in enum
@@ -135,9 +139,3 @@ void emon32EventClr(const EVTSRC_t evt);
  *  @param [in] evt : Event source in enum
  */
 void emon32EventSet(const EVTSRC_t evt);
-
-/*! @brief Output a string to the debug destination
- *  @param [in] s: pointer to null terminated string s
- */
-void dbgPuts(const char *s);
-

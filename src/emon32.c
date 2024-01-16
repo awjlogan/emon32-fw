@@ -162,6 +162,9 @@ putchar_(char c)
 void
 ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
 {
+    /* Makes the continuous monitoring setup agnostic to the data strcuture
+     * used for storage, and avoids any awkward alignment from packing.
+     */
     ECMCfg_t *ecmCfg;
     ecmCfg = ecmGetConfig();
 
@@ -176,8 +179,9 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
     {
         uint32_t active = pCfg->ctActive & (1 << i);
 
-        ecmCfg->ctCfg[i].phaseX = pCfg->ctCfg[i].phaseX;
-        ecmCfg->ctCfg[i].phaseY = pCfg->ctCfg[i].phaseY;
+        /* REVISIT decompose phase angle to X/Y fixed point */
+        ecmCfg->ctCfg[i].phaseX = 1000;
+        ecmCfg->ctCfg[i].phaseY = 1000;
         ecmCfg->ctCfg[i].ctCal  = pCfg->ctCfg[i].ctCal;
         ecmCfg->ctCfg[i].active =   active
                                   ? 1u
@@ -222,6 +226,8 @@ emon32EventClr(const EVTSRC_t evt)
 static void
 evtKiloHertz()
 {
+    static uint32_t msLast;
+
     /* Feed watchdog - placed in the event handler to allow reset of stuck
      * processing rather than entering the interrupt reliably.
      */
@@ -229,6 +235,12 @@ evtKiloHertz()
 
     /* Update the pulse counters, looking on different edges */
     pulseUpdate();
+
+    if (timerMillisDelta(msLast) >= 1000)
+    {
+        timerUptimeIncr();
+        msLast = timerMillis();
+    }
 }
 
 
@@ -325,12 +337,10 @@ nvmStoreCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
         data.report.wattHour[idxCT] = pData->pECM->CT[idxCT].wattHour;
     }
 
-    #if (NUM_PULSECOUNT > 0)
     for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++)
     {
         data.report.pulseCnt[0] = pData->pulseCnt[0];
     }
-    #endif
 
     data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Cumulative_t));
 
@@ -510,7 +520,7 @@ main()
 
     /* Set up buffers for ADC data, configure energy processing, and start */
     ecmConfigure    (&e32Config, reportCycles);
-    adcStartDMAC    ((uint32_t)ecmDataBuffer());
+    // adcStartDMAC    ((uint32_t)ecmDataBuffer());
     dbgPuts("> Start monitoring...\r\n");
 
     for (;;)
@@ -648,6 +658,15 @@ main()
             {
                 ledProgOff();
                 emon32EventClr(EVT_CONFIG_SAVED);
+            }
+
+            if (evtPending(EVT_SAFE_RESET_REQ))
+            {
+                /* REVISIT store the cumulative value safely here. Currently
+                 * uses a non-blocking timer callback to complete this, need
+                 * to ensure that everything is written successfully.
+                 */
+                NVIC_SystemReset();
             }
 
         }

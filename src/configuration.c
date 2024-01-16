@@ -3,12 +3,14 @@
 
 #include "emon32_samd.h"
 
-#include "emon32_build_info.h"
+#include "driver_PORT.h"
 #include "driver_SERCOM.h"
+#include "driver_TIME.h"
+
 #include "configuration.h"
 #include "eeprom.h"
 #include "emon32.h"
-#include "driver_PORT.h"
+#include "emon32_build_info.h"
 #include "qfplib.h"
 #include "util.h"
 
@@ -54,6 +56,7 @@ static void     zeroAccumulators    ();
 static char             inBuffer[IN_BUFFER_W];
 static unsigned int     inBufferIdx = 0;
 static Emon32Config_t   *pCfg;
+static unsigned int     resetReq = 0;
 
 
 /*! @brief Set all configuration values to defaults */
@@ -74,15 +77,14 @@ configDefault()
     pCfg->voltageAssumed        = 230.0f;
     for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
     {
-        pCfg->voltageCfg[idxV].voltageCal = 268.97;
+        pCfg->voltageCfg[idxV].voltageCal = 268.97f;
     }
 
     /* 4.2 degree shift @ 50 Hz */
     for (unsigned int idxCT = 0u; idxCT < NUM_CT; idxCT++)
     {
         pCfg->ctCfg[idxCT].ctCal    = 90.91;
-        pCfg->ctCfg[idxCT].phaseX   = 13495;
-        pCfg->ctCfg[idxCT].phaseY   = 19340;
+        pCfg->ctCfg[idxCT].phase    = 4.2f;
         pCfg->ctCfg[idxCT].vChan    = 0;
     }
     pCfg->ctActive = (1 << NUM_CT_ACTIVE_DEF) - 1u;
@@ -167,11 +169,15 @@ configureAnalog()
     if (3 > ch)
     {
         pCfg->voltageCfg[ch].voltageCal = cal;
+        printf_("> V%d calibration set to: %.02f\r\n",
+                (ch + 1), pCfg->voltageCfg[ch].voltageCal);
         return;
     }
     else
     {
         pCfg->ctCfg[ch - 3u].ctCal = cal;
+        printf_("> CT%d calibration set to: %.02f\r\n",
+                (ch - 2u), pCfg->ctCfg[ch - 3u].ctCal);
     }
 
     /* Didn't find a space for value "z", so exit early */
@@ -181,8 +187,9 @@ configureAnalog()
     }
 
     cal = utilAtof(inBuffer + posPhase);
-    /* REVISIT : phase -> X/Y correction */
-    (void)cal;
+    pCfg->ctCfg[ch - 3u].phase = cal;
+    printf_("> CT%d phase set to: %.02f\r\n",
+            (ch - 2u), pCfg->ctCfg[ch - 3u].phase);
 }
 
 /*! @brief Configure a pulse channel. */
@@ -195,7 +202,7 @@ configurePulse()
      *      [5] -> edge (rising, falling, both)
      *      [7] -> NULL: blank time
      */
-    const unsigned int ch       = inBuffer[1] - 48u;
+    const unsigned int ch       = (inBuffer[1] - 48u) - 1u;
     const unsigned int active   = inBuffer[3] - 48u;
     const unsigned int edgePos  = 5u;
     const unsigned int timePos  = 7u;
@@ -204,23 +211,30 @@ configurePulse()
     if (0 == active)
     {
         pCfg->pulseActive &= ~(1 << ch);
+        printf_("> Pulse channel %d disabled.\r\n", (ch + 1u));
+        return;
     }
     else
     {
         pCfg->pulseActive |= (1 << ch);
+        printf_("> Pulse channel %d: ", (ch + 1u));
         switch (inBuffer[edgePos])
         {
             case 'r':
+                printf_("Rising, ");
                 pCfg->pulseCfg[ch].edge = 0u;
                 break;
             case 'f':
+                printf_("Falling, ");
                 pCfg->pulseCfg[ch].edge = 1u;
                 break;
             case 'b':
+                printf_("Both, ");
                 pCfg->pulseCfg[ch].edge = 2u;
                 break;
         }
         pCfg->pulseCfg[ch].period = utilAtoi((inBuffer + timePos), ITOA_BASE10);
+        printf_("%d ms\r\n", pCfg->pulseCfg[ch].period);
     }
 }
 
@@ -293,11 +307,11 @@ printSettings()
     dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
     printf_("Mains frequency (Hz)       %d\r\n",
             pCfg->baseCfg.mainsFreq);
-    printf_("Data log time (s):         %f\r\n",
+    printf_("Data log time (s):         %.02f\r\n",
             pCfg->baseCfg.reportTime);
     printf_("Minimum accumulation (Wh): %d\r\n",
             pCfg->baseCfg.whDeltaStore);
-    printf_("Assumed voltage (V):       %f\r\n",
+    printf_("Assumed voltage (V):       %.02f\r\n",
             pCfg->voltageAssumed);
     printf_("Data transmission:         ");
     if (DATATX_RFM69 == pCfg->baseCfg.dataTx)
@@ -348,8 +362,7 @@ printSettings()
     {
         printf_("CT Channel %d\r\n", (i + 1u));
         printf_("  - Conversion:      %.02f\r\n", pCfg->ctCfg[i].ctCal);
-        /* REVISIT : store a float, and convert at runtime to angles */
-        printf_("  - Lead:            %d\r\n", pCfg->ctCfg[i].phaseX);
+        printf_("  - Phase:           %.02f\r\n", pCfg->ctCfg[i].phase);
         printf_("  - Voltage channel: %d\r\n", (pCfg->ctCfg[i].vChan + 1u));
     }
 }
@@ -365,29 +378,30 @@ processCmd()
     const char helpText[] = "\r\n"
     "emon32 information and configuration commands\r\n\r\n"
     " - ?           : show this text again\r\n"
-    " - a<xxx>      : assumed voltage if no AC detected\r\n"
+    " - a<x.x>      : assumed voltage if no AC detected\r\n"
     " - b<n>        : set RF band. n = 4 -> 433 MHz, 8 -> 868 MHz, 9 -> 915 MHz\r\n"
     " - c<n>        : log to serial output. n = 0: OFF, n = 1: ON\r\n"
-    " - d<xx.x>     : data log period (s)\r\n"
-    " - f<xx>       : line frequency (Hz)\r\n"
-    " - g<nnn>      : set network group (default = 210)\r\n"
-    " - k<x> <yy.y> <zz.z>\r\n"
+    " - d<x.x>      : data log period (s)\r\n"
+    " - f<n>        : line frequency (Hz)\r\n"
+    " - g<n>        : set network group (default = 210)\r\n"
+    " - k<x> <y.y> <z.z>\r\n"
     "   - Calibrate an analogue input\r\n"
     "   - x:        : channel (0-2 -> V; 3... -> CT)\r\n"
-    "   - yy.y      : V/CT calibration constant\r\n"
-    "   - zz.z      : CT phase calibration value\r\n"
+    "   - y.y       : V/CT calibration constant\r\n"
+    "   - z.z       : CT phase calibration value\r\n"
     " - l           : list settings\r\n"
-    " - m<w> <x> <y> <zz>\r\n"
+    " - m<w> <x> <y> <z>\r\n"
     "   - Pulse counting.\r\n"
     "     - w : pulse channel index\r\n"
     "     - x = 0: OFF, x = 1, ON.\r\n"
     "     - y : edge sensitivity (r,f,b). Ignored if x = 0\r\n"
-    "     - zz : minimum period (ms). Ignored if x = 0\r\n"
-    " - n<nn>       : set node ID [1..60]\r\n"
-    " - p<xx>       : set the RF power level\r\n"
+    "     - z : minimum period (ms). Ignored if x = 0\r\n"
+    " - n<n>        : set node ID [1..60]\r\n"
+    " - p<n>        : set the RF power level\r\n"
     " - r           : restore defaults\r\n"
     " - s           : save settings to NVM\r\n"
     " - v           : firmware and board information\r\n"
+    " - w<n>        : minimum difference in energy before saving (Wh)\r\n"
     " - z           : zero energy accumulators\r\n\r\n";
 
     /* Convert \r or \n to 0, and get the length until then. */
@@ -421,6 +435,9 @@ processCmd()
              * Format: a230.0
              */
             pCfg->voltageAssumed = utilAtof(inBuffer + 1);
+            printf_("> Set assumed voltage to: %.02f\r\n",
+                    pCfg->voltageAssumed);
+            resetReq = 1u;
             emon32EventSet(EVT_CONFIG_CHANGED);
             break;
         case 'c':
@@ -430,12 +447,17 @@ processCmd()
             if (2u == arglen)
             {
                 pCfg->baseCfg.logToSerial = utilAtoi(inBuffer + 1, ITOA_BASE10);
+                printf_("> Log to serial: %c\r\n",
+                        pCfg->baseCfg.logToSerial ? 'Y' : 'N');
                 emon32EventSet(EVT_CONFIG_CHANGED);
             }
             break;
         case 'd':
             /* Set the datalog period (s) */
             pCfg->baseCfg.reportTime = utilAtof(inBuffer + 1);
+            printf_("> Data log report time set to: %.02f\r\n",
+                    pCfg->baseCfg.reportTime);
+            resetReq = 1u;
             emon32EventSet(EVT_CONFIG_CHANGED);
             break;
         case 'f':
@@ -446,12 +468,17 @@ processCmd()
             {
                 pCfg->baseCfg.mainsFreq = utilAtoi(inBuffer + 1,
                                                    ITOA_BASE10);
+                printf_("> Mains frequency set to: %d\r\n",
+                        pCfg->baseCfg.mainsFreq);
+                resetReq = 1u;
                 emon32EventSet(EVT_CONFIG_CHANGED);
             }
             break;
         case 'k':
             /* Configure analog channel */
             configureAnalog();
+            resetReq = 1u;
+            emon32EventSet(EVT_CONFIG_CHANGED);
             break;
         case 'l':
             /* Print settings */
@@ -460,27 +487,50 @@ processCmd()
         case 'm':
             /* Configure pulse channel */
             configurePulse();
+            resetReq = 1u;
+            emon32EventSet(EVT_CONFIG_CHANGED);
             break;
         case 'p':
             /* Configure RF power */
+            resetReq = 1u;
+            emon32EventSet(EVT_CONFIG_CHANGED);
             break;
         case 'r':
             /* Restore defaults */
             configDefault(pCfg);
+            printf_("> Restored default values.\r\n");
+            resetReq = 1u;
             emon32EventSet(EVT_CONFIG_CHANGED);
             break;
         case 's':
-            /* Save to EEPROM config space */
+            /* Save to EEPROM config space, reset if required */
             eepromInitConfig(pCfg, sizeof(Emon32Config_t));
-            emon32EventSet(EVT_CONFIG_SAVED);
+            if (0 == resetReq)
+            {
+                emon32EventSet(EVT_CONFIG_SAVED);
+            }
+            else
+            {
+                emon32EventSet(EVT_SAFE_RESET_REQ);
+            }
             break;
         case 'v':
             /* Print firmware and board information */
             configFirmwareBoardInfo();
             break;
+        case 'w':
+            /* Set the Wh delta between saving accumulators */
+            pCfg->baseCfg.whDeltaStore = utilAtoi(inBuffer + 1,
+                                                  ITOA_BASE10);
+            printf_("> Energy delta set to: %d\r\n",
+                    pCfg->baseCfg.whDeltaStore);
+            emon32EventSet(EVT_CONFIG_CHANGED);
+            break;
         case 'z':
             /* Clear accumulator space */
             zeroAccumulators();
+            resetReq = 1u;
+            emon32EventSet(EVT_CONFIG_CHANGED);
             break;
     }
 }
@@ -544,6 +594,7 @@ configFirmwareBoardInfo()
             (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
             (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
     printf_("  - Last reset: %s\r\n", getLastReset());
+    printf_("  - Uptime (s): %"PRIu32"\r\n", timerUptime());
 
     dbgPuts("> Firmware:\r\n");
     printf_("  - Version:    %d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);

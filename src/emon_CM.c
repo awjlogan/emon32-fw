@@ -338,7 +338,6 @@ ecmFilterSample(SampleSet_t *pDst)
             if (idxSmpEnd >= downsample_taps) idxSmpEnd -= downsample_taps;
         }
 
-
         /* Truncate with rounding to nearest LSB and place into field */
         /* TODO This is a fixed implementation for V/CT unpacking; abstract this */
         for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
