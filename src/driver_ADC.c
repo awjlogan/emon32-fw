@@ -6,6 +6,7 @@
 
 #include "emon32.h"
 #include "qfplib.h"
+#include "printf.h"
 
 static void adcCalibrate();
 
@@ -17,8 +18,13 @@ static void
 adcCalibrate()
 {
     /* Expected ADC values for 1/4 and 3/4 scale */
-    const int32_t normalQuarter         = 1024;
-    const int32_t normalThreeQuarter    = 3073;
+    /* REVISIT for 0.1 onwards, this is correct. The dev board is 1/3, 2/3
+     * REVISIT seem to have outstanding factor of 2
+     * const int32_t normalQuarter         = 0xC000;
+     * const int32_t normalThreeQuarter    = 0x3FFF;
+     */
+    const int32_t normalQuarter         = -10923 / 2;
+    const int32_t normalThreeQuarter    = 10922 / 2;
 
     /* Real values from ADC conversion */
     int16_t actualQuarter;
@@ -34,9 +40,10 @@ adcCalibrate()
     /* Set up ADC for maximum sampling length and averaging.
      * This results in a 16 bit unsigned value in RESULT.
      */
-    ADC->SAMPCTRL.reg   = (uint8_t)0x1FFu;
+    ADC->SAMPCTRL.reg   = 0x1Fu;
     ADC->AVGCTRL.reg    = ADC_AVGCTRL_SAMPLENUM_1024;
     ADC->CTRLB.reg      =   ADC_CTRLB_PRESCALER_DIV8
+                          | ADC_CTRLB_DIFFMODE
                           | ADC_CTRLB_RESSEL_16BIT;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
@@ -44,14 +51,14 @@ adcCalibrate()
     ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
-    ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_IOGND
+    ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_PIN0
                          | ADC_INPUTCTRL_MUXPOS_PIN18;
     ADC->INTFLAG.reg   |= ADC_INTFLAG_RESRDY;
     ADC->SWTRIG.reg    = ADC_SWTRIG_START;
     while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY));
     actualQuarter = ADC->RESULT.reg;
 
-    ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_IOGND
+    ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_PIN0
                          | ADC_INPUTCTRL_MUXPOS_PIN17;
     ADC->INTFLAG.reg   |= ADC_INTFLAG_RESRDY;
     ADC->SWTRIG.reg    = ADC_SWTRIG_START;
@@ -80,16 +87,9 @@ adcCalibrate()
                                     qfp_fdiv((float)normalThreeQuarter, gain_fp)) - actualThreeQuarter;
     offset = (offset_inter[0] + offset_inter[1]) / 2;
 
-    /* Mask top nibbles as registers are only 12bits wide */
-    ADC->OFFSETCORR.reg = (int16_t)offset & 0xFFF;
-    ADC->GAINCORR.reg   = (int16_t)gain & 0xFFF;
-
-    /* Enable automatic correction, and return ADC to differential mode */
-    ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV8
-                     | ADC_CTRLB_RESSEL_16BIT
-                     | ADC_CTRLB_DIFFMODE
-                     | ADC_CTRLB_CORREN;
-    while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
+    /* Registers are 12 bit, shift 16 bit intermediate offset 4 */
+    ADC->OFFSETCORR.reg = (int16_t)offset >> 4;
+    ADC->GAINCORR.reg   = (int16_t)gain;
 }
 
 
@@ -110,6 +110,10 @@ adcSetup()
                         | GCLK_CLKCTRL_GEN(3u)
                         | GCLK_CLKCTRL_CLKEN;
 
+    /* Reset all the ADC registers */
+    ADC->CTRLA.reg = ADC_CTRLA_SWRST;
+    while (ADC->CTRLA.reg & ADC_CTRLA_SWRST);
+
     ADC->CALIB.reg =   (samdCalibration(CAL_ADC_BIAS) << 8u)
                      | samdCalibration(CAL_ADC_LINEARITY);
 
@@ -126,7 +130,8 @@ adcSetup()
      */
     ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV8
                      | ADC_CTRLB_DIFFMODE
-                     | ADC_CTRLB_RESSEL_16BIT;
+                     | ADC_CTRLB_CORREN
+                     | ADC_CTRLB_RESSEL_12BIT;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
     /* Setup 3 us conversion time - allows up to ~333 ksps @ 1 MHz CLK
@@ -173,6 +178,33 @@ adcSetup()
     ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 }
+
+
+int16_t
+adcSingleConversion(const unsigned int ch)
+{
+    /* Save the scan and positive mux positions, do the conversion, and
+     * restore the ADC state before returning the result.
+     */
+    int16_t result = 0;
+    const unsigned int inputCtrl = ADC->INPUTCTRL.reg;
+
+    ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_PIN0
+                         | ADC_INPUTCTRL_MUXPOS(ch);
+    while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
+
+    ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
+    ADC->SWTRIG.reg  = ADC_SWTRIG_START;
+    while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY));
+    result = ADC->RESULT.reg;
+
+    ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
+    ADC->INPUTCTRL.reg = inputCtrl;
+    while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
+
+    return result;
+}
+
 
 void
 adcStartDMAC(uint32_t buf)
