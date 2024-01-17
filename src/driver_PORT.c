@@ -18,9 +18,9 @@ portSetup()
     for (unsigned int i = 0; pinsGPIO_In[i][0] != 0xFF; i++)
     {
         portPinDir(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PIN_DIR_IN);
-        // portPinCfg(pinsGPIO_In[i][0], pinsGPIO_In[i][1],
-        //            PORT_PINCFG_PULLEN, PIN_CFG_SET);
-        // portPinDrv(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PIN_DRV_SET);
+        portPinCfg(pinsGPIO_In[i][0], pinsGPIO_In[i][1],
+                   PORT_PINCFG_PULLEN, PIN_CFG_SET);
+        portPinDrv(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PIN_DRV_SET);
     }
 
     /* Unused pins: input, pull down (Table 22-1) */

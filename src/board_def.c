@@ -9,13 +9,10 @@
 const uint8_t pinsGPIO_Out[][2] = {
     {GRP_PINB,      PIN_LED_STATUS},
     {GRP_PINA,      PIN_LED_PROG},
-    {GRP_LED_USER,  PIN_LED_USER0},
-    {GRP_LED_USER,  PIN_LED_USER1},
     {0xFF,      0}
 };
 
 const uint8_t pinsGPIO_In[][2] = {
-    {GRP_TEST_SENSE,    PIN_TEST_SENSE},
     {GRP_PULSE,         PIN_PULSE1},
     {GRP_PULSE,         PIN_PULSE2},
     {GRP_ONEWIRE,       PIN_ONEWIRE},
