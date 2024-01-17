@@ -18,7 +18,7 @@ const uint8_t pinsGPIO_In[][2] = {
     {GRP_ONEWIRE,       PIN_ONEWIRE},
     {GRP_PINA,          PIN_REV0},
     {GRP_PINA,          PIN_REV1},
-    {GRP_PINB,          PIN_REV2},
+    {GRP_PINA,          PIN_REV2},
     {0xFF,              0}
 };
 
