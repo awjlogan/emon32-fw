@@ -14,9 +14,6 @@
 
 /* OneWire pins and configuration */
 static DS18B20_conf_t cfg;
-static unsigned int grp;
-static unsigned int pin;
-static unsigned int t_wait_us;
 
 /* Device address table */
 static uint64_t     address[TEMP_MAX_ONEWIRE];
@@ -94,13 +91,16 @@ oneWireReadBit()
     unsigned int result = 0;
 
     __disable_irq           ();
-    portPinDir              (grp, pin, PIN_DIR_OUT);
-    timerDelay_us           (t_wait_us);
-    portPinDir              (grp, pin, PIN_DIR_IN);
+    portPinDir              (cfg.grp, cfg.pin, PIN_DIR_OUT);
+    timerDelay_us           (cfg.t_wait_us);
+    portPinDir              (cfg.grp, cfg.pin, PIN_DIR_IN);
     /* Max 15 us for read slot; leave 3 us slack */
-    timerDelay_us           (12u - t_wait_us);
-    result = portPinValue   (grp, pin);
+    timerDelay_us           (12u - cfg.t_wait_us);
+    result = portPinValue   (cfg.grp, cfg.pin);
     __enable_irq            ();
+
+    /* Wait for the end of the read slot, t_RDV */
+    timerDelay_us           (60u);
 
     return result;
 }
@@ -124,18 +124,33 @@ oneWireReadBytes(void *pDst, const uint8_t n)
 static unsigned int
 oneWireReset()
 {
-    unsigned int presence = 0;
+    /* t_RSTL (min) = 480 us
+     * t_RSTH (min) = 480 us
+     * t_PDHIGH (max) = 60 us
+     * t_PDLOW (max) = 240 us
+    */
 
-    portPinDrv(grp, pin, PIN_DRV_CLR);
-    portPinDir(grp, pin, PIN_DIR_OUT);
+    unsigned int    presence    = 0;
+    uint32_t        timeStart   = 0;
+
+    portPinDir(cfg.grp, cfg.pin, PIN_DIR_OUT);
 
     timerDelay_us(500u);
-    portPinDir(grp, pin, PIN_DIR_IN);
-    timerDelay_us(120u);
+    portPinDir(cfg.grp, cfg.pin, PIN_DIR_IN);
+    /* Wait 75 us to ensure t_PDHIGH has elapsed, then wait the full t_RSTH
+     * time +25 us slack to complete the reset sequence.
+     */
+    timerDelay_us(75u);
 
-    /* If there is any device present, the bus will be LOW */
-    presence = !portPinValue(grp, pin);
-    timerDelay_us(380u);
+    timeStart = timerMicros();
+    while (timerMicrosDelta(timeStart) < 425u)
+    {
+        /* Latch presence if found */
+        if (0 == presence)
+        {
+            presence = !portPinValue(cfg.grp, cfg.pin);
+        }
+    }
 
     return presence;
 }
@@ -144,7 +159,7 @@ static int
 oneWireSearch()
 {
     /* Initialise for search */
-    const uint8_t   cmdSearchRom    = 0xF0;
+    const uint8_t   cmdSearchRom    = 0xF0u;
     int             searchDirection = 0;
     int             idBitNumber     = 1;
     int             lastZero        = 0;
@@ -171,7 +186,7 @@ oneWireSearch()
         oneWireWriteBytes(&cmdSearchRom, 1);
 
         /* ...and commence the search! */
-        for (unsigned int i = 0; i < 8; i++)
+        for (unsigned int i = 0; i < 64; i++)
         {
             idBit       = oneWireReadBit();
             cmpidBit    = oneWireReadBit();
@@ -256,15 +271,16 @@ oneWireWriteBit(unsigned int bit)
      * transmission, a pending interrupt may be serviced, but this will only
      * extend the interbit timing, with no affect on the protocol.
      */
+
     __disable_irq   ();
-    portPinDir      (grp, pin, PIN_DIR_OUT);
-    timerDelay_us   (t_wait_us);
-    if (0 == bit)
+    portPinDir      (cfg.grp, cfg.pin, PIN_DIR_OUT);
+    timerDelay_us   (cfg.t_wait_us);
+    if (bit)
     {
-        portPinDir  (grp, pin, PIN_DIR_IN);
+        portPinDir  (cfg.grp, cfg.pin, PIN_DIR_IN);
     }
-    timerDelay_us   (75u - t_wait_us);
-    portPinDir      (grp, pin, PIN_DIR_IN);
+    timerDelay_us   (75u - cfg.t_wait_us);
+    portPinDir      (cfg.grp, cfg.pin, PIN_DIR_IN);
     __enable_irq    ();
     timerDelay_us   (5u);
 }
@@ -297,7 +313,8 @@ ds18b20InitSensors(const DS18B20_conf_t *pCfg)
                       ? pCfg->t_wait_us
                       : 5u;
 
-    /* Search for devices */
+    /* Disable the pin's pull up, and search for devices */
+    portPinDrv(cfg.grp, cfg.pin, PIN_DRV_CLR);
     searchResult = oneWireFirst();
 
     while ((0 != searchResult) && (deviceCount < TEMP_MAX_ONEWIRE))
