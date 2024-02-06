@@ -517,10 +517,11 @@ main()
 
     /* Set up pulse and temperature sensors, if present */
     pulseConfigure(&e32Config);
+    numTempSensors = tempSetup();
 
     /* Set up buffers for ADC data, configure energy processing, and start */
     ecmConfigure    (&e32Config, reportCycles);
-    // adcStartDMAC    ((uint32_t)ecmDataBuffer());
+    adcStartDMAC    ((uint32_t)ecmDataBuffer());
     dbgPuts("> Start monitoring...\r\n");
 
     for (;;)
