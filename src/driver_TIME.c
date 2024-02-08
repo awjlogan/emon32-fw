@@ -17,6 +17,7 @@ static volatile uint32_t timeSecondsCounter = 0;
 
 /* Function pointer for non-blocking timer callback */
 void (*tc2_cb)();
+static unsigned int TIMER2InUse = 0;
 
 
 void
@@ -44,11 +45,12 @@ int
 timerDelay_us(uint32_t delay)
 {
     /* Return -1 if timer is already in use */
-    if (TIMER2->COUNT32.CTRLA.reg & TC_CTRLA_ENABLE)
+    if (TIMER2InUse)
     {
         return -1;
     }
 
+    TIMER2InUse = 1;
     commonSetup(delay);
 
     /* Wait for timer to complete, then disable */
@@ -57,19 +59,29 @@ timerDelay_us(uint32_t delay)
     TIMER2->COUNT32.INTFLAG.reg |= TC_INTFLAG_MC0;
     TIMER2->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
 
+    TIMER2InUse = 0;
     return 0;
+}
+
+
+void
+timerDelayNB_NotInUse()
+{
+    TIMER2->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
+    TIMER2InUse = 0;
 }
 
 
 int
 timerDelayNB_us(uint32_t delay, void (*cb)())
 {
-    tc2_cb = cb;
-    if (TIMER2->COUNT32.CTRLA.reg & TC_CTRLA_ENABLE)
+
+    if (TIMER2InUse)
     {
         return -1;
     }
 
+    tc2_cb = cb;
     NVIC_EnableIRQ(TIMER2_IRQn);
     commonSetup(delay);
 
@@ -89,17 +101,20 @@ int
 timerElapsedStart()
 {
     /* Return -1 if timer is already in use */
-    if (TIMER2->COUNT32.CTRLA.reg & TC_CTRLA_ENABLE)
+    if (TIMER2InUse)
     {
         return -1;
     }
 
+    TIMER2InUse = 1;
     /* Mask match interrupt, zero counter, and start */
     TIMER2->COUNT32.INTENCLR.reg |= TC_INTENCLR_MC0;
     TIMER2->COUNT32.COUNT.reg = 0u;
     while (TIMER2->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
     TIMER2->COUNT32.CTRLA.reg |= TC_CTRLA_ENABLE;
     while (TIMER2->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+
+    TIMER2InUse = 0;
     return 0;
 }
 
@@ -183,24 +198,25 @@ timerSetup()
                         | GCLK_CLKCTRL_CLKEN;
 
     /* Configure as 8bit counter (F_PERIPH - /8 -> F_TIMER1 */
-    TIMER1->COUNT8.CTRLA.reg =   TC_CTRLA_MODE_COUNT8
-                               | TC_CTRLA_PRESCALER_DIV8
-                               | TC_CTRLA_RUNSTDBY
-                               | TC_CTRLA_PRESCSYNC_RESYNC;
+    TIMER1->COUNT16.CTRLA.reg =   TC_CTRLA_MODE_COUNT16
+                                | TC_CTRLA_PRESCALER_DIV8
+                                | TC_CTRLA_WAVEGEN_MFRQ
+                                | TC_CTRLA_RUNSTDBY
+                                | TC_CTRLA_PRESCSYNC_RESYNC;
 
     /* TIMER1 overflow event output to trigger ADC */
-    TIMER1->COUNT8.EVCTRL.reg |= TC_EVCTRL_OVFEO;
+    TIMER1->COUNT16.EVCTRL.reg |= TC_EVCTRL_MCEO0;
 
     /* TIMER1 is running at 1 MHz, each tick is 1 us
      * PER, COUNT, and Enable require synchronisation (28.6.6)
      */
     const unsigned int cntPer = F_TIMER1 / SAMPLE_RATE / (VCT_TOTAL);
-    TIMER1->COUNT8.PER.reg = (uint8_t)cntPer;
-    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
-    TIMER1->COUNT8.COUNT.reg = 0u;
-    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
-    TIMER1->COUNT8.CTRLA.reg |= TC_CTRLA_ENABLE;
-    while (TIMER1->COUNT8.STATUS.reg & TC_STATUS_SYNCBUSY);
+    TIMER1->COUNT16.CC[0].reg = (uint16_t)cntPer;
+    while (TIMER1->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY);
+    TIMER1->COUNT16.COUNT.reg = 0u;
+    while (TIMER1->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY);
+    TIMER1->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
+    while (TIMER1->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY);
 
     /* TIMER2 is used as the delay and elapsed time counter
      * Enable APB clock, set TIMER2 to generator 3 @ F_PERIPH

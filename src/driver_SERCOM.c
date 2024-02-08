@@ -220,10 +220,10 @@ uartPutsNonBlocking(unsigned int dma_chan, const char * const s, uint16_t len)
 {
     volatile DmacDescriptor * dmacDesc = dmacGetDescriptor(dma_chan);
     /* Valid bit is cleared when a channel is complete */
-    dmacDesc->BTCTRL.reg |= DMAC_BTCTRL_VALID;
-    dmacDesc->BTCNT.reg = len;
-    dmacDesc->SRCADDR.reg = (uint32_t)s + len;
-    dmacStartTransfer(dma_chan);
+    dmacDesc->BTCTRL.reg    |= DMAC_BTCTRL_VALID;
+    dmacDesc->BTCNT.reg     = len;
+    dmacDesc->SRCADDR.reg   = (uint32_t)s + len;
+    dmacChannelEnable(dma_chan);
 }
 
 char

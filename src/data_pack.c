@@ -2,8 +2,9 @@
 #include <inttypes.h>
 
 #include "data_pack.h"
-#include "util.h"
 #include "qfpio.h"
+#include "util.h"
+
 #include "printf.h"
 
 unsigned int
@@ -15,11 +16,11 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int n)
     memset(pDst, 0, n);
 
     bufLen = snprintf_(pDst, n, "MSG:%u", (unsigned int)pData->msgNum);
-    
+
     /* V channels */
     for (unsigned int i = 0; i < NUM_V; i++)
     {
-        bufLen = snprintf_(pDst, n, "%s,V%d:%.2f", 
+        bufLen = snprintf_(pDst, n, "%s,V%d:%.2f",
                            pDst, i, pData->pECM->rmsV[i]);
     }
 

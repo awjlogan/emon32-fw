@@ -388,7 +388,7 @@ eepromWriteCB()
     const eepromWrStatus_t wrStatus = eepromWrite(0, 0, 0);
 
     /* If not complete, start next write slot, retry if the timer is busy.
-     * When complete, free the timer
+     * When complete, free the timer.
      */
     if (EEPROM_WR_COMPLETE != wrStatus)
     {
@@ -396,7 +396,8 @@ eepromWriteCB()
     }
     else
     {
-        timerDisable();
+        /* Disable timer and return mutex to the peripheral */
+        timerDelayNB_NotInUse();
     }
 }
 

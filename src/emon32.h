@@ -8,7 +8,7 @@
 #define VERSION_FW_MIN      1u
 
 #define NODE_ID             17u
-#define TX_BUFFER_W         64u
+#define TX_BUFFER_W         256u
 
 /* Configuration key - indicates that the configuration is the default or
  * has been retrieved from non-volatile storage */
