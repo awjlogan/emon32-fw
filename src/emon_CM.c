@@ -202,9 +202,9 @@ static SampleSet_t      samples[PROC_DEPTH];
  * Power accumulators
  *****************************************************************************/
 
-static Accumulator_t    accum_buffer[2];
-static Accumulator_t *  accum_collecting = accum_buffer;
-static Accumulator_t *  accum_processing = accum_buffer + 1;
+static Accumulator_t    accumBuffer[2];
+static Accumulator_t *  accumCollecting = accumBuffer;
+static Accumulator_t *  accumProcessing = accumBuffer + 1;
 static ECMCycle_t       ecmCycle;
 
 /******************************************************************************
@@ -219,20 +219,20 @@ static ECMCycle_t       ecmCycle;
 RAMFUNC int
 zeroCrossing(q15_t smpV)
 {
-    Polarity_t          polarity_now;
-    static Polarity_t   polarity_last = POL_POS;
+    Polarity_t          polarityNow;
+    static Polarity_t   polarityLast = POL_POS;
     static int          hystCnt = ZC_HYST;
 
-    polarity_now = (smpV < 0) ? POL_NEG : POL_POS;
+    polarityNow = (smpV < 0) ? POL_NEG : POL_POS;
 
-    if (polarity_now != polarity_last)
+    if (polarityNow != polarityLast)
     {
         hystCnt--;
         if (0 == hystCnt)
         {
             hystCnt = ZC_HYST;
-            polarity_last = polarity_now;
-            if (POL_POS == polarity_now)
+            polarityLast = polarityNow;
+            if (POL_POS == polarityNow)
             {
                 return 1;
             }
@@ -372,7 +372,7 @@ ecmInjectSample()
     memcpy((void *)(samples + idxInject), (const void *)pSmpProc, sizeof(SampleSet_t));
 
     /* Do power calculations */
-    accum_collecting->num_samples++;
+    accumCollecting->num_samples++;
 
     /* TODO this is only for single phase currently, loop is there for later */
     const unsigned int idxLast = (idxInject - 1u) & (PROC_DEPTH - 1u);
@@ -381,24 +381,24 @@ ecmInjectSample()
 
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
-        accum_collecting->processV[idxV].sumV_sqr += (q31_t) thisV * thisV;
-        accum_collecting->processV[idxV].sumV_deltas += (q31_t) thisV;
+        accumCollecting->processV[idxV].sumV_sqr += (q31_t) thisV * thisV;
+        accumCollecting->processV[idxV].sumV_deltas += (q31_t) thisV;
     }
 
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
         const q15_t lastCT = samples[idxLast].smpCT[idxCT];
-        accum_collecting->processCT[idxCT].sumPA += (q31_t) lastCT * lastV;
-        accum_collecting->processCT[idxCT].sumPB += (q31_t) lastCT * thisV;
-        accum_collecting->processCT[idxCT].sumI_sqr += (q31_t) lastCT * lastCT;
-        accum_collecting->processCT[idxCT].sumI_deltas += (q31_t) lastCT;
+        accumCollecting->processCT[idxCT].sumPA += (q31_t) lastCT * lastV;
+        accumCollecting->processCT[idxCT].sumPB += (q31_t) lastCT * thisV;
+        accumCollecting->processCT[idxCT].sumI_sqr += (q31_t) lastCT * lastCT;
+        accumCollecting->processCT[idxCT].sumI_deltas += (q31_t) lastCT;
     }
 
     /* Check for zero crossing, swap buffers and pend event */
     if (1 == zeroCrossing(thisV))
     {
-        ecmSwapPtr((void **)&accum_collecting, (void **)&accum_processing);
-        memset((void *)accum_collecting, 0, sizeof(Accumulator_t));
+        ecmSwapPtr((void **)&accumCollecting, (void **)&accumProcessing);
+        memset((void *)accumCollecting, 0, sizeof(Accumulator_t));
 
         if (0 == discardCycles)
         {
@@ -422,20 +422,20 @@ ecmProcessCycle()
     ecmCycle.cycleCount++;
 
     /* Reused constants */
-    const uint32_t numSamples       = accum_processing->num_samples;
+    const uint32_t numSamples       = accumProcessing->num_samples;
     const uint32_t numSamplesSqr    = numSamples * numSamples;
 
     /* RMS for V channels */
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
         /* Truncate and calculate RMS, subtracting off fine offset */
-        accum_processing->processV[idxV].sumV_sqr       = __STRUNCATE(accum_processing->processV[idxV].sumV_sqr);
-        accum_processing->processV[idxV].sumV_deltas    *= accum_processing->processV[idxV].sumV_deltas;
-        accum_processing->processV[idxV].sumV_deltas    = __STRUNCATE(accum_processing->processV[idxV].sumV_deltas);
+        accumProcessing->processV[idxV].sumV_sqr       = __STRUNCATE(accumProcessing->processV[idxV].sumV_sqr);
+        accumProcessing->processV[idxV].sumV_deltas    *= accumProcessing->processV[idxV].sumV_deltas;
+        accumProcessing->processV[idxV].sumV_deltas    = __STRUNCATE(accumProcessing->processV[idxV].sumV_deltas);
 
         q15_t thisRms = sqrt_q15(
-                        (accum_processing->processV[idxV].sumV_sqr / numSamples)
-                      - (accum_processing->processV[idxV].sumV_deltas / (numSamplesSqr)));
+                        (accumProcessing->processV[idxV].sumV_sqr / numSamples)
+                      - (accumProcessing->processV[idxV].sumV_deltas / (numSamplesSqr)));
         ecmCycle.rmsV[idxV] += thisRms;
     }
 
@@ -444,19 +444,19 @@ ecmProcessCycle()
     {
         if (0 != ecmCfg.ctCfg[idxCT].active)
         {
-            accum_processing->processCT[idxCT].sumI_sqr    = __STRUNCATE(accum_processing->processCT[idxCT].sumI_sqr);
-            int32_t sumI_deltas_sqr =   accum_processing->processCT[idxCT].sumI_deltas
-                                      * accum_processing->processCT[idxCT].sumI_deltas;
+            accumProcessing->processCT[idxCT].sumI_sqr    = __STRUNCATE(accumProcessing->processCT[idxCT].sumI_sqr);
+            int32_t sumI_deltas_sqr =   accumProcessing->processCT[idxCT].sumI_deltas
+                                      * accumProcessing->processCT[idxCT].sumI_deltas;
             sumI_deltas_sqr = __STRUNCATE(sumI_deltas_sqr);
 
 
             /* Apply phase calibration for CT interpolated between V samples */
-            int32_t sumRealPower =   accum_processing->processCT[idxCT].sumPA * ecmCfg.ctCfg[idxCT].phaseX
-                                   + accum_processing->processCT[idxCT].sumPB * ecmCfg.ctCfg[idxCT].phaseY;
+            int32_t sumRealPower =   accumProcessing->processCT[idxCT].sumPA * ecmCfg.ctCfg[idxCT].phaseX
+                                   + accumProcessing->processCT[idxCT].sumPB * ecmCfg.ctCfg[idxCT].phaseY;
 
             ecmCycle.valCT[idxCT].powerNow += (sumRealPower / numSamples) - (sumI_deltas_sqr / numSamplesSqr);
 
-            ecmCycle.valCT[idxCT].rmsCT +=   sqrt_q15(((accum_processing->processCT[idxCT].sumI_sqr / numSamples)
+            ecmCycle.valCT[idxCT].rmsCT +=   sqrt_q15(((accumProcessing->processCT[idxCT].sumI_sqr / numSamples)
                                            - (sumI_deltas_sqr / numSamplesSqr)));
         }
         else
