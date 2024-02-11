@@ -114,13 +114,31 @@ typedef struct {
     DataCT_t    CT[NUM_CT];
 } ECMDataset_t;
 
+typedef struct {
+    q15_t phaseX;
+    q15_t phaseY;
+} PhaseXY_t;
+
 /******************************************************************************
  * Function prototypes
  *****************************************************************************/
 
+/*! @brief Decompose a floating point CT phase into an X/Y pair for
+ *         interpolation.
+ *  @param [in] phase : CT lead phase in degrees.
+ *  @return : structure with the X/Y fixed point coefficients.
+ */
+PhaseXY_t ecmCalculatePhase(float phase);
+
 /*! @brief Returns a pointer to the ADC data buffer
+ *  @return : pointer to the active ADC data buffer.
  */
 volatile RawSampleSetPacked_t *ecmDataBuffer();
+
+/*! @brief Swap the data sampling buffers. ADC will be filling the other
+ *         while it is handled.
+ */
+void ecmDataBufferSwap();
 
 /*! @brief Unpack and optionally low pass filter the raw sample
  *         The struct from the DMA has no partition into V/CT channels, so
@@ -147,8 +165,3 @@ ECM_STATUS_t ecmProcessCycle() RAMFUNC;
  *  @param [out] pData : pointer to the processed data structure
  */
 void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
-
-/*! @brief Swap the data sampling buffers. ADC will be filling the other
- *         while it is handled.
-*/
-void ecmDataBufferSwap();

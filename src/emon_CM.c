@@ -246,6 +246,24 @@ zeroCrossing(q15_t smpV)
 }
 
 
+PhaseXY_t
+ecmCalculatePhase(float phase)
+{
+    PhaseXY_t phaseXY;
+
+    float sampleRate = 2400.0f;
+    float phaseShift = phase;
+
+    phaseXY.phaseY = qfp_fdiv(qfp_fsin(phaseShift),
+                              qfp_fsin(sampleRate));
+    phaseXY.phaseX = qfp_fsub(qfp_fcos(phaseShift),
+                              (qfp_fmul(phaseXY.phaseY,
+                                        qfp_fcos(sampleRate))));
+
+    return phaseXY;
+}
+
+
 RAMFUNC void
 ecmFilterSample(SampleSet_t *pDst)
 {

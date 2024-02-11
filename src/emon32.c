@@ -165,8 +165,11 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
     /* Makes the continuous monitoring setup agnostic to the data strcuture
      * used for storage, and avoids any awkward alignment from packing.
      */
-    ECMCfg_t *ecmCfg;
+    ECMCfg_t    *ecmCfg;
+    PhaseXY_t   phaseXY;
+
     ecmCfg = ecmGetConfig();
+
 
     ecmCfg->downsample      = DOWNSAMPLE_DSP;
     ecmCfg->reportCycles    = reportCycles;
@@ -179,9 +182,10 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
     {
         uint32_t active = pCfg->ctActive & (1 << i);
 
-        /* REVISIT decompose phase angle to X/Y fixed point */
-        ecmCfg->ctCfg[i].phaseX = 1000;
-        ecmCfg->ctCfg[i].phaseY = 1000;
+        phaseXY = ecmCalculatePhase(pCfg->ctCfg[i].phase);
+
+        ecmCfg->ctCfg[i].phaseX = phaseXY.phaseX;
+        ecmCfg->ctCfg[i].phaseY = phaseXY.phaseY;
         ecmCfg->ctCfg[i].ctCal  = pCfg->ctCfg[i].ctCal;
         ecmCfg->ctCfg[i].active =   active
                                   ? 1u
