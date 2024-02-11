@@ -197,14 +197,16 @@ timerSetup()
                         | GCLK_CLKCTRL_GEN(3u)
                         | GCLK_CLKCTRL_CLKEN;
 
-    /* Configure as 8bit counter (F_PERIPH - /8 -> F_TIMER1 */
+    /* Configure as 16bit counter (F_PERIPH / 8) -> F_TIMER1.
+     * In MFRQ mode, the CC0 register is used as the period.
+     */
     TIMER1->COUNT16.CTRLA.reg =   TC_CTRLA_MODE_COUNT16
-                                | TC_CTRLA_PRESCALER_DIV8
+                                | TC_CTRLA_PRESCALER_DIV1
                                 | TC_CTRLA_WAVEGEN_MFRQ
                                 | TC_CTRLA_RUNSTDBY
                                 | TC_CTRLA_PRESCSYNC_RESYNC;
 
-    /* TIMER1 overflow event output to trigger ADC */
+    /* TIMER1 MC0 match event to trigger ADC */
     TIMER1->COUNT16.EVCTRL.reg |= TC_EVCTRL_MCEO0;
 
     /* TIMER1 is running at 1 MHz, each tick is 1 us

@@ -13,11 +13,6 @@
 #define BOARD_ID_DEV        255
 #define BOARD_ID            BOARD_ID_EMONPI
 
-/* Online configuration takes around 2.5 KB of flash. Comment out this define to
- * save space, with only RO access to configuration values.
- */
-#define CONFIGURATION_RW
-
 /* Clock frequencies
  *  - Core is on the 48 MHz DFLL
  *  - Peripherals are on the OSC8M / 8 -> 1 MHz
@@ -111,7 +106,7 @@
 
 #define TIMER1_GCLK_ID              TC3_GCLK_ID
 #define TIMER1_APBCMASK             PM_APBCMASK_TC3
-#define TIMER1_EVT_SRC              EVSYS_ID_GEN_TC3_OVF
+#define TIMER1_EVT_SRC              EVSYS_ID_GEN_TC3_MCX_0
 
 #define TIMER2_GCLK_ID              TC4_GCLK_ID
 #define TIMER2_APBCMASK             PM_APBCMASK_TC4
@@ -186,9 +181,9 @@
 #define UART_DATA_BAUD      115200u
 
 /* DMA defines */
-#define NUM_CHAN_DMA        4u
-#define DMA_CHAN_UART_DATA  3u
-#define DMA_CHAN_I2CM       2u
-#define DMA_CHAN_UART_DBG   1u
-#define DMA_CHAN_ADC        0u
-
+#define NUM_CHAN_DMA        5u
+#define DMA_CHAN_UART_DATA  4u
+#define DMA_CHAN_I2CM       3u
+#define DMA_CHAN_UART_DBG   2u
+#define DMA_CHAN_ADC1       1u
+#define DMA_CHAN_ADC0       0u
