@@ -15,16 +15,37 @@ void dmacSetup();
  */
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch);
 
-/*! @brief Start a transfer on DMAC channel
+/*! @brief Disable a DMAC channel
  *  @param [in] ch : channel number
  */
-void dmacStartTransfer(unsigned int ch);
+void dmacChannelDisable(unsigned int ch);
+
+/*! @brief Enable a DMAC channel
+ *  @param [in] ch : channel number
+ */
+void dmacChannelEnable(unsigned int ch);
 
 /*! @brief Get channel transfer status
  *  @param [in] ch : channel number
  *  @return 1 if channel ch is busy. 0 otherwise
  */
 unsigned int dmacChannelBusy(unsigned int ch);
+
+/*! @brief Configure a DMA channel
+ *  @param [in] ch : channel to configure
+ *  @param [in] pCfg : pointer to configuration details
+ */
+void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg);
+
+/*! @brief Resume a DMA channel
+ *  @param [in] ch : channel to resume
+ */
+void dmacChannelResume(unsigned int ch);
+
+/*! @brief Suspend a DMA channel
+ *  @param [in] ch : channel to suspend
+ */
+void dmacChannelSuspend(unsigned int ch);
 
 /*! @brief Enable DMAC channel interrupt
  *  @param [in] ch : channel to enable interrupt for
@@ -40,12 +61,6 @@ void dmacDisableChannelInterrupt(unsigned int ch);
  *  @param [in] ch : channel to clear interrupt flag for
  */
 void dmacClearChannelInterrupt(unsigned int ch);
-
-/*! @brief Configure a DMA channel
- *  @param [in] ch : channel to configure
- *  @param [in] pCfg : pointer to configuration details
- */
-void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg);
 
 /*! @brief Calculate the CRC16 (CCITT - 0x1021)
  *  @param [in] pData : pointer to data

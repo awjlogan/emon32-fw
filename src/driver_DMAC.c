@@ -5,6 +5,10 @@
 #include "emon32.h"
 #include "emon_CM.h"
 
+
+void irqHandlerADCCommon();
+
+
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static          DmacDescriptor dmacs_wb[NUM_CHAN_DMA];
 
@@ -27,18 +31,29 @@ dmacSetup()
     NVIC_EnableIRQ(DMAC_IRQn);
 }
 
+
 volatile DmacDescriptor *
 dmacGetDescriptor(unsigned int ch)
 {
     return &dmacs[ch];
 }
 
+
 void
-dmacStartTransfer(unsigned int ch)
+dmacChannelDisable(unsigned int ch)
+{
+    DMAC->CHID.reg      = ch;
+    DMAC->CHCTRLA.reg   &= ~DMAC_CHCTRLA_ENABLE;
+}
+
+
+void
+dmacChannelEnable(unsigned int ch)
 {
     DMAC->CHID.reg      = ch;
     DMAC->CHCTRLA.reg   |= DMAC_CHCTRLA_ENABLE;
 }
+
 
 void
 dmacEnableChannelInterrupt(unsigned int ch)
@@ -47,6 +62,7 @@ dmacEnableChannelInterrupt(unsigned int ch)
     DMAC->CHINTENSET.reg    |= DMAC_CHINTENSET_TCMPL;
 }
 
+
 void
 dmacDisableChannelInterrupt(unsigned int ch)
 {
@@ -54,12 +70,14 @@ dmacDisableChannelInterrupt(unsigned int ch)
     DMAC->CHINTENCLR.reg    |= DMAC_CHINTENCLR_TCMPL;
 }
 
+
 void
 dmacClearChannelInterrupt(unsigned int ch)
 {
-    DMAC->CHID.reg      = ch;
-    DMAC->CHINTFLAG.reg |= DMAC_CHINTFLAG_TCMPL;
+    DMAC->CHID.reg          = ch;
+    DMAC->CHINTFLAG.reg     |= DMAC_CHINTFLAG_TCMPL;
 }
+
 
 void
 dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg)
@@ -67,6 +85,23 @@ dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg)
     DMAC->CHID.reg      = ch;
     DMAC->CHCTRLB.reg   = pCfg->ctrlb;
 }
+
+
+void
+dmacChannelResume(unsigned int ch)
+{
+    DMAC->CHID.reg      = ch;
+    DMAC->CHCTRLB.reg   |= DMAC_CHCTRLB_CMD_RESUME;
+}
+
+
+void
+dmacChannelSuspend(unsigned int ch)
+{
+    DMAC->CHID.reg      = ch;
+    DMAC->CHCTRLB.reg   |= DMAC_CHCTRLB_CMD_SUSPEND;
+}
+
 
 unsigned int
 dmacChannelBusy(unsigned int ch)
@@ -81,23 +116,41 @@ dmacChannelBusy(unsigned int ch)
     }
 }
 
+
+void
+irqHandlerADCCommon()
+{
+    ECM_STATUS_t injectStatus;
+    ecmDataBufferSwap();
+    injectStatus = ecmInjectSample();
+    if (ECM_CYCLE_COMPLETE == injectStatus)
+    {
+        emon32EventSet(EVT_ECM_CYCLE_CMPL);
+    }
+}
+
+
 void
 irq_handler_dmac()
 {
     /* Check which channel has triggered the interrupt, set the event, and
      * clear the interrupt source
      */
-    DMAC->CHID.reg = DMA_CHAN_ADC;
+    DMAC->CHID.reg = DMA_CHAN_ADC0;
     if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL)
     {
-        /* Restart DMA for ADC and inject sample */
-        ecmDataBufferSwap   ();
-        adcStartDMAC        ((uint32_t)ecmDataBuffer());
-        if (ECM_CYCLE_COMPLETE == ecmInjectSample())
-        {
-            emon32EventSet(EVT_ECM_CYCLE_CMPL);
-        }
         DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
+        dmacChannelEnable(DMA_CHAN_ADC0);
+        irqHandlerADCCommon();
+    }
+
+    /* REVISIT : is this branch hit? Should all be in channel 0 */
+    DMAC->CHID.reg = DMA_CHAN_ADC1;
+    if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL)
+    {
+        DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
+        dmacChannelEnable(DMA_CHAN_ADC1);
+        irqHandlerADCCommon();
     }
 
     DMAC->CHID.reg = DMA_CHAN_UART_DBG;

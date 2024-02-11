@@ -16,8 +16,8 @@
 static inline uint8_t   __CLZ       (uint32_t data) RAMFUNC;
 static inline int32_t   __SSAT      (int32_t val)   RAMFUNC;
 static inline q15_t     __STRUNCATE (int32_t val)   RAMFUNC;
-static void             ecmSwapPtr  (void **pIn1, void **pIn2);
 static q15_t            sqrt_q15    (q15_t in)      RAMFUNC;
+static void             ecmSwapPtr  (void **pIn1, void **pIn2);
 static int              zeroCrossing(q15_t smpV)    RAMFUNC;
 
 /******** FIXED POINT MATHS FUNCTIONS ********
@@ -39,7 +39,7 @@ const q15_t sqrt_initial_lut[16] = {
  *  @return Q15 truncated val
  */
 static RAMFUNC inline q15_t
-__STRUNCATE(int32_t val) 
+__STRUNCATE(int32_t val)
 {
     unsigned int roundUp = 0;
     if (0 != (val & (1u << 14)))
@@ -54,7 +54,7 @@ __STRUNCATE(int32_t val)
  *  @param [in] val : input value
  */
 static RAMFUNC inline int32_t
-__SSAT(int32_t val) 
+__SSAT(int32_t val)
 {
     const int32_t max = (int32_t)((1U << (15u)) - 1U);
     const int32_t min = -1 - max ;
@@ -174,20 +174,22 @@ ecmGetConfig()
  * Data acquisition
  *****************************************************************************/
 
-static volatile RawSampleSetPacked_t adc_samples[SAMPLE_BUF_DEPTH];
-static volatile RawSampleSetPacked_t *volatile adc_active = adc_samples;
-static volatile RawSampleSetPacked_t *volatile adc_proc = adc_samples + 1;
+static volatile RawSampleSetPacked_t adcSamples[SAMPLE_BUF_DEPTH];
+static volatile RawSampleSetPacked_t *volatile adcActive    = adcSamples;
+static volatile RawSampleSetPacked_t *volatile adcProc      = adcSamples + 1;
+
 
 void
 ecmDataBufferSwap()
 {
-    ecmSwapPtr((void **)&adc_active, (void **)&adc_proc);
+    ecmSwapPtr((void **)&adcActive, (void **)&adcProc);
 }
+
 
 volatile RawSampleSetPacked_t *
 ecmDataBuffer()
 {
-    return adc_active;
+    return adcActive;
 }
 
 /******************************************************************************
@@ -215,7 +217,7 @@ static ECMCycle_t       ecmCycle;
  *          negative crossing, 0 otherwise
  */
 RAMFUNC int
-zeroCrossing(q15_t smpV) 
+zeroCrossing(q15_t smpV)
 {
     Polarity_t          polarity_now;
     static Polarity_t   polarity_last = POL_POS;
@@ -245,47 +247,40 @@ zeroCrossing(q15_t smpV)
 
 
 RAMFUNC void
-ecmFilterSample(SampleSet_t *pDst) 
+ecmFilterSample(SampleSet_t *pDst)
 {
     if (0 == ecmCfg.downsample)
     {
         /* No filtering, discard the second sample in the set */
         for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
         {
-            pDst->smpV[idxV] = adc_proc->samples[0].smp[idxV];
+            pDst->smpV[idxV] = adcProc->samples[0].smp[idxV];
         }
 
         for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
         {
-            pDst->smpCT[idxCT] = adc_proc->samples[0].smp[idxCT + NUM_V];
+            pDst->smpCT[idxCT] = adcProc->samples[0].smp[idxCT + NUM_V];
         }
     }
     else
     {
         /* The FIR half band filter is symmetric, so the coefficients are folded.
-        * Alternating coefficients are 0, so are not included in any outputs.
-        * For an ODD number of taps, the centre coefficent is handled
-        * individually, then the other taps in a loop.
-        *
-        * b_0 | b_2 | .. | b_X | .. | b_2 | b_0
-        *
-        * For an EVEN number of taps, loop across all the coefficients:
-        *
-        * b_0 | b_2 | .. | b_2 | b_0
-        */
-
+         * Alternating coefficients are 0, so are not included in any outputs.
+         * For an ODD number of taps, the centre coefficent is handled
+         * individually, then the other taps in a loop.
+         *
+         * b_0 | b_2 | .. | b_X | .. | b_2 | b_0
+         *
+         * For an EVEN number of taps, loop across all the coefficients:
+         *
+         * b_0 | b_2 | .. | b_2 | b_0
+         */
         static unsigned int idxInj = 0;
         static              RawSampleSetUnpacked_t smpBuffer[DOWNSAMPLE_TAPS];
-        int32_t             intRes[VCT_TOTAL] = {0};
-        const unsigned int  numCoeffUnique = 6u;
-        const int16_t       firCoeffs[6] = {
-                                            92,
-                                            -279,
-                                            957,
-                                            -2670,
-                                            10113,
-                                            16339
-                                            };
+        int32_t             intRes[VCT_TOTAL]   = {0};
+        const unsigned int  numCoeffUnique      = 6u;
+        const int16_t       firCoeffs[6]        = {   92,  -279,   957,
+                                                   -2670, 10113, 16339};
 
         const unsigned int downsample_taps = DOWNSAMPLE_TAPS;
         const unsigned int idxInjPrev =   (0 == idxInj)
@@ -293,18 +288,18 @@ ecmFilterSample(SampleSet_t *pDst)
                                         : (idxInj - 1u);
 
         /* Copy the packed raw ADC value into the unpacked buffer; index 1 is the
-        * most recent sample.
-        */
+         * most recent sample.
+         */
         for (unsigned int idxSmp = 0; idxSmp < VCT_TOTAL; idxSmp++)
         {
-            smpBuffer[idxInj].smp[idxSmp] = adc_active->samples[1].smp[idxSmp];
-            smpBuffer[idxInjPrev].smp[idxSmp] = adc_active->samples[0].smp[idxSmp];
+            smpBuffer[idxInjPrev].smp[idxSmp]   = adcProc->samples[0].smp[idxSmp];
+            smpBuffer[idxInj].smp[idxSmp]       = adcProc->samples[1].smp[idxSmp];
         }
 
         /* For an ODD number of taps, take the unique middle value to start. As
-        * the filter is symmetric, this is the final element in the array */
-
-        const           q15_t coeff = firCoeffs[numCoeffUnique - 1u];
+         * the filter is symmetric, this is the final element in the array.
+         */
+        const q15_t     coeff = firCoeffs[numCoeffUnique - 1u];
         unsigned int    idxMid = idxInj + (downsample_taps / 2) + 1u;
         if (idxMid >= downsample_taps) idxMid -= downsample_taps;
 
@@ -314,8 +309,8 @@ ecmFilterSample(SampleSet_t *pDst)
         }
 
         /* Loop over the FIR coefficients, sub loop through channels. The filter
-        * is folded so the symmetric FIR coefficients are used for both samples.
-        */
+         * is folded so the symmetric FIR coefficients are used for both samples.
+         */
         unsigned int idxSmpStart = idxInj;
         unsigned int idxSmpEnd = ((downsample_taps - 1u) == idxInj) ? 0 : idxInj + 1u;
         if (idxSmpEnd >= downsample_taps) idxSmpEnd -= downsample_taps;
@@ -339,7 +334,7 @@ ecmFilterSample(SampleSet_t *pDst)
         }
 
         /* Truncate with rounding to nearest LSB and place into field */
-        /* TODO This is a fixed implementation for V/CT unpacking; abstract this */
+        /* REVISIT This is a fixed implementation for V/CT unpacking; abstract this */
         for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
         {
             const q15_t resTrunc = __STRUNCATE(intRes[idxChannel]);
@@ -364,7 +359,7 @@ ecmFilterSample(SampleSet_t *pDst)
 
 
 RAMFUNC ECM_STATUS_t
-ecmInjectSample() 
+ecmInjectSample()
 {
     SampleSet_t smpProc;
     SampleSet_t *pSmpProc = &smpProc;
@@ -422,7 +417,7 @@ ecmInjectSample()
 }
 
 RAMFUNC ECM_STATUS_t
-ecmProcessCycle() 
+ecmProcessCycle()
 {
     ecmCycle.cycleCount++;
 
@@ -480,7 +475,7 @@ ecmProcessCycle()
 
 
 RAMFUNC void
-ecmProcessSet(ECMDataset_t *pData) 
+ecmProcessSet(ECMDataset_t *pData)
 {
     float vCal;
     /* Mean value for each RMS voltage */

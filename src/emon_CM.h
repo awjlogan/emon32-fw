@@ -35,15 +35,16 @@ typedef struct __attribute__((__packed__)) SingleSampleSet {
     q15_t smp[VCT_TOTAL];
 } SingleRawSampleSet_t;
 
-/* SampleSetPacked_t contains a set of single sample sets. This allows the DMAC
- * to blit samples across multiple sample sets, depending on processing needs
+/* RawSampleSetPacked_t contains a set of single sample sets. This allows the
+ * DMAC to blit samples across multiple sample sets, depending on processing
+ * needs.
  */
 typedef struct __attribute__((__packed__)) SampleSetPacked {
     SingleRawSampleSet_t samples[SAMPLES_IN_SET];
 } RawSampleSetPacked_t;
 
 typedef struct RawSampleSetUnpacked {
-    q15_t smp[NUM_V + NUM_CT];
+    q15_t smp[VCT_TOTAL];
 } RawSampleSetUnpacked_t;
 
 /* SampleSet_t contains an unpacked set of single sample sets */
@@ -117,10 +118,6 @@ typedef struct {
  * Function prototypes
  *****************************************************************************/
 
-/*! @brief Swaps the ADC data buffer pointers
- */
-void ecmDataBufferSwap();
-
 /*! @brief Returns a pointer to the ADC data buffer
  */
 volatile RawSampleSetPacked_t *ecmDataBuffer();
@@ -151,3 +148,7 @@ ECM_STATUS_t ecmProcessCycle() RAMFUNC;
  */
 void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
 
+/*! @brief Swap the data sampling buffers. ADC will be filling the other
+ *         while it is handled.
+*/
+void ecmDataBufferSwap();

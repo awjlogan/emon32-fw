@@ -5,15 +5,17 @@
 #include "driver_PORT.h"
 
 #include "emon32.h"
+#include "emon_CM.h"
 #include "qfplib.h"
-#include "printf.h"
+
 
 static void adcCalibrate();
+static void adcConfigureDMAC();
 
 
 /*! @brief Load gain and offset registers for automatic compensation. Only
  *         available when using SAMD21 with sufficient ADC pins.
- * */
+ */
 static void
 adcCalibrate()
 {
@@ -93,12 +95,58 @@ adcCalibrate()
 }
 
 
+/*! @brief Load gain and offset registers for automatic compensation. Only
+ *         available when using SAMD21 with sufficient ADC pins.
+ */
+static void
+adcConfigureDMAC()
+{
+    DMACCfgCh_t             dmacConfig;
+    volatile DmacDescriptor *dmacDesc[2];
+    unsigned int            dmaChan[2] = {DMA_CHAN_ADC0, DMA_CHAN_ADC1};
+
+    volatile RawSampleSetPacked_t *adcBuffer[2];
+
+    /* Get the contiguous data buffers */
+    adcBuffer[0] = ecmDataBuffer();
+    adcBuffer[1] = adcBuffer[0] + 1;
+
+    dmacConfig.ctrlb =   DMAC_CHCTRLB_LVL(3u)
+                       | DMAC_CHCTRLB_TRIGSRC(ADC_DMAC_ID_RESRDY)
+                       | DMAC_CHCTRLB_TRIGACT_BEAT;
+
+    for (unsigned int i = 0; i < 2; i++)
+    {
+        dmacDesc[i] = dmacGetDescriptor(dmaChan[i]);
+
+        /* DSTADDR is the last address, rather than first! */
+        dmacDesc[i]->DSTADDR.reg    =   (uint32_t)adcBuffer[i]
+                                      + (2 * VCT_TOTAL * OVERSAMPLING_RATIO);
+        dmacDesc[i]->SRCADDR.reg    = (uint32_t)&ADC->RESULT;
+        /* Capture a full sample set before interrupt to start downsampling */
+        dmacDesc[i]->BTCNT.reg      = (VCT_TOTAL * OVERSAMPLING_RATIO);
+        dmacDesc[i]->BTCTRL.reg     =   DMAC_BTCTRL_VALID
+                                      /* Raise interrupt on block transfer */
+                                      | DMAC_BTCTRL_BLOCKACT_INT
+                                      | DMAC_BTCTRL_BEATSIZE_HWORD
+                                      | DMAC_BTCTRL_DSTINC
+                                      | DMAC_BTCTRL_STEPSEL_DST
+                                      | DMAC_BTCTRL_STEPSIZE_X1;
+
+        dmacChannelConfigure        (dmaChan[i], &dmacConfig);
+        dmacEnableChannelInterrupt  (dmaChan[i]);
+    }
+
+    /* Link the descriptors so sampling is continuous */
+    dmacDesc[0]->DESCADDR.reg = (uint32_t)dmacDesc[1];
+    dmacDesc[1]->DESCADDR.reg = (uint32_t)dmacDesc[0];
+}
+
+
 void
 adcSetup()
 {
     extern uint8_t          pinsADC[][2];
-    DMACCfgCh_t             dmacConfig;
-    volatile DmacDescriptor *dmacDesc;
 
     for (unsigned int i = 0; pinsADC[i][0] != 0xFF; i++)
     {
@@ -113,6 +161,7 @@ adcSetup()
     /* Reset all the ADC registers */
     ADC->CTRLA.reg = ADC_CTRLA_SWRST;
     while (ADC->CTRLA.reg & ADC_CTRLA_SWRST);
+    ADC->CTRLA.reg |= ADC_CTRLA_RUNSTDBY;
 
     ADC->CALIB.reg =   (samdCalibration(CAL_ADC_BIAS) << 8u)
                      | samdCalibration(CAL_ADC_LINEARITY);
@@ -125,10 +174,10 @@ adcSetup()
 
     adcCalibrate();
 
-    /* Differential mode, /8 prescale of F_PERIPH, right aligned, enable
+    /* Differential mode, /4 prescale of F_PERIPH, right aligned, enable
      * averaging. Requires synchronisation after write (30.6.13)
      */
-    ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV8
+    ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV4
                      | ADC_CTRLB_DIFFMODE
                      | ADC_CTRLB_CORREN
                      | ADC_CTRLB_RESSEL_12BIT;
@@ -139,12 +188,8 @@ adcSetup()
      */
     ADC->SAMPCTRL.reg = 0x5u;
 
-    /* Setup 4X oversampling. This can be used for up to 16 ADC channels at
-     * 4.8 kHz sampling (4.8 * 16 * 4 = 307 kHz). The intermediate 14 bit
-     * result is right shifted by 2 to provide the final 12 bit result.
-     */
-    ADC->AVGCTRL.reg =   ADC_AVGCTRL_SAMPLENUM(2)
-                       | ADC_AVGCTRL_ADJRES(2);
+    /* REVISIT : Oversampling to increase effective resolution */
+    ADC->AVGCTRL.reg = 0;
 
     /* Input control - requires synchronisation (30.6.13) */
     ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXPOS_PIN2
@@ -153,30 +198,10 @@ adcSetup()
                          | ADC_INPUTCTRL_INPUTSCAN(VCT_TOTAL - 1u);
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
-    /* ADC is triggered by an event from TC1 with no CPU intervention */
+    /* ADC is triggered by an event from TIMER1 with no CPU intervention */
     ADC->EVCTRL.reg = ADC_EVCTRL_STARTEI;
 
-    /* DMA channel */
-    dmacDesc = dmacGetDescriptor(DMA_CHAN_ADC);
-    dmacDesc->DESCADDR.reg  = 0u;
-    dmacDesc->SRCADDR.reg   = (uint32_t)&ADC->RESULT;
-    /* Capture a full sample set before interrupt to start downsampling */
-    dmacDesc->BTCNT.reg     = (VCT_TOTAL) * OVERSAMPLING_RATIO;
-    dmacDesc->BTCTRL.reg    =   DMAC_BTCTRL_VALID
-                              | DMAC_BTCTRL_BLOCKACT_NOACT
-                              | DMAC_BTCTRL_BEATSIZE_HWORD
-                              | DMAC_BTCTRL_DSTINC
-                              | DMAC_BTCTRL_STEPSIZE_X1;
-
-    dmacConfig.ctrlb =    DMAC_CHCTRLB_LVL(0u)
-                        | DMAC_CHCTRLB_TRIGSRC(ADC_DMAC_ID_RESRDY)
-                        | DMAC_CHCTRLB_TRIGACT_BEAT;
-    dmacChannelConfigure        (DMA_CHAN_ADC, &dmacConfig);
-    dmacEnableChannelInterrupt  (DMA_CHAN_ADC);
-
-    /* Enable requires synchronisation (30.6.13) */
-    ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
-    while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
+    adcConfigureDMAC();
 }
 
 
@@ -186,7 +211,9 @@ adcSingleConversion(const unsigned int ch)
     /* Save the scan and positive mux positions, do the conversion, and
      * restore the ADC state before returning the result.
      */
-    int16_t result = 0;
+    int16_t         result      = 0;
+    unsigned int    enabledFlag = 0;
+
     const unsigned int inputCtrl = ADC->INPUTCTRL.reg;
 
     ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_PIN0
@@ -194,6 +221,14 @@ adcSingleConversion(const unsigned int ch)
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
     ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
+
+    if (!(ADC->CTRLA.reg & ADC_CTRLA_ENABLE))
+    {
+        enabledFlag = 1u;
+        ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
+        while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
+    }
+
     ADC->SWTRIG.reg  = ADC_SWTRIG_START;
     while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY));
     result = ADC->RESULT.reg;
@@ -202,16 +237,26 @@ adcSingleConversion(const unsigned int ch)
     ADC->INPUTCTRL.reg = inputCtrl;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
+    /* Disable the ADC if it was enabled for a single conversion */
+    if (enabledFlag)
+    {
+        ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
+        while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
+    }
+
     return result;
 }
 
 
 void
-adcStartDMAC(uint32_t buf)
+adcStartDMAC()
 {
-    volatile DmacDescriptor *dmaDesc = dmacGetDescriptor(DMA_CHAN_ADC);
-    dmaDesc->BTCTRL.reg     |= DMAC_BTCTRL_VALID;
-    dmaDesc->DSTADDR.reg    = buf;
+    dmacChannelEnable(DMA_CHAN_ADC0);
 
-    dmacStartTransfer(DMA_CHAN_ADC);
+    /* Enable ADC; requires synchronisation (30.6.13) */
+    if (!(ADC->CTRLA.reg & ADC_CTRLA_ENABLE))
+    {
+        ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
+        while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
+    }
 }

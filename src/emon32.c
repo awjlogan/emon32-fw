@@ -521,7 +521,7 @@ main()
 
     /* Set up buffers for ADC data, configure energy processing, and start */
     ecmConfigure    (&e32Config, reportCycles);
-    adcStartDMAC    ((uint32_t)ecmDataBuffer());
+    adcStartDMAC    ();
     dbgPuts("> Start monitoring...\r\n");
 
     for (;;)

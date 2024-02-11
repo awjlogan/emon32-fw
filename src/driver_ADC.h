@@ -14,4 +14,4 @@ int16_t adcSingleConversion(const unsigned int ch);
 /*! @brief Starts the DMAC transfer from the ADC
  *  @param [in] buf : address of the "collecting" structure
  */
-void adcStartDMAC(uint32_t buf);
+void adcStartDMAC();
