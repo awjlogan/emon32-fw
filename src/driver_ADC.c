@@ -6,7 +6,7 @@
 
 #include "emon32.h"
 #include "emon_CM.h"
-#include "qfplib.h"
+#include "qfplib-m0-full.h"
 
 
 static void adcCalibrate();

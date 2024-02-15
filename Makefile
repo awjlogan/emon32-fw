@@ -45,7 +45,7 @@ DEFINES += \
 CFLAGS += $(INCLUDES) $(DEFINES)
 
 OBJS = $(addprefix $(BUILD)/, $(notdir %/$(subst .c,.o, $(SRCS))))
-OBJS += $(BUILD)/qfplib.o $(BUILD)/qfpio.o
+OBJS += $(BUILD)/qfplib-m0-full.o $(BUILD)/qfpio.o
 
 # Always update the build information. This forces this to run every time
 BUILD_INFO := $(shell python3 ./scripts/build_info.py ./src/emon32_build_info.c)
@@ -68,9 +68,9 @@ $(BUILD)/$(BIN).uf2: $(BUILD)/$(BIN).bin
 	@echo BIN_TO_UF2 $@
 	@python3 ./scripts/bin_to_uf2.py $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2
 
-$(BUILD)/qfplib.o:
+$(BUILD)/qfplib-m0-full.o:
 	@echo AS $@
-	@$(CC) $(CFLAGS) third_party/qfplib/qfplib.s -c -o $@
+	@$(CC) $(CFLAGS) third_party/qfplib/qfplib-m0-full.s -c -o $@
 
 $(BUILD)/qfpio.o:
 	@echo AS $@

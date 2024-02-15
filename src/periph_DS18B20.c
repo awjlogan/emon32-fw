@@ -3,7 +3,7 @@
 #include "driver_PORT.h"
 #include "driver_TIME.h"
 #include "periph_DS18B20.h"
-#include "qfplib.h"
+#include "qfplib-m0-full.h"
 
 /* Driver for DS18B20 OneWire temperature sensor
  * https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf

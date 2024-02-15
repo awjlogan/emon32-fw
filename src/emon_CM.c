@@ -1,7 +1,7 @@
 #include <string.h>
 
 #include "emon_CM.h"
-#include "qfplib.h"
+#include "qfplib-m0-full.h"
 
 #ifdef HOSTED
 #include <stdio.h>

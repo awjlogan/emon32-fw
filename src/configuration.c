@@ -11,10 +11,10 @@
 #include "eeprom.h"
 #include "emon32.h"
 #include "emon32_build_info.h"
-#include "qfplib.h"
 #include "util.h"
 
 #include "printf.h"
+#include "qfplib-m0-full.h"
 
 
 /*************************************
