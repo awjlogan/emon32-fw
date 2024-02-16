@@ -187,7 +187,6 @@ rfmSend(const void *pData)
             tempRecv = (tempRecv & 0xFB) | 0x4u;
             rfmWriteReg(0x3Du, tempRecv);
         }
-        timerDisable();
     }
 
 
