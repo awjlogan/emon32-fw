@@ -25,4 +25,3 @@ void configProcessCmd();
  *  @return : number of cycles between reports
  */
 unsigned int configTimeToCycles(const float repTime, const unsigned int mainsFreq);
-

@@ -68,4 +68,3 @@ void dmacClearChannelInterrupt(unsigned int ch);
  *  @return CRC16 value
  */
 uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n);
-

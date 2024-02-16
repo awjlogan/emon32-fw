@@ -58,4 +58,3 @@ void portPinDrv(unsigned int grp, unsigned int pin, PINDRV_t drv);
  *  @param [in] pin : Pin number
  */
 unsigned int portPinValue(unsigned int grp, unsigned int pin);
-

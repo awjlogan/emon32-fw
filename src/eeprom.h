@@ -1,4 +1,4 @@
-#pragma once 
+#pragma once
 
 #include <stdint.h>
 
@@ -75,4 +75,3 @@ void eepromWriteCB();
  *  @param [in] pPktWr : pointer to write packet
  */
 void eepromWriteWL(eepromPktWL_t *pPktWr);
-

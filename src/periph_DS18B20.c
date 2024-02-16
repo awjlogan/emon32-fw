@@ -379,4 +379,3 @@ ds18b20SampleToCelsius(const int16_t fix)
 {
     return qfp_fix2float(fix, 4);
 }
-

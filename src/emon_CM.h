@@ -166,4 +166,3 @@ ECM_STATUS_t ecmProcessCycle() RAMFUNC;
  *  @param [out] pData : pointer to the processed data structure
  */
 void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
-

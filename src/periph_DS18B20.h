@@ -29,4 +29,3 @@ int16_t ds18b20ReadSample(const unsigned int dev);
  *  @return : temperature in C
  */
 float ds18b20SampleToCelsius(const int16_t fix);
-

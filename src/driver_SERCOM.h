@@ -162,4 +162,3 @@ void spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n);
  *  @param [in] data : data to write
  */
 void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
-

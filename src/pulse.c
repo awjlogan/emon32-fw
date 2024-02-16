@@ -8,8 +8,6 @@ typedef enum {
     PULSE_LVL_LOW
 } PulseLvl_t;
 
-#if (NUM_PULSECOUNT > 0)
-
 static uint64_t     pulseCount[NUM_PULSECOUNT];
 static PulseCfg_t   pulseCfg[NUM_PULSECOUNT];
 static unsigned int pinValue[NUM_PULSECOUNT];
@@ -104,24 +102,3 @@ pulseUpdate()
         }
     }
 }
-
-#else
-
-PulseCfg_t * pulseGetCfg(const unsigned int index)
-{
-    (void)index;
-    return 0;
-}
-
-void pulseInit(const unsigned int index)
-{
-    (void)index;
-    return;
-}
-void pulseUpdate()
-{
-    return;
-}
-
-#endif
-

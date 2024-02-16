@@ -40,4 +40,3 @@ void pulseSetCount(const uint64_t value, const unsigned int index);
  *  @return : current pulse value
  */
 uint64_t pulseGetCount(const unsigned int index);
-

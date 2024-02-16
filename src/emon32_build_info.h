@@ -74,4 +74,3 @@ struct Emon32BuildInfo emon32_build_info();
    stargirl@stargirls-mbp.lan"
 */
 const char* emon32_build_info_string();
-

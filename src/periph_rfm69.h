@@ -28,4 +28,3 @@ void rfmInit(RFM_Freq_t freq);
  *  @return : 0 for success, -1 for failure
  */
 int rfmSend(const void *pData);
-

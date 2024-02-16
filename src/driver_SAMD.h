@@ -16,4 +16,3 @@ typedef enum {
  *  @return : calibration value
  */
 uint32_t samdCalibration(const Calibration_t cal);
-
