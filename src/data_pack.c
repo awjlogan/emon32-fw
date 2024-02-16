@@ -5,46 +5,180 @@
 #include "qfpio.h"
 #include "util.h"
 
-#include "printf.h"
 
-unsigned int
-dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int n)
+#define CONV_STR_W  16
+#define STR_MSG     0
+#define STR_V       1
+#define STR_P       2
+#define STR_E       3
+#define STR_PULSE   4
+#define STR_COLON   5
+
+
+/* "Fat" string with current length and buffer size. */
+typedef struct {
+    char            *str;   /* Pointer to the string */
+    unsigned int    n;      /* Length of the string  */
+    unsigned int    m;      /* Buffer length */
+} StrN_t;
+
+
+static unsigned int strnFtoa(StrN_t *strD, const float v);
+static unsigned int strnItoa(StrN_t *strD, const uint32_t v);
+static unsigned int strnCat(StrN_t *strD, const StrN_t *strS);
+static int          strnLen(StrN_t *str);
+
+
+/* Strings that are inserted in the transmitted message */
+const StrN_t baseStr[6] = { {.str = "MSG:",     .n = 4, .m = 5},
+                            {.str = ",V",       .n = 2, .m = 3},
+                            {.str = ",P",       .n = 2, .m = 3},
+                            {.str = ",E",       .n = 2, .m = 3},
+                            {.str = ",pulse",   .n = 6, .m = 7},
+                            {.str = ":",        .n = 1, .m = 2} };
+
+
+static unsigned int
+strnFtoa(StrN_t *strD, const float v)
 {
-    unsigned int    bufLen = 0;
+    /* REVISIT : check formatting parameter */
+    const uint32_t fmt = 0;
+
+    /* Zero the destination buffer and the convert */
+    memset(strD->str, 0, strD->m);
+    qfp_float2str(v, strD->str, fmt);
+    (void)strnLen(strD);
+    return strD->n;
+}
+
+static unsigned int
+strnItoa(StrN_t *strD, const uint32_t v)
+{
+    /* Zero the destination buffer and then convert */
+    memset(strD->str, 0, strD->m);
+
+    strD->n = utilItoa(strD->str, v, ITOA_BASE10);
+    return strD->n;
+}
+
+
+static unsigned int
+strnCat(StrN_t *strD, const StrN_t *strS)
+{
+    /* Check bounds to make sure it won't go over the end. If so, return the
+     * actual number of bytes that are copied.
+     */
+    unsigned int newLen;
+    unsigned int bytesToCopy;
+
+    bytesToCopy  = strS->n;
+    newLen      = strS->n + strD->n;
+    if (newLen >= strD->m)
+    {
+        bytesToCopy = strD->m - strD->n;
+    }
+
+    memcpy((strD->str + strD->n), strS->str, bytesToCopy);
+    return bytesToCopy;
+}
+
+
+static int
+strnLen(StrN_t *str)
+{
+    /* Convert a null terminated string to a fat string */
+    unsigned int i = 0;
+    while (str->str[i++])
+    {
+        /* Terminate if exceeded the maximum length */
+        if (i >= str->m)
+        {
+            return -1;
+        }
+    }
+    return i;
+}
+
+
+/* Pack the data into a format to send out. Do not use the printf functions
+ * here as the conversions, particularly floats, are too slow.
+ */
+unsigned int
+dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
+{
+    char    tmpStr[CONV_STR_W] = {0};
+    StrN_t  strConv;    /* Fat string for conversions */
+    StrN_t  strn;       /* Fat string for processed data */
+
+    /* Setup destination string */
+    strn.str    = pDst;
+    strn.n      = 0;
+    strn.m      = m;
+
+    /* Setup conversion string */
+    strConv.str = tmpStr;
+    strConv.n   = 0;
+    strConv.m   = CONV_STR_W;
 
     /* Clear destination buffer */
-    memset(pDst, 0, n);
+    memset(strn.str, 0, m);
 
-    bufLen = snprintf_(pDst, n, "MSG:%u", (unsigned int)pData->msgNum);
+    /* "MSG:<xx>"*/
+    strn.n += strnCat(&strn, &baseStr[STR_MSG]);
+    (void)strnItoa(&strConv, pData->msgNum);
+    strn.n += strnCat(&strn, &strConv);
 
-    /* V channels */
+    /* V channels: "[..],V<x>:<yy.y>" */
     for (unsigned int i = 0; i < NUM_V; i++)
     {
-        bufLen = snprintf_(pDst, n, "%s,V%d:%.2f",
-                           pDst, i, pData->pECM->rmsV[i]);
+        strn.n += strnCat(&strn, &baseStr[STR_V]);
+
+        (void)strnItoa(&strConv, i);
+        strn.n += strnCat(&strn, &strConv);
+        strn.n += strnCat(&strn, &baseStr[STR_COLON]);
+        (void)strnFtoa(&strConv, pData->pECM->rmsV[i]);
+        strn.n += strnCat(&strn, &strConv);
     }
 
-    /* CT channels */
+    /* CT channels "[..],P<x>:<yy.y>" */
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        bufLen = snprintf_(pDst, n, "%s,P%d:%.2f",
-                           pDst, i, pData->pECM->CT[i].realPower);
+        strn.n += strnCat(&strn, &baseStr[STR_P]);
+
+        (void)strnItoa(&strConv, i);
+        strn.n += strnCat(&strn, &strConv);
+        strn.n += strnCat(&strn, &baseStr[STR_COLON]);
+        (void)strnFtoa(&strConv, pData->pECM->CT[i].realPower);
+        strn.n += strnCat(&strn, &strConv);
     }
 
+    /* "[..],E<x>:<yy.y>" */
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        bufLen = snprintf_(pDst, n, "%s,E%d:%u",
-                           pDst, i, (unsigned int)pData->pECM->CT[i].wattHour);
+        strn.n += strnCat(&strn, &baseStr[STR_E]);
+
+        (void)strnItoa(&strConv, i);
+        strn.n += strnCat(&strn, &strConv);
+        strn.n += strnCat(&strn, &baseStr[STR_COLON]);
+        (void)strnItoa(&strConv, pData->pECM->CT[i].wattHour);
+        strn.n += strnCat(&strn, &strConv);
     }
 
+    /* Pulse channels: "[..],pulse<x>:<yy>" */
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
-        bufLen = snprintf_(pDst, n, "%s,pulse%d:%"PRIu64"",
-                           pDst, i, pData->pulseCnt[i]);
+        strn.n += strnCat(&strn, &baseStr[STR_PULSE]);
+
+        (void)strnItoa(&strConv, i);
+        strn.n += strnCat(&strn, &strConv);
+        strn.n += strnCat(&strn, &baseStr[STR_COLON]);
+        (void)strnItoa(&strConv, pData->pulseCnt[i]);
+        strn.n += strnCat(&strn, &strConv);
     }
 
-    return bufLen;
+    return strn.n;
 }
+
 
 void
 dataPackagePacked(const Emon32Dataset_t *pData, PackedData_t *pPacked)

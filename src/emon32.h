@@ -74,12 +74,12 @@ typedef struct __attribute__((__packed__)) {
 typedef struct {
     uint32_t        msgNum;
     ECMDataset_t    *pECM;
-    uint64_t        pulseCnt[NUM_PULSECOUNT];
+    uint32_t        pulseCnt[NUM_PULSECOUNT];
 } Emon32Dataset_t;
 
 typedef struct __attribute__((__packed__)) {
     uint32_t    wattHour[NUM_CT];
-    uint64_t    pulseCnt[NUM_PULSECOUNT];
+    uint32_t    pulseCnt[NUM_PULSECOUNT];
 } Emon32Cumulative_t;
 
 typedef struct __attribute__((__packed__)) {
@@ -94,7 +94,7 @@ typedef struct __attribute__((__packed__)) {
     int16_t     P[NUM_CT];
     int32_t     E[NUM_CT];
     int16_t     T[TEMP_MAX_ONEWIRE];
-    uint64_t    pulse[NUM_PULSECOUNT];
+    uint32_t    pulse[NUM_PULSECOUNT];
 } PackedData_t;
 
 

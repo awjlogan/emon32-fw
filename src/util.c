@@ -1,5 +1,6 @@
-#include "util.h"
 #include <stdio.h>
+
+#include "util.h"
 
 void
 utilStrReverse(char *pBuf, unsigned int len)
@@ -15,6 +16,7 @@ utilStrReverse(char *pBuf, unsigned int len)
     }
 }
 
+
 unsigned int
 utilStrlen(const char *pBuf)
 {
@@ -26,16 +28,6 @@ utilStrlen(const char *pBuf)
     return charCnt;
 }
 
-unsigned int
-utilStrInsert(char *pDst, const char *pIns, unsigned int pos, unsigned int len)
-{
-    char *pOffset = pDst + pos;
-    for (unsigned int cntIns = 0; cntIns < len; cntIns++)
-    {
-        *pOffset++ = *pIns++;
-    }
-    return (pos + len);
-}
 
 unsigned int
 utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base)
@@ -95,6 +87,7 @@ utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base)
     return charCnt;
 }
 
+
 int32_t
 utilAtoi(char *pBuf, ITOA_BASE_t base)
 {
@@ -145,6 +138,7 @@ utilAtoi(char *pBuf, ITOA_BASE_t base)
     return val;
 }
 
+
 unsigned int
 utilFtoa(char *pBuf, float val)
 {
@@ -190,6 +184,7 @@ utilFtoa(char *pBuf, float val)
     utilStrReverse(pBase, charCnt);
     return charCnt;
 }
+
 
 float
 utilAtof(char *pBuf)

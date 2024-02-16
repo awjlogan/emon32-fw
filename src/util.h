@@ -7,13 +7,11 @@ typedef enum {
     ITOA_BASE16
 } ITOA_BASE_t;
 
-/*! @brief Convert integer to null terminated string. Returns the number of
- *         characters (including NULL).
- *  @param [in] pBuf : pointer to string buffer, at least 11 characters
- *  @param [in] val : value to convert
- *  @param [in] base : select base 10 or base 16 conversion
+
+/*! @brief Convert null terminated string to float, returns the value.
+ *  @param [in] pBuf : pointer to string buffer
  */
-unsigned int utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base);
+float utilAtof(char *pBuf);
 
 /*! @brief Convert null terminated string to integer, returns the value.
  *  @param [in] pBuf : pointer to string buffer
@@ -28,28 +26,21 @@ int32_t utilAtoi(char *pBuf, ITOA_BASE_t base);
  */
 unsigned int utilFtoa(char *pBuf, float val);
 
-/*! @brief Convert null terminated string to float, returns the value.
- *  @param [in] pBuf : pointer to string buffer
+/*! @brief Convert integer to null terminated string. Returns the number of
+ *         characters (including NULL).
+ *  @param [in] pBuf : pointer to string buffer, at least 11 characters
+ *  @param [in] val : value to convert
+ *  @param [in] base : select base 10 or base 16 conversion
  */
-float utilAtof(char *pBuf);
-
-/*! @brief Reverse an array (typically string)
- *  @param [in] pBuf : pointer to the buffer
- *  @param [in] len : length of buffer to reverse
- */
-void utilStrReverse(char *pBuf, unsigned int len);
+unsigned int utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base);
 
 /*! @brief Returns the number of characters up to, but not including, NULL
  *  @param [in] pBuf : pointer to the string buffer
  */
 unsigned int utilStrlen(const char *pBuf);
 
-/*! @brief Insert a string into an existing buffer. Returns the end position
- *         of the "cursor" in the destination buffer.
- *  @param [in] pDst : pointer to the buffer to insert into
- *  @param [in] pIns : pointer to the string to insert
- *  @param [in] pos  : start position to insert
- *  @param [in] len  : length of string to insert
+/*! @brief Reverse an array (typically string)
+ *  @param [in] pBuf : pointer to the buffer
+ *  @param [in] len : length of buffer to reverse
  */
-unsigned int utilStrInsert(char *pDst, const char *pIns, unsigned int pos, unsigned int len);
-
+void utilStrReverse(char *pBuf, unsigned int len);
