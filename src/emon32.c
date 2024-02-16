@@ -170,8 +170,8 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
 
     ecmCfg = ecmGetConfig();
 
-
     ecmCfg->downsample      = DOWNSAMPLE_DSP;
+    ecmCfg->zx_hw           = ZEROX_HW_SPT;
     ecmCfg->reportCycles    = reportCycles;
 
     for (unsigned int i = 0; i < NUM_V; i ++)

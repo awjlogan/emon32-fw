@@ -62,10 +62,11 @@ typedef struct {
 } CTCfgUnpacked_t;
 
 typedef struct {
-    unsigned int    downsample;
-    unsigned int    reportCycles;
-    CTCfgUnpacked_t ctCfg[NUM_CT];
-    float           voltageCal[NUM_V];
+    unsigned int    downsample; /* DSP enabled */
+    unsigned int    zx_hw;      /* Hardware zero crossing detection */
+    unsigned int    reportCycles; /* Number of cycles before reporting */
+    CTCfgUnpacked_t ctCfg[NUM_CT]; /* CT Configuration */
+    float           voltageCal[NUM_V]; /* Voltage calibration */
 } ECMCfg_t;
 
 typedef enum {
@@ -165,3 +166,4 @@ ECM_STATUS_t ecmProcessCycle() RAMFUNC;
  *  @param [out] pData : pointer to the processed data structure
  */
 void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
+

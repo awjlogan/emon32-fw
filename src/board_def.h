@@ -31,6 +31,14 @@
 #define SAMPLE_BUF_DEPTH    2u
 #define DOWNSAMPLE_TAPS     19u
 
+/* If there is hardware support of zero-crossing detection, set 1*/
+#define ZEROX_HW_SPT        0
+#define GRP_ZEROX           0
+#define PIN_ZEROX           27u
+#define EIC_INTEN_ZEROX     EIC_INTENSET_EXTINT15
+#define EIC_INTDIS_ZEROX    EIC_INTENCLR_EXTINT15
+#define EIC_INTFLG_ZEROX    EIC_INTFLAG_EXTINT15
+
 /* Oversampling
  * There will be a fixed anti-aliasing filter on the board. This should be the
  * target oversampling ratio at the ADC

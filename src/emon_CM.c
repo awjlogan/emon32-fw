@@ -1,4 +1,5 @@
 #include <string.h>
+#include "driver_EIC.h"
 
 #include "emon_CM.h"
 #include "qfplib-m0-full.h"
@@ -13,12 +14,13 @@
  * Function prototypes
  *************************************/
 
-static inline uint8_t   __CLZ       (uint32_t data) RAMFUNC;
-static inline int32_t   __SSAT      (int32_t val)   RAMFUNC;
-static inline q15_t     __STRUNCATE (int32_t val)   RAMFUNC;
-static q15_t            sqrt_q15    (q15_t in)      RAMFUNC;
-static void             ecmSwapPtr  (void **pIn1, void **pIn2);
-static int              zeroCrossing(q15_t smpV)    RAMFUNC;
+static inline uint8_t   __CLZ           (uint32_t data) RAMFUNC;
+static inline int32_t   __SSAT          (int32_t val)   RAMFUNC;
+static inline q15_t     __STRUNCATE     (int32_t val)   RAMFUNC;
+static q15_t            sqrt_q15        (q15_t in)      RAMFUNC;
+static void             ecmSwapPtr      (void **pIn1, void **pIn2);
+static int              zeroCrossingHW  ();
+static int              zeroCrossingSW  (q15_t smpV)    RAMFUNC;
 
 /******** FIXED POINT MATHS FUNCTIONS ********
  *
@@ -211,13 +213,24 @@ static ECMCycle_t       ecmCycle;
  * Functions
  *****************************************************************************/
 
-/*! @brief Zero crossing detection
+int
+zeroCrossingHW()
+{
+    int zerox_stat;
+    zerox_stat = eicZeroXStat();
+    if (zerox_stat)
+    {
+        eicZeroXClr();
+    }
+    return zerox_stat;
+}
+
+/*! @brief Zero crossing detection, software
  *  @param [in] smpV : current voltage sample
- *  @return 1 for a negative to positive crossing, -1 for a positive to
- *          negative crossing, 0 otherwise
+ *  @return 1 for positive crossing, 0 otherwise
  */
 RAMFUNC int
-zeroCrossing(q15_t smpV)
+zeroCrossingSW(q15_t smpV)
 {
     Polarity_t          polarityNow;
     static Polarity_t   polarityLast = POL_POS;
@@ -235,10 +248,6 @@ zeroCrossing(q15_t smpV)
             if (POL_POS == polarityNow)
             {
                 return 1;
-            }
-            else
-            {
-                return -1;
             }
         }
     }
@@ -379,6 +388,8 @@ ecmFilterSample(SampleSet_t *pDst)
 RAMFUNC ECM_STATUS_t
 ecmInjectSample()
 {
+    unsigned int zerox_flag = 0;
+
     SampleSet_t smpProc;
     SampleSet_t *pSmpProc = &smpProc;
 
@@ -412,12 +423,29 @@ ecmInjectSample()
         accumCollecting->processCT[idxCT].sumI_deltas += (q31_t) lastCT;
     }
 
+    /* Flag if there has been a (-) -> (+) crossing */
+    if (0 == ecmCfg.zx_hw)
+    {
+        zerox_flag = zeroCrossingSW(thisV);
+    }
+    else
+    {
+        zerox_flag = zeroCrossingHW();
+    }
+
     /* Check for zero crossing, swap buffers and pend event */
-    if (1 == zeroCrossing(thisV))
+    if (1 == zerox_flag)
     {
         ecmSwapPtr((void **)&accumCollecting, (void **)&accumProcessing);
         memset((void *)accumCollecting, 0, sizeof(Accumulator_t));
 
+        /* Clear the hardware zero crossing, if in use. */
+        if (1 == ecmCfg.zx_hw)
+        {
+            eicZeroXClr();
+        }
+
+        /* If out of the "warm up" period, then indicate a full cycle */
         if (0 == discardCycles)
         {
             return ECM_CYCLE_COMPLETE;
