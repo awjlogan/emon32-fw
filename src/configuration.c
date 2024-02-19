@@ -115,7 +115,7 @@ configInitialiseNVM()
     dbgPuts                 ("  - Initialising NVM... ");
 
     configDefault           (pCfg);
-    eepromInitBlock         (0, 2, 256);
+    (void)eepromInitBlock   (0, 0, 256);
     eepromInitConfig        (pCfg, sizeof(Emon32Config_t));
 
     // eepromSize = eepromDiscoverSize();
@@ -371,8 +371,19 @@ printSettings()
 static char
 waitForChar()
 {
+    /* Disable the NVIC for the interrupt if needed while waiting for the
+     * character otherwise it is handled by the configuration buffer.
+     */
+    char c;
+
+    unsigned int irqEnabled = (NVIC->ISER[0] & (1 << ((uint32_t)(SERCOM_UART_INTERACTIVE_IRQn) & 0x1F))) ? 1 : 0;
+    if (irqEnabled) NVIC_DisableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+
     while (0 == (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC));
-    return uartGetc(SERCOM_UART_DBG);
+    c = uartGetc(SERCOM_UART_DBG);
+
+    if (irqEnabled) NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+    return c;
 }
 
 
