@@ -19,7 +19,7 @@
  */
 #define F_CORE              48000000ul
 #define F_PERIPH            8000000ul
-#define F_TIMER1            F_PERIPH / 8
+#define F_TIMER_ADC         F_PERIPH / 8
 #define F_TIMER2            F_PERIPH / 8
 
 #define NUM_V               3u
@@ -99,26 +99,26 @@
 
 /* Timer Instances */
 
-/* TIMER1 drives ADC conversion tick, TIMER2 used for delay timing. TIMER2
- * must be a 32 bit timer. For SAMD21, TC4 is combined with TC5 (30.6.2.4)
- * to build a 32 bit timer.
+/* TIMER_ADC triggers ADC conversion, TIMER_DELAY used for delay timing.
+ * TIMER_DELAY must be a 32 bit timer. For SAMD21, TC4 is combined with TC5
+ * (30.6.2.4) to build a 32 bit timer.
  *
  * There is also accurate millisecond/microsecond counters. The 1ms tick is
  * also used to wake up the core for events and USB handling.
  */
-#define TIMER1                      TC3
-#define TIMER2                      TC4
+#define TIMER_ADC                   TC3
+#define TIMER_DELAY                 TC4
 #define TIMER_TICK                  TC6
 #define IRQ_TIMER2                  irq_handler_tc4
 #define IRQ_TIMER_TICK              irq_handler_tc6
 
-#define TIMER1_GCLK_ID              TC3_GCLK_ID
-#define TIMER1_APBCMASK             PM_APBCMASK_TC3
-#define TIMER1_EVT_SRC              EVSYS_ID_GEN_TC3_MCX_0
+#define TIMER_ADC_GCLK_ID           TC3_GCLK_ID
+#define TIMER_ADC_APBCMASK          PM_APBCMASK_TC3
+#define TIMER_ADC_EVT_SRC           EVSYS_ID_GEN_TC3_MCX_0
 
-#define TIMER2_GCLK_ID              TC4_GCLK_ID
-#define TIMER2_APBCMASK             PM_APBCMASK_TC4
-#define TIMER2_IRQn                 TC4_IRQn
+#define TIMER_DELAY_GCLK_ID         TC4_GCLK_ID
+#define TIMER_DELAY_APBCMASK        PM_APBCMASK_TC4
+#define TIMER_DELAY_IRQn            TC4_IRQn
 
 #define TIMER_TICK_GCLK_ID          TC6_GCLK_ID
 #define TIMER_TICK_APBCMASK         PM_APBCMASK_TC6

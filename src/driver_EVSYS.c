@@ -21,5 +21,5 @@ evsysSetup()
      */
     EVSYS->CHANNEL.reg =   EVSYS_CHANNEL_CHANNEL(0u)
                          | EVSYS_CHANNEL_PATH_ASYNCHRONOUS
-                         | EVSYS_CHANNEL_EVGEN(TIMER1_EVT_SRC);
+                         | EVSYS_CHANNEL_EVGEN(TIMER_ADC_EVT_SRC);
 }

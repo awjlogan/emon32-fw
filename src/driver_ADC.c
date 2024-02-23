@@ -198,7 +198,7 @@ adcSetup()
                          | ADC_INPUTCTRL_INPUTSCAN(VCT_TOTAL - 1u);
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
 
-    /* ADC is triggered by an event from TIMER1 with no CPU intervention */
+    /* ADC is triggered by an event from TIMER_ADC with no CPU intervention */
     ADC->EVCTRL.reg = ADC_EVCTRL_STARTEI;
 
     adcConfigureDMAC();
