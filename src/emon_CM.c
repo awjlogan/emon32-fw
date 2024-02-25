@@ -10,6 +10,11 @@
 #include <stdlib.h>
 #endif /* HOSTED */
 
+/* Number of samples available for power calculation. must be power of 2 */
+#define PROC_DEPTH      32u     /* REVISIT only need  to store V values */
+#define ZC_HYST         3u      /* Zero crossing hysteresis */
+#define EQUIL_CYCLES    5u      /* Number of cycles to discard at POR */
+
 /*************************************
  * Function prototypes
  *************************************/
@@ -165,6 +170,9 @@ ecmSwapPtr(void **pIn1, void **pIn2)
  *****************************************************************************/
 
 static ECMCfg_t ecmCfg;
+static int      processTrigger = 0;
+static int      discardCycles = EQUIL_CYCLES;
+
 
 ECMCfg_t *
 ecmGetConfig()
@@ -198,7 +206,8 @@ ecmDataBuffer()
  * Pre-processing
  *****************************************************************************/
 
-static SampleSet_t      samples[PROC_DEPTH];
+static RawSampleSetUnpacked_t   dspBuffer[DOWNSAMPLE_TAPS];
+static SampleSet_t              sampleRingBuffer[PROC_DEPTH];
 
 /******************************************************************************
  * Power accumulators
@@ -256,7 +265,7 @@ zeroCrossingSW(q15_t smpV)
 
 
 PhaseXY_t
-ecmCalculatePhase(float phase)
+ecmPhaseCalculate(float phase)
 {
     PhaseXY_t phaseXY;
 
@@ -270,6 +279,26 @@ ecmCalculatePhase(float phase)
                                         qfp_fcos(sampleRate))));
 
     return phaseXY;
+}
+
+
+float
+ecmPhaseCalibrate(unsigned int idx)
+{
+    /* REVISIT Automatic phase calibration */
+    (void)idx;
+    return 0.0f;
+}
+
+
+void
+ecmFlush()
+{
+    discardCycles = EQUIL_CYCLES;
+
+    memset(accumBuffer,         0, (2 * sizeof(Accumulator_t)));
+    memset(sampleRingBuffer,    0, (PROC_DEPTH * sizeof(SampleSet_t)));
+    memset(dspBuffer,           0, (DOWNSAMPLE_TAPS * sizeof(RawSampleSetUnpacked_t)));
 }
 
 
@@ -303,7 +332,6 @@ ecmFilterSample(SampleSet_t *pDst)
          * b_0 | b_2 | .. | b_2 | b_0
          */
         static unsigned int idxInj = 0;
-        static              RawSampleSetUnpacked_t smpBuffer[DOWNSAMPLE_TAPS];
         int32_t             intRes[VCT_TOTAL]   = {0};
         const unsigned int  numCoeffUnique      = 6u;
         const int16_t       firCoeffs[6]        = {   92,  -279,   957,
@@ -319,8 +347,8 @@ ecmFilterSample(SampleSet_t *pDst)
          */
         for (unsigned int idxSmp = 0; idxSmp < VCT_TOTAL; idxSmp++)
         {
-            smpBuffer[idxInjPrev].smp[idxSmp]   = adcProc->samples[0].smp[idxSmp];
-            smpBuffer[idxInj].smp[idxSmp]       = adcProc->samples[1].smp[idxSmp];
+            dspBuffer[idxInjPrev].smp[idxSmp]   = adcProc->samples[0].smp[idxSmp];
+            dspBuffer[idxInj].smp[idxSmp]       = adcProc->samples[1].smp[idxSmp];
         }
 
         /* For an ODD number of taps, take the unique middle value to start. As
@@ -332,7 +360,7 @@ ecmFilterSample(SampleSet_t *pDst)
 
         for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
         {
-            intRes[idxChannel] += coeff * smpBuffer[idxMid].smp[idxChannel];
+            intRes[idxChannel] += coeff * dspBuffer[idxMid].smp[idxChannel];
         }
 
         /* Loop over the FIR coefficients, sub loop through channels. The filter
@@ -348,8 +376,8 @@ ecmFilterSample(SampleSet_t *pDst)
             for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
             {
                 intRes[idxChannel] +=   coeff
-                                    * (  smpBuffer[idxSmpStart].smp[idxChannel]
-                                        + smpBuffer[idxSmpEnd].smp[idxChannel]);
+                                    * (  dspBuffer[idxSmpStart].smp[idxChannel]
+                                        + dspBuffer[idxSmpEnd].smp[idxChannel]);
             }
 
             /* Converge toward the middle, check for over/underflow */
@@ -388,25 +416,23 @@ ecmFilterSample(SampleSet_t *pDst)
 RAMFUNC ECM_STATUS_t
 ecmInjectSample()
 {
-    unsigned int zerox_flag = 0;
+    unsigned int        zerox_flag = 0;
+    static unsigned int idxInject;
 
     SampleSet_t smpProc;
     SampleSet_t *pSmpProc = &smpProc;
 
-    static unsigned int idxInject;
-    static unsigned int discardCycles = 3u;
-
     /* Copy the pre-processed sample data into the ring buffer */
     ecmFilterSample(pSmpProc);
-    memcpy((void *)(samples + idxInject), (const void *)pSmpProc, sizeof(SampleSet_t));
+    memcpy((void *)(sampleRingBuffer + idxInject), (const void *)pSmpProc, sizeof(SampleSet_t));
 
     /* Do power calculations */
-    accumCollecting->num_samples++;
+    accumCollecting->numSamples++;
 
     /* TODO this is only for single phase currently, loop is there for later */
     const unsigned int idxLast = (idxInject - 1u) & (PROC_DEPTH - 1u);
-    const q15_t thisV = samples[idxInject].smpV[0];
-    const q15_t lastV = samples[idxLast].smpV[0];
+    const q15_t thisV = sampleRingBuffer[idxInject].smpV[0];
+    const q15_t lastV = sampleRingBuffer[idxLast].smpV[0];
 
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
@@ -416,7 +442,7 @@ ecmInjectSample()
 
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        const q15_t lastCT = samples[idxLast].smpCT[idxCT];
+        const q15_t lastCT = sampleRingBuffer[idxLast].smpCT[idxCT];
         accumCollecting->processCT[idxCT].sumPA += (q31_t) lastCT * lastV;
         accumCollecting->processCT[idxCT].sumPB += (q31_t) lastCT * thisV;
         accumCollecting->processCT[idxCT].sumI_sqr += (q31_t) lastCT * lastCT;
@@ -468,7 +494,7 @@ ecmProcessCycle()
     ecmCycle.cycleCount++;
 
     /* Reused constants */
-    const uint32_t numSamples       = accumProcessing->num_samples;
+    const uint32_t numSamples       = accumProcessing->numSamples;
     const uint32_t numSamplesSqr    = numSamples * numSamples;
 
     /* RMS for V channels */
@@ -512,8 +538,9 @@ ecmProcessCycle()
         }
     }
 
-    if (ecmCycle.cycleCount >= ecmCfg.reportCycles)
+    if ((ecmCycle.cycleCount >= ecmCfg.reportCycles) || processTrigger)
     {
+        processTrigger = 0;
         return ECM_REPORT_COMPLETE;
     }
     return ECM_REPORT_ONGOING;
@@ -563,4 +590,10 @@ ecmProcessSet(ECMDataset_t *pData)
 
     /* Zero out cycle accummulator */
     memset((void *)&ecmCycle, 0, sizeof(ECMCycle_t));
+}
+
+void
+ecmProcessSetTrigger()
+{
+    processTrigger = 1;
 }

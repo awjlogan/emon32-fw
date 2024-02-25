@@ -144,6 +144,27 @@ adcConfigureDMAC()
 
 
 void
+adcDMACStart()
+{
+    dmacChannelEnable(DMA_CHAN_ADC0);
+
+    /* Enable ADC; requires synchronisation (30.6.13) */
+    if (!(ADC->CTRLA.reg & ADC_CTRLA_ENABLE))
+    {
+        ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
+        while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
+    }
+}
+
+
+void
+adcDMACStop()
+{
+    dmacChannelDisable(DMA_CHAN_ADC0);
+}
+
+
+void
 adcSetup()
 {
     extern uint8_t          pinsADC[][2];
@@ -245,18 +266,4 @@ adcSingleConversion(const unsigned int ch)
     }
 
     return result;
-}
-
-
-void
-adcStartDMAC()
-{
-    dmacChannelEnable(DMA_CHAN_ADC0);
-
-    /* Enable ADC; requires synchronisation (30.6.13) */
-    if (!(ADC->CTRLA.reg & ADC_CTRLA_ENABLE))
-    {
-        ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
-        while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
-    }
 }

@@ -2,6 +2,8 @@
 
 #include <stdint.h>
 
+#define TEMP_CONVERSION_T   750 /* Minimum temperature sample time */
+
 typedef enum {
     TEMP_INTF_ONEWIRE,
     TEMP_INTF_I2C

@@ -29,6 +29,7 @@ const uint8_t pinsUnused[][2] = {
     {0xFF,      0}
 };
 
+/* ADC input pins. These must be contiguous from V1 to the final input */
 const uint8_t pinsADC[][2] = {
     {GRP_PINA,  2u},
     {GRP_PINA,  3u},

@@ -3,12 +3,14 @@
 
 #include "emon32_samd.h"
 
+#include "driver_ADC.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
 
 #include "configuration.h"
 #include "eeprom.h"
+#include "emon_CM.h"
 #include "emon32.h"
 #include "emon32_build_info.h"
 #include "util.h"
@@ -42,6 +44,7 @@ static void     configurePulse      ();
 static uint32_t getBoardRevision    ();
 static char*    getLastReset        ();
 static uint32_t getUniqueID         (unsigned int idx);
+static void     phaseAutoCalibrate  ();
 static void     printSettings       ();
 static char     waitForChar         ();
 static void     zeroAccumulators    ();
@@ -299,6 +302,27 @@ getUniqueID(unsigned int idx)
 }
 
 
+/*! @brief Start auto calibration for CT lead */
+static void phaseAutoCalibrate()
+{
+    unsigned int ch = utilAtoi(inBuffer + 1u, ITOA_BASE10);
+
+    char c;
+    dbgPuts("> Begin phase auto calibration? 'y' to proceed.\r\n");
+
+    c = waitForChar();
+    if ('y' == c)
+    {
+        adcDMACStop();
+        ecmPhaseCalibrate(ch);
+    }
+    else
+    {
+        dbgPuts("    - Cancelled.\r\n");
+    }
+}
+
+
 /*! @brief Print the emon32's configuration settings */
 static void
 printSettings()
@@ -519,9 +543,11 @@ configProcessCmd()
     "     - y : edge sensitivity (r,f,b). Ignored if x = 0\r\n"
     "     - z : minimum period (ms). Ignored if x = 0\r\n"
     " - n<n>        : set node ID [1..60]\r\n"
+    " - o<x>        : automatic phase calibration for CT[x]\r\n"
     " - p<n>        : set the RF power level\r\n"
     " - r           : restore defaults\r\n"
     " - s           : save settings to NVM\r\n"
+    " - t           : trigger report on next cycle\r\n"
     " - v           : firmware and board information\r\n"
     " - w<n>        : minimum difference in energy before saving (Wh)\r\n"
     " - z           : zero energy accumulators\r\n\r\n";
@@ -612,6 +638,12 @@ configProcessCmd()
             resetReq = 1u;
             emon32EventSet(EVT_CONFIG_CHANGED);
             break;
+        case 'o':
+            /* Start auto calibration of CT<x> lead */
+            phaseAutoCalibrate();
+            resetReq = 1u;
+            emon32EventSet(EVT_CONFIG_CHANGED);
+            break;
         case 'p':
             /* Configure RF power */
             resetReq = 1u;
@@ -635,6 +667,10 @@ configProcessCmd()
             {
                 emon32EventSet(EVT_SAFE_RESET_REQ);
             }
+            break;
+        case 't':
+            /* Trigger processing on set on next cycle complete */
+            emon32EventSet(EVT_PROCESS_DATASET);
             break;
         case 'v':
             /* Print firmware and board information */

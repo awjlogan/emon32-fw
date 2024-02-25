@@ -5,12 +5,6 @@
 #include "emon32_samd.h"
 #include "board_def.h"
 
-/* Number of samples available for power calculation. must be power of 2 */
-#define PROC_DEPTH          4u
-
-#define ZC_HYST             3u      /* Zero crossing hysteresis */
-#define EQUIL_CYCLES        5u      /* Number of cycles to discard at POR */
-
 /******************************************************************************
  * Type definitions
  *****************************************************************************/
@@ -89,7 +83,7 @@ typedef struct {
 typedef struct {
     VAccumulator_t     processV[NUM_V];
     CTAccumulator_t    processCT[NUM_CT];
-    unsigned int       num_samples;
+    unsigned int       numSamples;
 } Accumulator_t;
 
 /* This struct matches emonLibCM's calculations */
@@ -124,13 +118,6 @@ typedef struct {
  * Function prototypes
  *****************************************************************************/
 
-/*! @brief Decompose a floating point CT phase into an X/Y pair for
- *         interpolation.
- *  @param [in] phase : CT lead phase in degrees.
- *  @return : structure with the X/Y fixed point coefficients.
- */
-PhaseXY_t ecmCalculatePhase(float phase);
-
 /*! @brief Returns a pointer to the ADC data buffer
  *  @return : pointer to the active ADC data buffer.
  */
@@ -149,6 +136,9 @@ void ecmDataBufferSwap();
  */
 void ecmFilterSample(SampleSet_t *pDst) RAMFUNC;
 
+/*! @brief Flush all data and reset the equilibration cycle count */
+void ecmFlush();
+
 /*! @brief Get the pointer to the configuration struct
  *  @return : pointer to Emon CM configuration struct
  */
@@ -158,6 +148,19 @@ ECMCfg_t *ecmGetConfig();
  */
 ECM_STATUS_t ecmInjectSample() RAMFUNC;
 
+/*! @brief Decompose a floating point CT phase into an X/Y pair for
+ *         interpolation.
+ *  @param [in] phase : CT lead phase in degrees.
+ *  @return : structure with the X/Y fixed point coefficients.
+ */
+PhaseXY_t ecmPhaseCalculate(float phase);
+
+/*! @brief Calibrate a CT sensor's lead against the input voltage
+ *  @param [in] idx : CT index
+ *  @return : phase lead in degrees
+ */
+float ecmPhaseCalibrate(unsigned int idx);
+
 /*! @brief Processes a whole cycle
  */
 ECM_STATUS_t ecmProcessCycle() RAMFUNC;
@@ -166,3 +169,6 @@ ECM_STATUS_t ecmProcessCycle() RAMFUNC;
  *  @param [out] pData : pointer to the processed data structure
  */
 void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
+
+/*! @brief Force trigger data set processing on next cycle complete */
+void ecmProcessSetTrigger();

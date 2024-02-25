@@ -2,6 +2,12 @@
 
 #include <stdint.h>
 
+/*! @brief Starts the DMAC transfer from the ADC */
+void adcDMACStart();
+
+/*! @brief Stop the DMAC transfer from the ADC */
+void adcDMACStop();
+
 /*! @brief Configure the ADC for the board */
 void adcSetup();
 
@@ -10,8 +16,3 @@ void adcSetup();
  *  @return : ADC conversion result
  */
 int16_t adcSingleConversion(const unsigned int ch);
-
-/*! @brief Starts the DMAC transfer from the ADC
- *  @param [in] buf : address of the "collecting" structure
- */
-void adcStartDMAC();
