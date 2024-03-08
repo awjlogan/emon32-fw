@@ -10,15 +10,15 @@ This firmware is intended to be used with the [OpenEnergyMonitor](https://openen
 
 Issues can be reported:
 
-  - As a GitHub issue
-  - On the OpenEnergyMonitor forums
+- As a GitHub issue
+- On the OpenEnergyMonitor forums
 
 Please include as much information as possible (run the `v` command on the serial link), including at least:
 
-  - The emon32 hardware that you using (board name and revision, and serial number)
-  - The firmware version
-  - All settings (run the `l` command on the serial link)
-  - A full description, including a reproduction, of the issue
+- The emon32 hardware that you using (board name and revision, and serial number)
+- The firmware version
+- All settings (run the `l` command on the serial link)
+- A full description, including a reproduction, of the issue
 
 ### Contributing
 
@@ -33,12 +33,12 @@ Contributions are welcome! Small PRs can be accepted at any time. Please get in 
 
 The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configuration](https://docs.openenergymonitor.org/emonpi2/configuration.html) options, which can be accessed through the debug serial link. In addition, the following options are added:
 
-|Command  |Definition                                             |
-|---------|-------------------------------------------------------|
-|o<x>     |Auto calibrate CT lead for channel *x*                 |
-|t        |Trigger a data set processing event                    |
-|v        |Print firmware and board information                   |
-|w<n>     |Minimum energy difference, *n* Wh, before saving       |
+|Command    |Definition                                             |
+|-----------|-------------------------------------------------------|
+|o&lt;x&gt; |Auto calibrate CT lead for channel _x_                 |
+|t          |Trigger a data set processing event                    |
+|v          |Print firmware and board information                   |
+|w&lt;n&gt; |Minimum energy difference, _n_ Wh, before saving       |
 
 All options can be listed by entering `?`.
 
@@ -52,36 +52,36 @@ Raw data from the ADC are downsampled (if configured) and then injected into the
 
 When a full report is ready, the following actions take place:
 
-  - 1 s *before* the report is due, any temperature sensors present are triggered to record a value.
-    - The DS18B20 temperature sensor takes 750 ms to take a measurement in the default 12bit mode.
-    - A report can also be triggered with the command `t` on the serial link.
-  - At the report time, the following values are calculated:
-    - Power for each CT.
-    - Accumulated energy for each CT.
-    - Mains frequency.
-    - Power factor
-  - Data are packed into two formats:
-    - Comma separated values for serial transmission.
-    - Packed structure for transmission by the RFM module.
-  - Data are sent over the configured interface.
-    - It is configurable whether data are always echoed on the debug console.
+- 1 s *before* the report is due, any temperature sensors present are triggered to record a value.
+  - The DS18B20 temperature sensor takes 750 ms to take a measurement in the default 12bit mode.
+  - A report can also be triggered with the command `t` on the serial link.
+- At the report time, the following values are calculated:
+  - Power for each CT.
+  - Accumulated energy for each CT.
+  - Mains frequency.
+  - Power factor
+- Data are packed into two formats:
+  - Comma separated values for serial transmission.
+  - Packed structure for transmission by the RFM module.
+- Data are sent over the configured interface.
+  - It is configurable whether data are always echoed on the debug console.
 
 ### Hardware serial connection
 
 A dedicated UART is used for debug, configuration, and data transmission. It has the following UART configuration:
 
-  - 38400 baud
-  - 8N1
+- 38400 baud
+- 8N1
 
 It is available on:
 
-  - Raspberry Pi:
-    - GPIO 14 (UART TX *from* Raspberry Pi)
-    - GPIO 15 (UART RX *to* the Raspberry Pi)
-  - Debug pins:
-    - 2 (UART TX *from* Raspberry Pi)
-    - 1 (UART RX *to* the Raspberry Pi)
-  - Test harness pads (only when TEST_SENSE is LOW)
+- Raspberry Pi:
+  - GPIO 14 (UART TX *from* Raspberry Pi)
+  - GPIO 15 (UART RX *to* the Raspberry Pi)
+- Debug pins:
+  - 2 (UART TX *from* Raspberry Pi)
+  - 1 (UART RX *to* the Raspberry Pi)
+- Test harness pads (only when TEST_SENSE is LOW)
 
 ## Compiling and uploading
 
@@ -95,9 +95,9 @@ To build the firmware:
 
 In `build/`, the following binary files will be generated:
 
-  - `emon32.bin`
-  - `emon32.elf`
-  - `emon32.uf2`
+- `emon32.bin`
+- `emon32.elf`
+- `emon32.uf2`
 
 ### Uploading
 
@@ -117,14 +117,14 @@ The bootloader binary is included in `bin/bootloader.elf`
 
 Most compile time options are contained in `/src/emon32.h`. The following options are configurable:
 
-  - **NUM_V**: The number of voltage channels. This can be less than or equal, but not more than, the number of physical channels on the board.
-  - **NUM_CT**: The number of CT channels. This can be less than or equal, but not more than, the number of physical channels on the board.
-  - **SAMPLE_RATE**: _Per channel_ sample rate. The ADC's overall sample rate is `(NUM_V + NUM_CT) * SAMPLE_RATE`.
-  - **DOWNSAMPLE_DSP**: If this is defined, then the digital filter will be used for downsampling, rather than simply discarding samples.
-  - **DOWNSAMPLE_TAPS**: The number of taps in the digital filter.
-  - **SAMPLES_IN_SET**: Number of full sets (all V + CT channels and analog channels) to acquire before raising interrupt.
-  - **SAMPLE_BUF_DEPTH**: Buffer depth for digital filter front end.
-  - **PROC_DEPTH**: Buffer depth for samples in power calculation.
+- **NUM_V**: The number of voltage channels. This can be less than or equal, but not more than, the number of physical channels on the board.
+- **NUM_CT**: The number of CT channels. This can be less than or equal, but not more than, the number of physical channels on the board.
+- **SAMPLE_RATE**: _Per channel_ sample rate. The ADC's overall sample rate is `(NUM_V + NUM_CT) * SAMPLE_RATE`.
+- **DOWNSAMPLE_DSP**: If this is defined, then the digital filter will be used for downsampling, rather than simply discarding samples.
+- **DOWNSAMPLE_TAPS**: The number of taps in the digital filter.
+- **SAMPLES_IN_SET**: Number of full sets (all V + CT channels and analog channels) to acquire before raising interrupt.
+- **SAMPLE_BUF_DEPTH**: Buffer depth for digital filter front end.
+- **PROC_DEPTH**: Buffer depth for samples in power calculation.
 
 ### Digital filter
 
@@ -169,12 +169,14 @@ There are tests available to run on local system (tested on macOS and Linux), ra
 
 ## Acknowledgements
 
-### Third party libraries
+### Third party libraries and tools
 
-  - [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M.
-  - [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation.
-  - [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build scripts from Winterbloom.
+- [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation.
+- [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M.
+- [SSD1306 library](https://github.com/Matiasus/SSD1306/tree/master) - used
+- [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build scripts from Winterbloom.
+
 
 ### Others
 
-  - Rob Wall
+- Rob Wall
