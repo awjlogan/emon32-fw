@@ -562,6 +562,13 @@ main()
     numTempSensors = tempSetup();
     dataset.numTempSensors = numTempSensors;
 
+    /* Show information on external screen, if present */
+    PosXY_t a = {15,0};
+    ssd1306Init(SERCOM_I2CM_EXT);
+    ssd1306SetPosition(a);
+    ssd1306DrawString("emonPi3");
+    ssd1306DisplayUpdate();
+
     /* Set up buffers for ADC data, configure energy processing, and start */
     ecmConfigure    (&e32Config, reportCycles);
     ecmFlush        ();
