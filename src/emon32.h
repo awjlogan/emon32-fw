@@ -7,6 +7,9 @@
 #define VERSION_FW_MAJ      0u
 #define VERSION_FW_MIN      1u
 
+/* Transmission indication time (ms) */
+#define TX_INDICATE_T       250u
+
 #define NODE_ID             17u
 #define TX_BUFFER_W         256u
 
@@ -75,6 +78,8 @@ typedef struct {
     uint32_t        msgNum;
     ECMDataset_t    *pECM;
     uint32_t        pulseCnt[NUM_PULSECOUNT];
+    float           temp[TEMP_MAX_ONEWIRE];
+    unsigned int    numTempSensors;
 } Emon32Dataset_t;
 
 typedef struct __attribute__((__packed__)) {
@@ -121,7 +126,8 @@ typedef enum {
     EVT_CONFIG_CHANGED  = 16u,
     EVT_CONFIG_SAVED    = 17u,
     EVT_SAFE_RESET_REQ  = 18u,
-    EVT_PROCESS_CMD     = 19u
+    EVT_PROCESS_CMD     = 19u,
+    EVT_PROCESS_DATASET = 20u
 } EVTSRC_t;
 
 

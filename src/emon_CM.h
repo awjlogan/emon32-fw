@@ -56,10 +56,10 @@ typedef struct {
 } CTCfgUnpacked_t;
 
 typedef struct {
-    unsigned int    downsample; /* DSP enabled */
-    unsigned int    zx_hw;      /* Hardware zero crossing detection */
-    unsigned int    reportCycles; /* Number of cycles before reporting */
-    CTCfgUnpacked_t ctCfg[NUM_CT]; /* CT Configuration */
+    unsigned int    downsample;     /* DSP enabled */
+    unsigned int    zx_hw;          /* Hardware zero crossing detection */
+    unsigned int    reportCycles;   /* Number of cycles before reporting */
+    CTCfgUnpacked_t ctCfg[NUM_CT];  /* CT Configuration */
     float           voltageCal[NUM_V]; /* Voltage calibration */
 } ECMCfg_t;
 
@@ -81,9 +81,9 @@ typedef struct {
 } CTAccumulator_t;
 
 typedef struct {
-    VAccumulator_t     processV[NUM_V];
-    CTAccumulator_t    processCT[NUM_CT];
-    unsigned int       numSamples;
+    VAccumulator_t  processV[NUM_V];
+    CTAccumulator_t processCT[NUM_CT];
+    unsigned int    numSamples;
 } Accumulator_t;
 
 /* This struct matches emonLibCM's calculations */

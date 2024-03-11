@@ -72,7 +72,7 @@ def generate_build_info_c(configuration):
 
     compiler = f"gcc {gcc_version}"
 
-    date = datetime.datetime.utcnow().strftime("%m/%d/%Y %H:%M UTC")
+    date = datetime.datetime.now(datetime.UTC).strftime("%m/%d/%Y %H:%M UTC")
 
     machine = f"{username()}@{platform.node()}"
 

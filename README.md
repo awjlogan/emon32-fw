@@ -52,7 +52,7 @@ Raw data from the ADC are downsampled (if configured) and then injected into the
 
 When a full report is ready, the following actions take place:
 
-- 1 s *before* the report is due, any temperature sensors present are triggered to record a value.
+- 1 s _before_ the report is due, any temperature sensors present are triggered to record a value.
   - The DS18B20 temperature sensor takes 750 ms to take a measurement in the default 12bit mode.
   - A report can also be triggered with the command `t` on the serial link.
 - At the report time, the following values are calculated:
@@ -76,11 +76,11 @@ A dedicated UART is used for debug, configuration, and data transmission. It has
 It is available on:
 
 - Raspberry Pi:
-  - GPIO 14 (UART TX *from* Raspberry Pi)
-  - GPIO 15 (UART RX *to* the Raspberry Pi)
+  - GPIO 14 (UART TX _from_ Raspberry Pi)
+  - GPIO 15 (UART RX _to_ the Raspberry Pi)
 - Debug pins:
-  - 2 (UART TX *from* Raspberry Pi)
-  - 1 (UART RX *to* the Raspberry Pi)
+  - 2 (UART TX _from_ Raspberry Pi)
+  - 1 (UART RX _to_ the Raspberry Pi)
 - Test harness pads (only when TEST_SENSE is LOW)
 
 ## Compiling and uploading
@@ -128,7 +128,7 @@ Most compile time options are contained in `/src/emon32.h`. The following option
 
 ### Digital filter
 
-The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to *f/2* with a half band filter (**ecmFilterSample()**). The half band filter is exposed for testing. Filter coefficients can be generated using the **filter.py** script (*./helpers/filter.py*). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need **scipy** and **matplotlib** to use the filter designer,
+The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter (**ecmFilterSample()**). The half band filter is exposed for testing. Filter coefficients can be generated using the **filter.py** script (_./helpers/filter.py_). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need **scipy** and **matplotlib** to use the filter designer,
 
 ## Hardware Description
 
@@ -165,7 +165,7 @@ You will also need to ensure that the vendor's headers are included and visible 
 
 ### Hosted testing
 
-There are tests available to run on local system (tested on macOS and Linux), rather than on a physical device, for some functions. These are in *./tests*. In that folder, run `make all` to build the tests. These allow for development on a faster system with better debug options. The firmware is structured to remove, as far as possible, direct calls to hardware. Do note that some functions will not behave identically. For example, in the configuration menu terminal entry may be different to that through a UART.
+There are tests available to run on local system (tested on macOS and Linux), rather than on a physical device, for some functions. These are in _./tests_. In that folder, run `make all` to build the tests. These allow for development on a faster system with better debug options. The firmware is structured to remove, as far as possible, direct calls to hardware. Do note that some functions will not behave identically. For example, in the configuration menu terminal entry may be different to that through a UART.
 
 ## Acknowledgements
 
@@ -175,7 +175,6 @@ There are tests available to run on local system (tested on macOS and Linux), ra
 - [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M.
 - [SSD1306 library](https://github.com/Matiasus/SSD1306/tree/master) - used
 - [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build scripts from Winterbloom.
-
 
 ### Others
 

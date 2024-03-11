@@ -21,15 +21,14 @@ eicSetup()
     EIC->INTENSET.reg = EIC_INTEN_ZEROX;
 }
 
-int
-eicZeroXStat()
-{
-    int ret = (EIC->INTFLAG.reg & EIC_INTFLG_ZEROX) ? 1 : 0;
-    return ret;
-}
-
 void
 eicZeroXClr()
 {
     EIC->INTFLAG.reg |= EIC_INTFLG_ZEROX;
+}
+
+int
+eicZeroXStat()
+{
+    return (EIC->INTFLAG.reg & EIC_INTFLG_ZEROX) ? 1 : 0;
 }
