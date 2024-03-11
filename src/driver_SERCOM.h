@@ -57,6 +57,54 @@ void sercomSetupSPI();
  */
 void sercomSetupUART(const UART_Cfg_t *pCfg);
 
+/*! @brief Set I2C address. If dma is 1, then a packet of len bytes is sent
+ *         or received.
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] addr : address and RW bit
+ */
+void i2cActivate(Sercom *sercom, uint8_t addr);
+
+/*! @brief Requester acknowledge command
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] ack : 0: ACK, 1: NACK
+ *  @param [in] cmd : command
+ */
+void i2cAck(Sercom *sercom, I2CM_Ack_t ack, I2CM_AckCmd_t cmd);
+
+/*! @brief Write to completer
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] data : data byte
+ */
+void i2cDataWrite(Sercom *sercom, uint8_t data);
+
+/*! @brief Read byte from I2C completer
+ *  @param [in] : sercom : SERCOM instance
+ *  @return : read data
+ */
+uint8_t i2cDataRead(Sercom *sercom);
+
+/*! @brief Read a byte from a configured SPI channel
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] addr : address to read from
+ *  @return : the byte that has been read
+ */
+uint8_t spiReadByte(Sercom *sercom, const uint8_t addr);
+
+/*! @brief Write a set of bytes to a configured SPI channel.
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] pBuf : pointer to data buffer
+ *  @param [in] n : size of data buffer
+ */
+void spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n);
+
+/*! @brief Write a byte to a configured SPI channel. Blocks until transfer
+ *         is complete.
+ *  @param [in] sercom : SERCOM instance
+ *  @param [in] addr : address to write to
+ *  @param [in] data : data to write
+ */
+void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
+
 /*! @brief Configure the DMA for non-blocking transactions
  */
 void uartConfigureDMA();
@@ -115,50 +163,3 @@ void uartPutsNonBlocking(unsigned int dma_chan, const char * const s, uint16_t l
  */
 void uartSetInteractive(Sercom *sercom);
 
-/*! @brief Set I2C address. If dma is 1, then a packet of len bytes is sent
- *         or received.
- *  @param [in] sercom : SERCOM instance
- *  @param [in] addr : address and RW bit
- */
-void i2cActivate(Sercom *sercom, uint8_t addr);
-
-/*! @brief Requester acknowledge command
- *  @param [in] sercom : SERCOM instance
- *  @param [in] ack : 0: ACK, 1: NACK
- *  @param [in] cmd : command
- */
-void i2cAck(Sercom *sercom, I2CM_Ack_t ack, I2CM_AckCmd_t cmd);
-
-/*! @brief Write to completer
- *  @param [in] sercom : SERCOM instance
- *  @param [in] data : data byte
- */
-void i2cDataWrite(Sercom *sercom, uint8_t data);
-
-/*! @brief Read byte from I2C completer
- *  @param [in] : sercom : SERCOM instance
- *  @return : read data
- */
-uint8_t i2cDataRead(Sercom *sercom);
-
-/*! @brief Read a byte from a configured SPI channel
- *  @param [in] sercom : SERCOM instance
- *  @param [in] addr : address to read from
- *  @return : the byte that has been read
- */
-uint8_t spiReadByte(Sercom *sercom, const uint8_t addr);
-
-/*! @brief Write a set of bytes to a configured SPI channel.
- *  @param [in] sercom : SERCOM instance
- *  @param [in] pBuf : pointer to data buffer
- *  @param [in] n : size of data buffer
- */
-void spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n);
-
-/*! @brief Write a byte to a configured SPI channel. Blocks until transfer
- *         is complete.
- *  @param [in] sercom : SERCOM instance
- *  @param [in] addr : address to write to
- *  @param [in] data : data to write
- */
-void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);

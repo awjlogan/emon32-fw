@@ -6,6 +6,41 @@
 
 #include "configuration.h"
 
+
+static void i2cmCommon(Sercom *pSercom);
+
+
+static void
+i2cmCommon(Sercom *pSercom)
+{
+    /* For 400 kHz I2C, SCL T_high >= 0.6 us, T_low >= 1.3 us, with
+     * (T_high + T_low) <= 2.5 us, and T_low / T_high ~ 1.8.
+     * From I2C->Clock generation (27.6.2.4):
+     * BAUD.BAUDLOW = (T_low * f_clk) - 5 (1.625 us -> 8 @ 8 MHz)
+     * BAUD.BAUD = (T_high * f_clk) - 5 (0.875 us -> 2 @ 8 MHz)
+     */
+    pSercom->I2CM.BAUD.reg =   SERCOM_I2CM_BAUD_BAUDLOW(8u)
+                             | SERCOM_I2CM_BAUD_BAUD(2u);
+
+    /* Configure the master I2C SERCOM */
+    pSercom->I2CM.CTRLA.reg = SERCOM_I2CM_CTRLA_MODE_I2C_MASTER;
+
+    /* Enable SERCOM, with sync */
+    pSercom->I2CM.CTRLA.reg |= SERCOM_I2CM_CTRLA_ENABLE;
+    while (pSercom->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP);
+
+    /* After enabling the I2C SERCOM, the bus state is UNKNOWN (Table 27.13)
+     * Force into IDLE state, with sync
+     */
+    pSercom->I2CM.STATUS.reg |= SERCOM_I2CM_STATUS_BUSSTATE(0x1u);
+    while (pSercom->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP);
+
+    pSercom->I2CM.INTENSET.reg =   SERCOM_I2CM_INTENSET_MB
+                                 | SERCOM_I2CM_INTENSET_SB
+                                 | SERCOM_I2CM_INTENSET_ERROR;
+}
+
+
 void
 sercomSetup()
 {
@@ -48,40 +83,27 @@ sercomSetup()
     /*****************
     * I2C Setup
     ******************/
-    portPinMux(GRP_SERCOM_I2C, PIN_I2C_SDA, PMUX_I2CM);
-    portPinMux(GRP_SERCOM_I2C, PIN_I2C_SCL, PMUX_I2CM);
+    portPinMux(GRP_SERCOM_I2C_INT, PIN_I2C_INT_SDA, PMUX_I2CM);
+    portPinMux(GRP_SERCOM_I2C_INT, PIN_I2C_INT_SCL, PMUX_I2CM);
 
-    PM->APBCMASK.reg |= SERCOM_I2CM_APBCMASK;
-    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_I2CM_GCLK_ID)
+    PM->APBCMASK.reg |= SERCOM_I2CM_INT_APBCMASK;
+    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_I2CM_INT_GCLK_ID)
                         | GCLK_CLKCTRL_GEN(3u)
                         | GCLK_CLKCTRL_CLKEN;
 
-    /* For 400 kHz I2C, SCL T_high >= 0.6 us, T_low >= 1.3 us, with
-     * (T_high + T_low) <= 2.5 us, and T_low / T_high ~ 1.8.
-     * From I2C->Clock generation (27.6.2.4):
-     * BAUD.BAUDLOW = (T_low * f_clk) - 5 (1.625 us -> 8 @ 8 MHz)
-     * BAUD.BAUD = (T_high * f_clk) - 5 (0.875 us -> 2 @ 8 MHz)
-     */
-    SERCOM_I2CM->I2CM.BAUD.reg =   SERCOM_I2CM_BAUD_BAUDLOW(8u)
-                                 | SERCOM_I2CM_BAUD_BAUD(2u);
+    i2cmCommon(SERCOM_I2CM);
 
-    /* Configure the master I2C SERCOM */
-    SERCOM_I2CM->I2CM.CTRLA.reg = SERCOM_I2CM_CTRLA_MODE_I2C_MASTER;
+    portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA, PMUX_I2CM);
+    portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL, PMUX_I2CM);
 
-    /* Enable SERCOM, with sync */
-    SERCOM_I2CM->I2CM.CTRLA.reg |= SERCOM_I2CM_CTRLA_ENABLE;
-    while (SERCOM_I2CM->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP);
+    PM->APBCMASK.reg |= SERCOM_I2CM_EXT_APBCMASK;
+    GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_I2CM_EXT_GCLK_ID)
+                        | GCLK_CLKCTRL_GEN(3u)
+                        | GCLK_CLKCTRL_CLKEN;
 
-    /* After enabling the I2C SERCOM, the bus state is UNKNOWN (Table 27.13)
-     * Force into IDLE state, with sync
-     */
-    SERCOM_I2CM->I2CM.STATUS.reg |= SERCOM_I2CM_STATUS_BUSSTATE(0x1u);
-    while (SERCOM_I2CM->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP);
-
-    SERCOM_I2CM->I2CM.INTENSET.reg =   SERCOM_I2CM_INTENSET_MB
-                                     | SERCOM_I2CM_INTENSET_SB
-                                     | SERCOM_I2CM_INTENSET_ERROR;
+    i2cmCommon(SERCOM_I2CM_EXT);
 }
+
 
 void
 sercomSetupUART(const UART_Cfg_t *pCfg)
@@ -147,6 +169,7 @@ sercomSetupUART(const UART_Cfg_t *pCfg)
     dmacChannelConfigure(pCfg->dmaChannel, &pCfg->dmaCfg);
 }
 
+
 void
 sercomSetupSPI()
 {
@@ -181,6 +204,7 @@ sercomSetupSPI()
     while (0 != SERCOM_SPI_DATA->SPI.SYNCBUSY.reg);
 }
 
+
 /*
  * =====================================
  * UART Functions
@@ -194,11 +218,13 @@ uartPutcBlocking(Sercom *sercom, char c)
     sercom->USART.INTFLAG.reg = 0;
 }
 
+
 void
 uartPutsBlocking(Sercom *sercom, const char *s)
 {
     while (*s) uartPutcBlocking(sercom, *s++);
 }
+
 
 void
 uartConfigureDMA()
@@ -215,6 +241,7 @@ uartConfigureDMA()
     dmacDesc->DESCADDR.reg = 0u;
 }
 
+
 void
 uartPutsNonBlocking(unsigned int dma_chan, const char * const s, uint16_t len)
 {
@@ -226,11 +253,13 @@ uartPutsNonBlocking(unsigned int dma_chan, const char * const s, uint16_t len)
     dmacChannelEnable(dma_chan);
 }
 
+
 char
 uartGetc(const Sercom *sercom)
 {
     return sercom->USART.DATA.reg;
 }
+
 
 void
 uartInterruptEnable(Sercom *sercom, uint32_t interrupt)
@@ -238,11 +267,13 @@ uartInterruptEnable(Sercom *sercom, uint32_t interrupt)
     sercom->USART.INTENSET.reg |= interrupt;
 }
 
+
 void
 uartInterruptDisable(Sercom *sercom, uint32_t interrupt)
 {
     sercom->USART.INTENCLR.reg |= interrupt;
 }
+
 
 uint32_t
 uartInterruptStatus(const Sercom *sercom)
@@ -250,11 +281,13 @@ uartInterruptStatus(const Sercom *sercom)
     return sercom->USART.INTFLAG.reg;
 }
 
+
 void
 uartInterruptClear(Sercom *sercom, uint32_t interrupt)
 {
     sercom->USART.INTFLAG.reg |= interrupt;
 }
+
 
 /*
  * =====================================
@@ -268,6 +301,7 @@ i2cActivate(Sercom *sercom, uint8_t addr)
     while (!(sercom->I2CM.INTFLAG.reg & (SERCOM_I2CM_INTFLAG_MB | SERCOM_I2CM_INTFLAG_SB)));
 }
 
+
 void
 i2cAck(Sercom *sercom, I2CM_Ack_t ack, I2CM_AckCmd_t cmd)
 {
@@ -276,6 +310,7 @@ i2cAck(Sercom *sercom, I2CM_Ack_t ack, I2CM_AckCmd_t cmd)
     while(sercom->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP);
 }
 
+
 void
 i2cDataWrite(Sercom *sercom, uint8_t data)
 {
@@ -283,12 +318,14 @@ i2cDataWrite(Sercom *sercom, uint8_t data)
     while (!(sercom->I2CM.INTFLAG.reg & SERCOM_I2CM_INTFLAG_MB));
 }
 
+
 uint8_t
 i2cDataRead(Sercom *sercom)
 {
     while (!(sercom->I2CM.INTFLAG.reg & (SERCOM_I2CM_INTFLAG_MB | SERCOM_I2CM_INTFLAG_SB)));
     return sercom->I2CM.DATA.reg;
 }
+
 
 /*
  * =====================================
@@ -305,6 +342,7 @@ spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data)
     while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_TXC));
     portPinDrv(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DRV_SET);
 }
+
 
 uint8_t
 spiReadByte(Sercom *sercom, const uint8_t addr)
@@ -323,6 +361,7 @@ spiReadByte(Sercom *sercom, const uint8_t addr)
 
     return sercom->SPI.DATA.reg;
 }
+
 
 void
 spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n)
