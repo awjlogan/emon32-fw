@@ -3,8 +3,12 @@
 #include "driver_DMAC.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
+#include "driver_TIME.h"
 
 #include "configuration.h"
+
+
+#define I2CM_ACTIVATE_TIMEOUT_US    200u    /* Time to wait for I2C bus */
 
 
 static void i2cmCommon(Sercom *pSercom);
@@ -294,11 +298,22 @@ uartInterruptClear(Sercom *sercom, uint32_t interrupt)
  * I2C Functions
  * =====================================
  */
-void
+I2CM_Status_t
 i2cActivate(Sercom *sercom, uint8_t addr)
 {
+    unsigned int t = timerMicros();
+    I2CM_Status_t s = I2CM_SUCCESS;
     sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
-    while (!(sercom->I2CM.INTFLAG.reg & (SERCOM_I2CM_INTFLAG_MB | SERCOM_I2CM_INTFLAG_SB)));
+
+    while (!(sercom->I2CM.INTFLAG.reg & (SERCOM_I2CM_INTFLAG_MB | SERCOM_I2CM_INTFLAG_SB)))
+    {
+        if (timerMicrosDelta(t) > I2CM_ACTIVATE_TIMEOUT_US)
+        {
+            s = I2CM_TIMEOUT;
+            break;
+        }
+    }
+    return s;
 }
 
 

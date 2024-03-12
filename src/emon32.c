@@ -52,6 +52,7 @@ static void     nvmCumulativeLoad       (eepromPktWL_t *pPkt, Emon32Dataset_t *p
 static void     nvmCumulativeStore      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     processCumulative       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     pulseConfigure          (const Emon32Config_t *pCfg);
+static void     ssd1306Setup            ();
 static uint32_t tempSetup               ();
 static uint32_t totalEnergy             (const Emon32Dataset_t *pData);
 static void     ucSetup                 ();
@@ -475,6 +476,21 @@ ucSetup()
 }
 
 
+/*! @brief Setup the SSD1306 display, if present. Display a basic message */
+static void
+ssd1306Setup()
+{
+    SSD1306_Status_t s;
+    PosXY_t a = {15,0};
+    s = ssd1306Init(SERCOM_I2CM_EXT);
+    if (SSD1306_SUCCESS == s)
+    {
+        ssd1306SetPosition(a);
+        ssd1306DrawString("emonPi3");
+        ssd1306DisplayUpdate();
+    }
+}
+
 /*! @brief Initialises the temperature sensors
  *  @return : number of temperature sensors found
  */
@@ -529,6 +545,7 @@ main()
 
     ucSetup     ();
     ledStatusOn ();
+    ssd1306Setup();
 
     /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
     uartConfigureDMA    ();
@@ -561,13 +578,6 @@ main()
     pulseConfigure(&e32Config);
     numTempSensors = tempSetup();
     dataset.numTempSensors = numTempSensors;
-
-    /* Show information on external screen, if present */
-    PosXY_t a = {15,0};
-    ssd1306Init(SERCOM_I2CM_EXT);
-    ssd1306SetPosition(a);
-    ssd1306DrawString("emonPi3");
-    ssd1306DisplayUpdate();
 
     /* Set up buffers for ADC data, configure energy processing, and start */
     ecmConfigure    (&e32Config, reportCycles);

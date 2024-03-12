@@ -32,7 +32,7 @@ typedef struct {
 static Address_t    calcAddress     (const unsigned int addrFull);
 static unsigned int nextValidByte   (const uint8_t currentValid);
 static void         wlFindLast      (eepromPktWL_t *pPkt);
-static void         writeBytes      (wrLocal_t *wr, unsigned int n);
+static int          writeBytes      (wrLocal_t *wr, unsigned int n);
 
 
 /* Local values */
@@ -104,17 +104,22 @@ nextValidByte(const uint8_t currentValid)
  *  @param [in] wr : pointer to local address, data, and remaining bytes
  *  @param [in] n : number of bytes to send in this chunk
  */
-static void
+static int
 writeBytes(wrLocal_t *wr, unsigned int n)
 {
-    Address_t address = calcAddress(wr->addr);
+    I2CM_Status_t   i2cm_s;
+    Address_t       address = calcAddress(wr->addr);
 
     /* Setup next transaction */
     wr->addr += n;
     wr->n_residual -= n;
 
     /* Write to select, then lower address */
-    i2cActivate (SERCOM_I2CM, address.msb);
+    i2cm_s = i2cActivate (SERCOM_I2CM, address.msb);
+    if (I2CM_SUCCESS != i2cm_s)
+    {
+        return -1;
+    }
     i2cDataWrite(SERCOM_I2CM, address.lsb);
 
     while (n--)
@@ -122,6 +127,8 @@ writeBytes(wrLocal_t *wr, unsigned int n)
         i2cDataWrite(SERCOM_I2CM, *wr->pData++);
     }
     i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_STOP);
+
+    return 0;
 }
 
 
@@ -219,7 +226,8 @@ eepromDump()
 int
 eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n)
 {
-    Address_t address;
+    I2CM_Status_t   i2cm_s;
+    Address_t       address;
 
     /* Return a fault if:
      *  - the start address is not on a 16byte boundary
@@ -236,7 +244,12 @@ eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n)
     while (n)
     {
         address = calcAddress(startAddr);
-        i2cActivate (SERCOM_I2CM, address.msb);
+        i2cm_s = i2cActivate (SERCOM_I2CM, address.msb);
+        if (I2CM_SUCCESS != i2cm_s)
+        {
+            return -1;
+        }
+
         i2cDataWrite(SERCOM_I2CM, address.lsb);
         for (unsigned int i = 0; i < 16; i++)
         {
@@ -270,23 +283,31 @@ eepromInitConfig(const void *pSrc, const unsigned int n)
 }
 
 
-void
+int
 eepromRead(unsigned int addr, void *pDst, unsigned int n)
 {
-    uint8_t     *pData = pDst;
-    Address_t   address = calcAddress(addr);
+    I2CM_Status_t   i2cm_s;
+    uint8_t         *pData = pDst;
+    Address_t       address = calcAddress(addr);
 
-    /* TODO handle timeouts and other errors gracefully */
     /* Write select with address high and ack with another start, then send low
      * byte of address */
-    i2cActivate (SERCOM_I2CM, address.msb);
+    i2cm_s = i2cActivate (SERCOM_I2CM, address.msb);
+    if (I2CM_SUCCESS != i2cm_s)
+    {
+        return -1;
+    }
     i2cDataWrite(SERCOM_I2CM, address.lsb);
 
     /* Send select with read, and then continue to read until complete. On
      * final byte, respond with NACK */
     address.msb += 1u;
 
-    i2cActivate(SERCOM_I2CM, address.msb);
+    i2cm_s = i2cActivate(SERCOM_I2CM, address.msb);
+    if (I2CM_SUCCESS != i2cm_s)
+    {
+        return -1;
+    }
 
     do
     {
@@ -294,6 +315,8 @@ eepromRead(unsigned int addr, void *pDst, unsigned int n)
         i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_CONTINUE);
     } while (n--);
     i2cAck(SERCOM_I2CM, I2CM_NACK, I2CM_ACK_CMD_STOP);
+
+    return 0;
 }
 
 
@@ -324,6 +347,7 @@ eepromWrite(unsigned int addr, const void *pSrc, unsigned int n)
     /* Make byte count and address static to allow re-entrant writes */
     static wrLocal_t    wrLocal;
     unsigned int        alignBytes;
+    int                 wr_stat;
 
     /* If all parameters are 0, then this is a continuation from ISR */
     const unsigned int  continueBlock = (0 == addr) && (0 == pSrc) && (0 == n);
@@ -365,19 +389,31 @@ eepromWrite(unsigned int addr, const void *pSrc, unsigned int n)
         }
 
         /* Copy data into the write packet's data section */
-        writeBytes(&wrLocal, alignBytes);
+        wr_stat = writeBytes(&wrLocal, alignBytes);
+        if (-1 == wr_stat)
+        {
+            return EEPROM_WR_FAIL;
+        }
         return EEPROM_WR_PEND;
     }
 
     /* Write any whole pages */
     while (wrLocal.n_residual > EEPROM_PAGE_SIZE)
     {
-        writeBytes(&wrLocal, EEPROM_PAGE_SIZE);
+        wr_stat = writeBytes(&wrLocal, EEPROM_PAGE_SIZE);
+        if (-1 == wr_stat)
+        {
+            return EEPROM_WR_FAIL;
+        }
         return EEPROM_WR_PEND;
     }
 
     /* Mop up residual data */
-    writeBytes(&wrLocal, wrLocal.n_residual);
+    wr_stat = writeBytes(&wrLocal, wrLocal.n_residual);
+    if (-1 == wr_stat)
+    {
+        return EEPROM_WR_FAIL;
+    }
     return EEPROM_WR_PEND;
 }
 

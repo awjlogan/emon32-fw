@@ -11,7 +11,8 @@ typedef struct {
 typedef enum {
     EEPROM_WR_PEND,
     EEPROM_WR_BUSY,
-    EEPROM_WR_COMPLETE
+    EEPROM_WR_COMPLETE,
+    EEPROM_WR_FAIL
 } eepromWrStatus_t;
 
 
@@ -43,8 +44,9 @@ void eepromInitConfig(const void *pSrc, const unsigned int n);
  *  @param [in] addr : base address of EEPROM read
  *  @param [out] pDst : pointer to read destination
  *  @param [in] n : number of bytes to read
+ *  @return : 0 for success, -1 for failure
  */
-void eepromRead(unsigned int addr, void *pDst, unsigned int n);
+int eepromRead(unsigned int addr, void *pDst, unsigned int n);
 
 /*! @brief Read data from EEPROM with wear leveling
  *  @param [out] pPktRd : pointer to read packet

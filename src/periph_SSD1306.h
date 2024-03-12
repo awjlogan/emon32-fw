@@ -4,13 +4,8 @@
 
 
 typedef enum {
-    SUCCESS_INIT,
-    SUCCESS_DISPLAY,
-    SUCCESS_UPDATE_POS,
-    SUCCESS_DRAW_CHAR,
-    SUCCESS_DRAW_STRING,
-    FAIL_UPDATE_POS,
-    FAIL_DRAW_STRING
+    SSD1306_SUCCESS,
+    SSD1306_FAIL
 } SSD1306_Status_t;
 
 typedef struct _posXY {

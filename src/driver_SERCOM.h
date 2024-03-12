@@ -6,6 +6,12 @@
 #include "driver_DMAC.h"
 
 typedef enum {
+    I2CM_SUCCESS,
+    I2CM_ERROR,
+    I2CM_TIMEOUT
+} I2CM_Status_t;
+
+typedef enum {
     I2CM_ACK    = 0u,
     I2CM_NACK   = 1u
 } I2CM_Ack_t;
@@ -62,7 +68,7 @@ void sercomSetupUART(const UART_Cfg_t *pCfg);
  *  @param [in] sercom : SERCOM instance
  *  @param [in] addr : address and RW bit
  */
-void i2cActivate(Sercom *sercom, uint8_t addr);
+I2CM_Status_t i2cActivate(Sercom *sercom, uint8_t addr);
 
 /*! @brief Requester acknowledge command
  *  @param [in] sercom : SERCOM instance
