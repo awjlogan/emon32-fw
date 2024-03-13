@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "emon32_samd.h"
+#include "board_def.h"
 
 /* Each pin are defined in {GROUP, PIN} pairs. Pin numberings are logical,
  * not physical. Each collection of pins is terminated with a {0xFF, 0} pair.

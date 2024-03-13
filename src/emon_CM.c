@@ -1,13 +1,18 @@
 #include <string.h>
-#include "driver_EIC.h"
 
 #include "emon_CM.h"
+
+#ifndef HOSTED
+
+#include "driver_EIC.h"
 #include "qfplib-m0-full.h"
 
-#ifdef HOSTED
+#else
+
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+
 #endif /* HOSTED */
 
 /* Number of samples available for power calculation. must be power of 2 */

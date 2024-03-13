@@ -1,4 +1,6 @@
 #include "emon32_samd.h"
+
+#include "board_def.h"
 #include "driver_EIC.h"
 #include "driver_PORT.h"
 

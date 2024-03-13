@@ -1,5 +1,6 @@
 #include "emon32_samd.h"
 
+#include "board_def.h"
 #include "driver_PORT.h"
 #include "driver_TIME.h"
 #include "periph_DS18B20.h"

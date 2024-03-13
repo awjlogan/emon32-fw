@@ -1,4 +1,6 @@
 #include "emon32_samd.h"
+#include "board_def.h"
+
 
 void
 evsysSetup()
