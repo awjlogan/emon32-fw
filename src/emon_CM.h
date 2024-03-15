@@ -56,11 +56,12 @@ typedef struct {
 } CTCfgUnpacked_t;
 
 typedef struct {
-    unsigned int    downsample;     /* DSP enabled */
-    unsigned int    zx_hw;          /* Hardware zero crossing detection */
-    unsigned int    reportCycles;   /* Number of cycles before reporting */
-    CTCfgUnpacked_t ctCfg[NUM_CT];  /* CT Configuration */
-    float           voltageCal[NUM_V]; /* Voltage calibration */
+    unsigned int    downsample;         /* DSP enabled */
+    int             (*zx_hw_stat)();    /* HW zero crossing status function */
+    void            (*zx_hw_clr)();     /* HW zero crossing clear function */
+    unsigned int    reportCycles;       /* Number of cycles before reporting */
+    CTCfgUnpacked_t ctCfg[NUM_CT];      /* CT Configuration */
+    float           voltageCal[NUM_V];  /* Voltage calibration */
 } ECMCfg_t;
 
 typedef enum {
@@ -172,4 +173,3 @@ void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
 
 /*! @brief Force trigger data set processing on next cycle complete */
 void ecmProcessSetTrigger(void);
-
