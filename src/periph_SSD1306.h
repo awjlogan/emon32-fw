@@ -15,13 +15,13 @@ typedef struct _posXY {
 
 
 /*! @brief Clear the SSD1306 buffer */
-void ssd1306ClearBuffer();
+void ssd1306ClearBuffer(void);
 
 /*! @brief Turn the display off */
-SSD1306_Status_t ssd1306DisplayOff();
+SSD1306_Status_t ssd1306DisplayOff(void);
 
 /*! @brief Place the buffer contents onto the I2C bus */
-SSD1306_Status_t ssd1306DisplayUpdate();
+SSD1306_Status_t ssd1306DisplayUpdate(void);
 
 /*! @brief Draw a string at the current buffer position */
 SSD1306_Status_t ssd1306DrawString(const char *s);

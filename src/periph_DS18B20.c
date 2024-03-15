@@ -22,12 +22,12 @@ static unsigned int addressRemap[TEMP_MAX_ONEWIRE];
 
 /* OneWire functions & state variables */
 static uint8_t      calcCRC8            (const uint8_t crc, const uint8_t value);
-static int          oneWireFirst        ();
-static int          oneWireNext         ();
-static unsigned int oneWireReadBit      ();
+static int          oneWireFirst        (void);
+static int          oneWireNext         (void);
+static unsigned int oneWireReadBit      (void);
 static void         oneWireReadBytes    (void *pDst, const uint8_t n);
-static unsigned int oneWireReset        ();
-static int          oneWireSearch       ();
+static unsigned int oneWireReset        (void);
+static int          oneWireSearch       (void);
 static void         oneWireWriteBit     (unsigned int bit);
 static void         oneWireWriteBytes   (const void *pSrc, const uint8_t n);
 

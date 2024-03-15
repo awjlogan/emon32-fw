@@ -41,21 +41,21 @@ static void     datasetInit             (Emon32Dataset_t *pDst, ECMDataset_t *pE
 static void     datasetUpdate           (Emon32Dataset_t *pDst);
 static RFMPkt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
 static void     ecmConfigure            (const Emon32Config_t *pCfg, const unsigned int reportCycles);
-static void     evtKiloHertz            ();
+static void     evtKiloHertz            (void);
 static uint32_t evtPending              (EVTSRC_t evt);
-static void     ledProgOff              ();
-static void     ledProgOn               ();
-static void     ledStatusOff            ();
-static void     ledStatusOn             ();
+static void     ledProgOff              (void);
+static void     ledProgOn               (void);
+static void     ledStatusOff            (void);
+static void     ledStatusOn             (void);
 static void     nvmCumulativeConfigure  (eepromPktWL_t *pPkt);
 static void     nvmCumulativeLoad       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
 static void     nvmCumulativeStore      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     processCumulative       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     pulseConfigure          (const Emon32Config_t *pCfg);
-static void     ssd1306Setup            ();
-static uint32_t tempSetup               ();
+static void     ssd1306Setup            (void);
+static uint32_t tempSetup               (void);
 static uint32_t totalEnergy             (const Emon32Dataset_t *pData);
-static void     ucSetup                 ();
+static void     ucSetup                 (void);
 
 /*************************************
  * Functions

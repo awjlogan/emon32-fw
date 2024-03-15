@@ -8,7 +8,7 @@
 void configCmdChar(const uint8_t c);
 
 /*! @brief Print the board and firmware information to serial */
-void configFirmwareBoardInfo();
+void configFirmwareBoardInfo(void);
 
 /*! @brief This functions loads the default configuration and, if available,
  *         the saved configuration from NVM
@@ -17,7 +17,7 @@ void configFirmwareBoardInfo();
 void configLoadFromNVM(Emon32Config_t *pConfig);
 
 /*! @brief Process a pending command from the UART */
-void configProcessCmd();
+void configProcessCmd(void);
 
 /*! @brief Convert the reporting time to cycles
  *  @param [in] repTime: reporting time in seconds

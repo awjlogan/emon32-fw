@@ -37,17 +37,17 @@ typedef enum {
  * Prototypes
  *************************************/
 
-static void     configDefault       ();
-static void     configInitialiseNVM ();
-static void     configureAnalog     ();
-static void     configurePulse      ();
-static uint32_t getBoardRevision    ();
-static char*    getLastReset        ();
+static void     configDefault       (void);
+static void     configInitialiseNVM (void);
+static void     configureAnalog     (void);
+static void     configurePulse      (void);
+static uint32_t getBoardRevision    (void);
+static char*    getLastReset        (void);
 static uint32_t getUniqueID         (unsigned int idx);
-static void     phaseAutoCalibrate  ();
-static void     printSettings       ();
-static char     waitForChar         ();
-static void     zeroAccumulators    ();
+static void     phaseAutoCalibrate  (void);
+static void     printSettings       (void);
+static char     waitForChar         (void);
+static void     zeroAccumulators    (void);
 
 
 /*************************************
@@ -117,7 +117,7 @@ configInitialiseNVM()
 
     dbgPuts                 ("  - Initialising NVM... ");
 
-    configDefault           (pCfg);
+    configDefault           ();
     (void)eepromInitBlock   (0, 0, 256);
     eepromInitConfig        (pCfg, sizeof(Emon32Config_t));
 
@@ -303,7 +303,8 @@ getUniqueID(unsigned int idx)
 
 
 /*! @brief Start auto calibration for CT lead */
-static void phaseAutoCalibrate()
+static void
+phaseAutoCalibrate()
 {
     unsigned int ch = utilAtoi(inBuffer + 1u, ITOA_BASE10);
 
@@ -488,7 +489,7 @@ configLoadFromNVM(Emon32Config_t *pConfig)
 
     if (CONFIG_NVM_KEY != pCfg->key)
     {
-        configInitialiseNVM(pCfg);
+        configInitialiseNVM();
     }
     else
     {
@@ -507,7 +508,7 @@ configLoadFromNVM(Emon32Config_t *pConfig)
             }
             if ('y' == c)
             {
-                configInitialiseNVM(pCfg);
+                configInitialiseNVM();
             }
         }
     }
@@ -651,7 +652,7 @@ configProcessCmd()
             break;
         case 'r':
             /* Restore defaults */
-            configDefault(pCfg);
+            configDefault();
             printf_("> Restored default values.\r\n");
             resetReq = 1u;
             emon32EventSet(EVT_CONFIG_CHANGED);

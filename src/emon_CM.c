@@ -12,6 +12,7 @@
 #include <stdio.h>
 #include <assert.h>
 #include <stdlib.h>
+#include "emonCM_test.h"
 
 #endif /* HOSTED */
 
@@ -29,7 +30,7 @@ static inline int32_t   __SSAT          (int32_t val)   RAMFUNC;
 static inline q15_t     __STRUNCATE     (int32_t val)   RAMFUNC;
 static q15_t            sqrt_q15        (q15_t in)      RAMFUNC;
 static void             ecmSwapPtr      (void **pIn1, void **pIn2);
-static int              zeroCrossingHW  ();
+static int              zeroCrossingHW  (void);
 static int              zeroCrossingSW  (q15_t smpV)    RAMFUNC;
 
 /******** FIXED POINT MATHS FUNCTIONS ********
@@ -180,7 +181,7 @@ static int      discardCycles = EQUIL_CYCLES;
 
 
 ECMCfg_t *
-ecmGetConfig()
+ecmGetConfig(void)
 {
     return &ecmCfg;
 }
@@ -195,7 +196,7 @@ static volatile RawSampleSetPacked_t *volatile adcProc      = adcSamples + 1;
 
 
 void
-ecmDataBufferSwap()
+ecmDataBufferSwap(void)
 {
     ecmSwapPtr((void **)&adcActive, (void **)&adcProc);
 }

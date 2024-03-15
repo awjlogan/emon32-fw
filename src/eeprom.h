@@ -19,11 +19,11 @@ typedef enum {
 /*! @brief Discover the size of the EEPROM
  *  @return : size (in bytes) of the EEPROM. This should be a power-of-2.
  */
-unsigned int eepromDiscoverSize();
+unsigned int eepromDiscoverSize(void);
 
 /*! @brief Dump all the EEPROM data out on to the debug UART
  */
-void eepromDump();
+void eepromDump(void);
 
 /*! @brief Set all data within a block to uniform value
  *  @param [in] startAddr : start address, must be on 16 byte boundary
@@ -71,7 +71,7 @@ eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc, unsigned int n
 
 /*! @brief Callback function for allow async write to EEPROM from timer
  */
-void eepromWriteCB();
+void eepromWriteCB(void);
 
 /*! @brief Save data to EEPROM with wear leveling.
  *  @param [in] pPktWr : pointer to write packet

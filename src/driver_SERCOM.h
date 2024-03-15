@@ -53,10 +53,10 @@ typedef struct UART_Cfg_ {
  *         debug UART and I2C modules. Further SPI and UART modules are
  *         configured separately
  */
-void sercomSetup();
+void sercomSetup(void);
 
 /*! @brief Configure a SERCOM module for SPI */
-void sercomSetupSPI();
+void sercomSetupSPI(void);
 
 /*! @brief Configure a SERCOM module for UART functions.
  *  @param [in] pCfg : pointer to configuration struct
@@ -113,7 +113,7 @@ void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
 
 /*! @brief Configure the DMA for non-blocking transactions
  */
-void uartConfigureDMA();
+void uartConfigureDMA(void);
 
 /*! @brief Get a character from the USART data buffer. Only valid when the
  *         INTFLAG.RXC bit it set.

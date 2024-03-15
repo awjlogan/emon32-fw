@@ -6,4 +6,4 @@
  *         OSC8M -> ClkGen 3 -> (peripheral clock)
  */
 
-void clkSetup();
+void clkSetup(void);

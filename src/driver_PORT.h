@@ -22,7 +22,7 @@ typedef enum {
 /*! @brief   Configure the ports.
  *           Ports for peripherals are configured in their setup functions
  */
-void portSetup();
+void portSetup(void);
 
 /*! @brief Sets a pin as input or output
  *  @param [in] grp : Group number; for SAMD1x this is always 0

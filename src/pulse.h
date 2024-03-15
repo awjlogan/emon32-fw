@@ -28,7 +28,7 @@ void pulseInit(const unsigned int index);
 
 /*! @brief Update the pulse counter(s)
  */
-void pulseUpdate();
+void pulseUpdate(void);
 
 /*! @brief Sets the pulse count value
  *  @param [in] pulseCount : the value to set

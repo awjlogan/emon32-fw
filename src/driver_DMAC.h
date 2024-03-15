@@ -7,7 +7,7 @@ typedef struct {
 } DMACCfgCh_t;
 
 /*! @brief Setup the DMAC peripheral */
-void dmacSetup();
+void dmacSetup(void);
 
 /*! @brief Returns a pointer to DMA descriptor for the channel.
  *  @param [in] ch : channel

@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-#include "emon32_samd.h"
+#define RAMFUNC
 #include "board_def.h"
 
 /******************************************************************************
@@ -121,12 +121,12 @@ typedef struct {
 /*! @brief Returns a pointer to the ADC data buffer
  *  @return : pointer to the active ADC data buffer.
  */
-volatile RawSampleSetPacked_t *ecmDataBuffer();
+volatile RawSampleSetPacked_t *ecmDataBuffer(void);
 
 /*! @brief Swap the data sampling buffers. ADC will be filling the other
  *         while it is handled.
  */
-void ecmDataBufferSwap();
+void ecmDataBufferSwap(void);
 
 /*! @brief Unpack and optionally low pass filter the raw sample
  *         The struct from the DMA has no partition into V/CT channels, so
@@ -137,16 +137,16 @@ void ecmDataBufferSwap();
 void ecmFilterSample(SampleSet_t *pDst) RAMFUNC;
 
 /*! @brief Flush all data and reset the equilibration cycle count */
-void ecmFlush();
+void ecmFlush(void);
 
 /*! @brief Get the pointer to the configuration struct
  *  @return : pointer to Emon CM configuration struct
  */
-ECMCfg_t *ecmGetConfig();
+ECMCfg_t *ecmGetConfig(void);
 
 /*! @brief Injects a raw sample from the ADC into the accumulators.
  */
-ECM_STATUS_t ecmInjectSample() RAMFUNC;
+ECM_STATUS_t ecmInjectSample(void) RAMFUNC;
 
 /*! @brief Decompose a floating point CT phase into an X/Y pair for
  *         interpolation.
@@ -163,7 +163,7 @@ float ecmPhaseCalibrate(unsigned int idx);
 
 /*! @brief Processes a whole cycle
  */
-ECM_STATUS_t ecmProcessCycle() RAMFUNC;
+ECM_STATUS_t ecmProcessCycle(void) RAMFUNC;
 
 /*! @brief Processes a whole data set
  *  @param [out] pData : pointer to the processed data structure
@@ -171,4 +171,5 @@ ECM_STATUS_t ecmProcessCycle() RAMFUNC;
 void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
 
 /*! @brief Force trigger data set processing on next cycle complete */
-void ecmProcessSetTrigger();
+void ecmProcessSetTrigger(void);
+

@@ -16,7 +16,7 @@ typedef struct _RFMPkt {
     unsigned int    timeout;
 } RFMPkt_t;
 
-RFMPkt_t *rfmGetHandle();
+RFMPkt_t *rfmGetHandle(void);
 
 /*! @brief Initialise the RFM69 module
  *  @param [in] freq : RFM operating frequency

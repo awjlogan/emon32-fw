@@ -146,3 +146,4 @@ void emon32EventClr(const EVTSRC_t evt);
  *  @param [in] evt : Event source in enum
  */
 void emon32EventSet(const EVTSRC_t evt);
+

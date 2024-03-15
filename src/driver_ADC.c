@@ -9,8 +9,8 @@
 #include "qfplib-m0-full.h"
 
 
-static void adcCalibrate();
-static void adcConfigureDMAC();
+static void adcCalibrate(void);
+static void adcConfigureDMAC(void);
 
 
 /*! @brief Load gain and offset registers for automatic compensation. Only

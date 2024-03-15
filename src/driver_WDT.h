@@ -24,4 +24,4 @@ void wdtSetup(WDT_PER_t per);
 
 /*! @brief Feed the watchdog to reset
  */
-void wdtFeed();
+void wdtFeed(void);

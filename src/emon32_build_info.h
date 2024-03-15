@@ -66,11 +66,12 @@ struct Emon32BuildInfo {
     const char* machine;
 };
 
-struct Emon32BuildInfo emon32_build_info();
+struct Emon32BuildInfo emon32_build_info(void);
 
 /*
     The full build information string. For example:
     "12.24.2020-83-g786ee18-dirty (Debug) on 01/23/2021 18:28 UTC with arm-none-eabi-gcc 10.2.1
    stargirl@stargirls-mbp.lan"
 */
-const char* emon32_build_info_string();
+const char* emon32_build_info_string(void);
+
