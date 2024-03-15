@@ -5,6 +5,7 @@
 
 #include "driver_ADC.h"
 #include "driver_CLK.h"
+#include "driver_EIC.h"
 #include "driver_EVSYS.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
@@ -172,8 +173,12 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
     ecmCfg = ecmGetConfig();
 
     ecmCfg->downsample      = DOWNSAMPLE_DSP;
-    ecmCfg->zx_hw           = ZEROX_HW_SPT;
     ecmCfg->reportCycles    = reportCycles;
+    if (ZEROX_HW_SPT)
+    {
+        ecmCfg->zx_hw_stat  = &eicZeroXStat;
+        ecmCfg->zx_hw_clr   = &eicZeroXClr;
+    }
 
     for (unsigned int i = 0; i < NUM_V; i ++)
     {

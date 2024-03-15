@@ -4,7 +4,6 @@
 
 #ifndef HOSTED
 
-#include "driver_EIC.h"
 #include "qfplib-m0-full.h"
 
 #else
@@ -30,7 +29,6 @@ static inline int32_t   __SSAT          (int32_t val)   RAMFUNC;
 static inline q15_t     __STRUNCATE     (int32_t val)   RAMFUNC;
 static q15_t            sqrt_q15        (q15_t in)      RAMFUNC;
 static void             ecmSwapPtr      (void **pIn1, void **pIn2);
-static int              zeroCrossingHW  (void);
 static int              zeroCrossingSW  (q15_t smpV)    RAMFUNC;
 
 /******** FIXED POINT MATHS FUNCTIONS ********
@@ -203,7 +201,7 @@ ecmDataBufferSwap(void)
 
 
 volatile RawSampleSetPacked_t *
-ecmDataBuffer()
+ecmDataBuffer(void)
 {
     return adcActive;
 }
@@ -227,18 +225,6 @@ static ECMCycle_t       ecmCycle;
 /******************************************************************************
  * Functions
  *****************************************************************************/
-
-int
-zeroCrossingHW()
-{
-    int zerox_stat;
-    zerox_stat = eicZeroXStat();
-    if (zerox_stat)
-    {
-        eicZeroXClr();
-    }
-    return zerox_stat;
-}
 
 /*! @brief Zero crossing detection, software
  *  @param [in] smpV : current voltage sample
@@ -298,7 +284,7 @@ ecmPhaseCalibrate(unsigned int idx)
 
 
 void
-ecmFlush()
+ecmFlush(void)
 {
     discardCycles = EQUIL_CYCLES;
 
@@ -420,7 +406,7 @@ ecmFilterSample(SampleSet_t *pDst)
 
 
 RAMFUNC ECM_STATUS_t
-ecmInjectSample()
+ecmInjectSample(void)
 {
     unsigned int        zerox_flag = 0;
     static unsigned int idxInject;
@@ -456,13 +442,13 @@ ecmInjectSample()
     }
 
     /* Flag if there has been a (-) -> (+) crossing */
-    if (0 == ecmCfg.zx_hw)
+    if (0 == ecmCfg.zx_hw_stat)
     {
         zerox_flag = zeroCrossingSW(thisV);
     }
     else
     {
-        zerox_flag = zeroCrossingHW();
+        zerox_flag = (*ecmCfg.zx_hw_stat)();
     }
 
     /* Check for zero crossing, swap buffers and pend event */
@@ -472,9 +458,9 @@ ecmInjectSample()
         memset((void *)accumCollecting, 0, sizeof(Accumulator_t));
 
         /* Clear the hardware zero crossing, if in use. */
-        if (1 == ecmCfg.zx_hw)
+        if (0 != ecmCfg.zx_hw_clr)
         {
-            eicZeroXClr();
+            (*ecmCfg.zx_hw_clr)();
         }
 
         /* If out of the "warm up" period, then indicate a full cycle */
@@ -495,7 +481,7 @@ ecmInjectSample()
 }
 
 RAMFUNC ECM_STATUS_t
-ecmProcessCycle()
+ecmProcessCycle(void)
 {
     ecmCycle.cycleCount++;
 
@@ -599,7 +585,7 @@ ecmProcessSet(ECMDataset_t *pData)
 }
 
 void
-ecmProcessSetTrigger()
+ecmProcessSetTrigger(void)
 {
     processTrigger = 1;
 }
