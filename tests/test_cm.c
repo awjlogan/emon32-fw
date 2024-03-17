@@ -11,7 +11,7 @@
 #define SAMPLE_RATE     4800u
 #define MAINS_FREQ      50u
 #define REPORT_TIME     9.8f
-#define SMP_TICK        1000000u / SAMPLE_RATE / VCT_TOTAL
+#define SMP_TICK        1000000u / SAMPLE_RATE / (VCT_TOTAL)
 #define TEST_TIME       50E6    /* Time to run in microseconds */
 
 typedef struct {
@@ -33,6 +33,7 @@ main(int argc, char *argv[])
     int time        = 0;
     int reportNum   = 0;
 
+    FILE            *fptr;
     ECMDataset_t    dataset;
     ECMCfg_t        *pEcmCfg;
     PhaseXY_t       phase;
@@ -84,7 +85,28 @@ main(int argc, char *argv[])
 
     printf("---- emon32 CM test ----\n\n");
 
-    /* Half band tests : https://dspguru.com/dsp/faqs/fir/implementation/ */
+    /* Sanity check by dumping a CSV of 10 cycles @ mains freq */
+    printf("  Generating test sine...");
+    fptr = fopen("cm-test-sine.csv", "w");
+    for (int t = 0; t < ((1000000 * 10) / MAINS_FREQ); t += (SMP_TICK * (VCT_TOTAL)))
+    {
+        q15_t a = generateWave(&wave[0], t, 1.0);
+        fprintf(fptr, "%d,%d\n", t, a);
+    }
+    fclose(fptr);
+    printf(" Done!\n\n");
+
+    /* Print out test information */
+    printf("  Test configuration:\n");
+    printf("    - Number of V     : %d\n", NUM_V),
+    printf("    - Number of CT    : %d\n", NUM_CT);
+    printf("    - Mains frequency : %d\n", MAINS_FREQ);
+    printf("    - Report time     : %.2f\n", REPORT_TIME);
+    printf("    - Sample tick (us): %d\n", SMP_TICK);
+    printf("\n");
+
+    /* ============ START : HALF BAND TEST ============ */
+    /* Reference : https://dspguru.com/dsp/faqs/fir/implementation/ */
 
     /* IMPULSE TEST
      * Inject an implulse, should get all the coefficients (except middle) out
@@ -99,9 +121,14 @@ main(int argc, char *argv[])
         smpRaw->samples[1].smp[i] = INT16_MAX;
     }
 
+    ecmDataBufferSwap();
     ecmFilterSample(&smpProc);
     if (coeffLut[0] != smpProc.smpV[0])
     {
+        printf("\nsmpRaw->samples[0]: %d\n", smpRaw->samples[0].smp[0]);
+        printf("smpRaw->samples[1]: %d\n", smpRaw->samples[1].smp[0]);
+        printf("smpProc.smpV[0]: %d\n", smpProc.smpV[0]);
+
         printf("Gold: %d Test: %d\n", coeffLut[0], smpProc.smpV[0]);
         assert(0);
     }
@@ -118,7 +145,7 @@ main(int argc, char *argv[])
     }
     printf("Complete\n\n");
 
-    printf("Dynamic test...\n\n");
+    printf("  Dynamic test...\n\n");
     while (time < TEST_TIME)
     {
         /* Increment through the sample channels (2x for oversampling)
@@ -142,7 +169,7 @@ main(int argc, char *argv[])
 
         if (ECM_REPORT_COMPLETE == status)
         {
-            printf("Report %d: ", reportNum++);
+            printf("    Report %d: ", reportNum++);
             ecmProcessSet(&dataset);
             for (int i = 0; i < 1; i++)
             {

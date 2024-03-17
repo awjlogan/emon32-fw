@@ -1,5 +1,5 @@
 CC = cc
-CFLAGS = -Wall -Wpedantic
+CFLAGS = -Wall -Wpedantic -g
 INCLUDES = ../src/ -I./
 DEFINES = -DHOSTED
 

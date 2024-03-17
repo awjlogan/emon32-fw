@@ -43,3 +43,5 @@ fp-info-cache
 helpers/
 emon32_build_info.c
 .vscode/
+cm-test-sine.csv
+*.test.dSYM/

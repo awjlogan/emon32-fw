@@ -29,6 +29,23 @@ Contributions are welcome! Small PRs can be accepted at any time. Please get in 
 
 ## Functional Description
 
+### Hardware serial connection
+
+A dedicated UART is used for debug, configuration, and data transmission. It has the following UART configuration:
+
+- 38400 baud
+- 8N1
+
+It is available on:
+
+- Raspberry Pi:
+  - GPIO 14 (UART TX _from_ Raspberry Pi)
+  - GPIO 15 (UART RX _to_ the Raspberry Pi)
+- Debug pins:
+  - 2 (UART TX _from_ Raspberry Pi)
+  - 1 (UART RX _to_ the Raspberry Pi)
+- Test harness pads (only when TEST_SENSE is LOW)
+
 ### Configuration
 
 The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configuration](https://docs.openenergymonitor.org/emonpi2/configuration.html) options, which can be accessed through the debug serial link. In addition, the following options are added:
@@ -65,23 +82,6 @@ When a full report is ready, the following actions take place:
   - Packed structure for transmission by the RFM module.
 - Data are sent over the configured interface.
   - It is configurable whether data are always echoed on the debug console.
-
-### Hardware serial connection
-
-A dedicated UART is used for debug, configuration, and data transmission. It has the following UART configuration:
-
-- 38400 baud
-- 8N1
-
-It is available on:
-
-- Raspberry Pi:
-  - GPIO 14 (UART TX _from_ Raspberry Pi)
-  - GPIO 15 (UART RX _to_ the Raspberry Pi)
-- Debug pins:
-  - 2 (UART TX _from_ Raspberry Pi)
-  - 1 (UART RX _to_ the Raspberry Pi)
-- Test harness pads (only when TEST_SENSE is LOW)
 
 ## Compiling and uploading
 
@@ -130,6 +130,12 @@ Most compile time options are contained in `/src/emon32.h`. The following option
 
 The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter (**ecmFilterSample()**). The half band filter is exposed for testing. Filter coefficients can be generated using the **filter.py** script (_./helpers/filter.py_). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need **scipy** and **matplotlib** to use the filter designer,
 
+### Tests
+
+A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware.
+
+There are tests available to run on local system (tested on macOS and Linux), rather than on a physical device, for some functions. These are in _./tests_. In that folder, run `make all` to build the tests. These allow for development on a faster system with better debug options. The firmware is structured to remove, as far as possible, direct calls to hardware. Do note that some functions will not behave identically. For example, in the configuration menu terminal entry may be different to that through a UART.
+
 ## Hardware Description
 
 ### Peripherals (SAMD21)
@@ -138,7 +144,7 @@ The following table lists the peripherals used in the SAMD21.
 
 |Peripheral       | Alias           | Description                   | Usage                             |
 |-----------------|-----------------|-------------------------------|-----------------------------------|
-|ADC              |ADC)             |Analog-to-digital converter    |Acquire analog signals             |
+|ADC              |ADC              |Analog-to-digital converter    |Acquire analog signals             |
 |DMAC             |                 |DMA Controller                 |ADC->buffer and UART TX            |
 |EIC              |                 |External interrupt controller  |Input from zero-crossing detector  |
 |EVSYS            |                 |Event System                   |Asynchronous event handling        |
@@ -151,7 +157,7 @@ The following table lists the peripherals used in the SAMD21.
 |TC4+5            |TIMER_DELAY      |Timer/Counter (32bit)          |Delay timer                        |
 |TC6+7            |TIMER_TICK       |Timer/Counter (32bit)          |Global time (micro/millisecond)    |
 
-## Designing a new board
+### Designing a new board
 
 The files `/src/board_def.h` and `/src/board_def.c` contain options for configuring the microcontroller for a given board. For example, different pin mappings may be required.
 
@@ -162,10 +168,6 @@ Within the top level loop, there are no direct calls to low level hardware. You 
 All peripheral drivers are in header/source pairs named **driver_\<PERIPHERAL\>**. For example, the ADC driver is in **driver_ADC.\***. If you are porting to a new microcontroller, you will need to provide implementations of all the functions exposed in **driver_\<PERIPHERAL\>.h** and any internal functions within **driver_\<PERIPHERAL\>.c**. If your microcontroller does not support a particular function (for example, it doesn't have a DMA), then either no operation or an alternative must be provided.
 
 You will also need to ensure that the vendor's headers are included and visible to the compiler.
-
-### Hosted testing
-
-There are tests available to run on local system (tested on macOS and Linux), rather than on a physical device, for some functions. These are in _./tests_. In that folder, run `make all` to build the tests. These allow for development on a faster system with better debug options. The firmware is structured to remove, as far as possible, direct calls to hardware. Do note that some functions will not behave identically. For example, in the configuration menu terminal entry may be different to that through a UART.
 
 ## Acknowledgements
 
