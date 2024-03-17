@@ -1,8 +1,10 @@
 #include <string.h>
 #include <inttypes.h>
 
-#include "data_pack.h"
+
 #include "qfpio.h"
+
+#include "dataPack.h"
 #include "util.h"
 
 
@@ -12,7 +14,8 @@
 #define STR_P       2
 #define STR_E       3
 #define STR_PULSE   4
-#define STR_COLON   5
+#define STR_TEMP    5
+#define STR_COLON   6
 
 
 /* "Fat" string with current length and buffer size. */
@@ -23,19 +26,40 @@ typedef struct {
 } StrN_t;
 
 
+static void         catId(StrN_t *strD, unsigned int id, unsigned int field);
 static unsigned int strnFtoa(StrN_t *strD, const float v);
 static unsigned int strnItoa(StrN_t *strD, const uint32_t v);
 static unsigned int strnCat(StrN_t *strD, const StrN_t *strS);
 static int          strnLen(StrN_t *str);
 
 
+static char     tmpStr[CONV_STR_W] = {0};
+static StrN_t   strConv;    /* Fat string for conversions */
+
 /* Strings that are inserted in the transmitted message */
-const StrN_t baseStr[6] = { {.str = "MSG:",     .n = 4, .m = 5},
+const StrN_t baseStr[7] = { {.str = "MSG:",     .n = 4, .m = 5},
                             {.str = ",V",       .n = 2, .m = 3},
                             {.str = ",P",       .n = 2, .m = 3},
                             {.str = ",E",       .n = 2, .m = 3},
                             {.str = ",pulse",   .n = 6, .m = 7},
-                            {.str = ":",        .n = 1, .m = 2} };
+                            {.str = ",t",       .n = 2, .m = 3},
+                            {.str = ":",        .n = 1, .m = 2}};
+
+
+/*! @brief "Append <field><id>:" to the string
+ *  @param [out] strD : pointer to the fat string
+ *  @param [in] id : numeric index
+ *  @param [in] field : field name index, e.g. "STR_V"
+ */
+static void
+catId(StrN_t *strD, unsigned int id, unsigned int field)
+{
+    strD->n += strnCat(strD, &baseStr[field]);
+
+    (void)strnItoa(&strConv, id);
+    strD->n += strnCat(strD, &strConv);
+    strD->n += strnCat(strD, &baseStr[STR_COLON]);
+}
 
 
 static unsigned int
@@ -44,7 +68,7 @@ strnFtoa(StrN_t *strD, const float v)
     /* REVISIT : check formatting parameter */
     const uint32_t fmt = 0;
 
-    /* Zero the destination buffer and the convert */
+    /* Zero the destination buffer then convert */
     memset(strD->str, 0, strD->m);
     qfp_float2str(v, strD->str, fmt);
     (void)strnLen(strD);
@@ -54,7 +78,7 @@ strnFtoa(StrN_t *strD, const float v)
 static unsigned int
 strnItoa(StrN_t *strD, const uint32_t v)
 {
-    /* Zero the destination buffer and then convert */
+    /* Zero the destination buffer then convert */
     memset(strD->str, 0, strD->m);
 
     strD->n = utilItoa(strD->str, v, ITOA_BASE10);
@@ -106,8 +130,6 @@ strnLen(StrN_t *str)
 unsigned int
 dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
 {
-    char    tmpStr[CONV_STR_W] = {0};
-    StrN_t  strConv;    /* Fat string for conversions */
     StrN_t  strn;       /* Fat string for processed data */
 
     /* Setup destination string */
@@ -131,11 +153,7 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     /* V channels: "[..],V<x>:<yy.y>" */
     for (unsigned int i = 0; i < NUM_V; i++)
     {
-        strn.n += strnCat(&strn, &baseStr[STR_V]);
-
-        (void)strnItoa(&strConv, i);
-        strn.n += strnCat(&strn, &strConv);
-        strn.n += strnCat(&strn, &baseStr[STR_COLON]);
+        catId(&strn, i, STR_V);
         (void)strnFtoa(&strConv, pData->pECM->rmsV[i]);
         strn.n += strnCat(&strn, &strConv);
     }
@@ -143,23 +161,15 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     /* CT channels "[..],P<x>:<yy.y>" */
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        strn.n += strnCat(&strn, &baseStr[STR_P]);
-
-        (void)strnItoa(&strConv, i);
-        strn.n += strnCat(&strn, &strConv);
-        strn.n += strnCat(&strn, &baseStr[STR_COLON]);
+        catId(&strn, i, STR_P);
         (void)strnFtoa(&strConv, pData->pECM->CT[i].realPower);
         strn.n += strnCat(&strn, &strConv);
     }
 
-    /* "[..],E<x>:<yy.y>" */
+    /* "[..],E<x>:<yy>" */
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        strn.n += strnCat(&strn, &baseStr[STR_E]);
-
-        (void)strnItoa(&strConv, i);
-        strn.n += strnCat(&strn, &strConv);
-        strn.n += strnCat(&strn, &baseStr[STR_COLON]);
+        catId(&strn, i, STR_E);
         (void)strnItoa(&strConv, pData->pECM->CT[i].wattHour);
         strn.n += strnCat(&strn, &strConv);
     }
@@ -167,15 +177,18 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     /* Pulse channels: "[..],pulse<x>:<yy>" */
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
-        strn.n += strnCat(&strn, &baseStr[STR_PULSE]);
-
-        (void)strnItoa(&strConv, i);
-        strn.n += strnCat(&strn, &strConv);
-        strn.n += strnCat(&strn, &baseStr[STR_COLON]);
+        catId(&strn, i, STR_PULSE);
         (void)strnItoa(&strConv, pData->pulseCnt[i]);
         strn.n += strnCat(&strn, &strConv);
     }
 
+    /* Temperature sensors: "[..],t<x>:<yy.y>" */
+    for (unsigned int i = 0; i < pData->numTempSensors; i++)
+    {
+        catId(&strn, i, STR_TEMP);
+        (void)strnFtoa(&strConv, pData->temp[i]);
+        strn.n += strnCat(&strn, &strConv);
+    }
     return strn.n;
 }
 

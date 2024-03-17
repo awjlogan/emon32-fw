@@ -25,7 +25,6 @@
  *************************************/
 
 static inline uint8_t   __CLZ           (uint32_t data) RAMFUNC;
-static inline int32_t   __SSAT          (int32_t val)   RAMFUNC;
 static inline q15_t     __STRUNCATE     (int32_t val)   RAMFUNC;
 static q15_t            sqrt_q15        (q15_t in)      RAMFUNC;
 static void             ecmSwapPtr      (void **pIn1, void **pIn2);
@@ -60,25 +59,6 @@ __STRUNCATE(int32_t val)
     return (q15_t) ((val >> 15) + roundUp);
 }
 
-/*! @brief Saturate to Q15 fixed point number
- *  @details Modified CMSIS-DSP: Include/dsp/none.h:78, sat is always 16
- *  @param [in] val : input value
- */
-static RAMFUNC inline int32_t
-__SSAT(int32_t val)
-{
-    const int32_t max = (int32_t)((1U << (15u)) - 1U);
-    const int32_t min = -1 - max ;
-    if (val > max)
-    {
-        return max;
-    }
-    else if (val < min)
-    {
-        return min;
-    }
-    return val;
-}
 
 /*! @brief Count the number of leading 0s
  *  @param[in] data : input value

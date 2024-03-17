@@ -10,7 +10,9 @@
 
 #define SAMPLE_RATE     4800u
 #define MAINS_FREQ      50u
+#define REPORT_TIME     9.8f
 #define SMP_TICK        1000000u / SAMPLE_RATE / VCT_TOTAL
+#define TEST_TIME       50E6    /* Time to run in microseconds */
 
 typedef struct {
     double omega;
@@ -28,11 +30,14 @@ q15_t generateWave(wave_t *w, int tMicros, double s);
 int
 main(int argc, char *argv[])
 {
-    int time = 0;
+    int time        = 0;
+    int reportNum   = 0;
 
-    Emon32Config_t  cfg;
     ECMDataset_t    dataset;
     ECMCfg_t        *pEcmCfg;
+    PhaseXY_t       phase;
+    ECM_STATUS_t    status;
+    wave_t          wave[VCT_TOTAL];
 
     const int16_t coeffLut[10] = {
         92, -279, 957, -2670, 10113, 10113, -2670, 957, -279, 92
@@ -40,6 +45,16 @@ main(int argc, char *argv[])
 
     volatile RawSampleSetPacked_t *volatile smpRaw;
     SampleSet_t                             smpProc;
+
+    /* Set all waves to 50 Hz, all CTs to 5 deg offset */
+    for (int i = 0; i < VCT_TOTAL; i++)
+    {
+        wave[i].omega = 2 * M_PI * 50.0;
+    }
+    for (int i = NUM_V; i < VCT_TOTAL; i++)
+    {
+        wave[i].phi = 5.0/180.0;
+    }
 
     pEcmCfg = ecmGetConfig();
 
@@ -49,15 +64,22 @@ main(int argc, char *argv[])
     memset(&smpProc, 0, sizeof(SampleSet_t));
     smpRaw = ecmDataBuffer();
 
-    /* Configuration for ECM */
-    cfg.baseCfg.nodeID              = 17u;
-    cfg.baseCfg.mainsFreq           = 50u;
-    cfg.baseCfg.reportTime          = 9.8;
-    cfg.voltageCfg[0].voltageCal    = 325.22f / 2048.0f;
-    for (unsigned int i = 0; i < NUM_CT; i++)
+    pEcmCfg->downsample = 1u;
+    pEcmCfg->reportCycles = (unsigned int)(REPORT_TIME * MAINS_FREQ);
+
+    for (int i = 0; i < NUM_V; i++)
     {
-        cfg.ctCfg[i].ctCal  = 90.9f / 2048.0f;
-        cfg.ctCfg[i].phase = 5.0;
+        pEcmCfg->voltageCal[i] = 268.97f;
+    }
+
+    phase = ecmPhaseCalculate(5.0f);
+    for (int i = 0; i < NUM_CT; i++)
+    {
+        pEcmCfg->ctCfg[i].active    = 1;
+        pEcmCfg->ctCfg[i].ctCal     = 90.91f;
+        pEcmCfg->ctCfg[i].phaseX    = phase.phaseX;
+        pEcmCfg->ctCfg[i].phaseY    = phase.phaseY;
+        pEcmCfg->ctCfg[i].vChan     = 0;
     }
 
     printf("---- emon32 CM test ----\n\n");
@@ -96,34 +118,50 @@ main(int argc, char *argv[])
     }
     printf("Complete\n\n");
 
-    // /* Generate a Q1.11 sine wave and use the smpRaw buffer to inject this
-    //  * into the ecmInjectSample routine.
-    //  */
-    // printf("  Inject sample test (full amplitude):\n");
-    // printf("    - Number of samples per cycle (2f): %d\n", SMP_PER_CYCLE);
+    printf("Dynamic test...\n\n");
+    while (time < TEST_TIME)
+    {
+        /* Increment through the sample channels (2x for oversampling)
+         * and generate the wave for each channel at each point.
+         */
+        for (int j = 0; j < 2; j++)
+        {
+            for (int i = 0; i < VCT_TOTAL; i++)
+            {
+                smpRaw->samples[j].smp[i] = generateWave(&wave[i], time, 1.0);
+                time += SMP_TICK;
+            }
+        }
+        ecmDataBufferSwap();
+        status = ecmInjectSample();
 
-    // unsigned int smpCnt = 0;
-    // do
-    // {
-    //     do
-    //     {
-    //         for (unsigned int j = 0; j < VCT_TOTAL; j++)
-    //         {
-    //             smpRaw->samples[0].smp[j] = sine_q15[smpCnt];
-    //             smpRaw->samples[1].smp[j] = sine_q15[smpCnt+1];
-    //         }
-    //         smpCnt += 2;
-    //         if (smpCnt >= SMP_PER_CYCLE) smpCnt = 0;
+        if (ECM_CYCLE_COMPLETE == status)
+        {
+            status = ecmProcessCycle();
+        }
 
-    //     } while (ECM_CYCLE_COMPLETE != ecmInjectSample());
-
-    // } while (ECM_REPORT_COMPLETE != ecmProcessCycle());
-
-    ecmProcessSet(&dataset);
+        if (ECM_REPORT_COMPLETE == status)
+        {
+            printf("Report %d: ", reportNum++);
+            ecmProcessSet(&dataset);
+            for (int i = 0; i < 1; i++)
+            {
+                printf("v%d:%.2f,", i, dataset.rmsV[i]);
+            }
+            for (int i = 0; i < 6; i++)
+            {
+                printf("P%d:%.2f,E%d:%d",
+                       i, dataset.CT[i].realPower,
+                       i, dataset.CT[i].wattHour);
+                printf("%c", ((i != 5) ? ',' : '\n'));
+            }
+        }
+    }
+    printf("Done!\n\n");
 }
 
 q15_t generateWave(wave_t *w, int tMicros, double s)
 {
     double a = sin(((w->omega * tMicros)/1000000.0) + w->phi) * s;
-    return (q15_t)a * 2048;
+    return (q15_t)(a * 2048);
 }
