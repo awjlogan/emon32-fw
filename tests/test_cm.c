@@ -13,6 +13,8 @@
 #define REPORT_TIME     9.8f
 #define SMP_TICK        1000000u / SAMPLE_RATE / (VCT_TOTAL)
 #define TEST_TIME       50E6    /* Time to run in microseconds */
+#define REPORT_V        1       /* Number of V channels to report */
+#define REPORT_CT       3       /* Number of CT channels to report */
 
 typedef struct {
     double omega;
@@ -167,20 +169,21 @@ main(int argc, char *argv[])
             status = ecmProcessCycle();
         }
 
+
         if (ECM_REPORT_COMPLETE == status)
         {
             printf("    Report %d: ", reportNum++);
             ecmProcessSet(&dataset);
-            for (int i = 0; i < 1; i++)
+            for (int i = 0; i < REPORT_V; i++)
             {
                 printf("v%d:%.2f,", i, dataset.rmsV[i]);
             }
-            for (int i = 0; i < 6; i++)
+            for (int i = 0; i < REPORT_CT; i++)
             {
                 printf("P%d:%.2f,E%d:%d",
                        i, dataset.CT[i].realPower,
                        i, dataset.CT[i].wattHour);
-                printf("%c", ((i != 5) ? ',' : '\n'));
+                printf("%c", ((i != (REPORT_CT - 1)) ? ',' : '\n'));
             }
         }
     }

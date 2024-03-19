@@ -24,7 +24,7 @@
 
 #define NUM_V               3u
 #define NUM_CT              11u
-#define VCT_TOTAL           NUM_V + NUM_CT
+#define VCT_TOTAL           (NUM_V + NUM_CT)
 #define NUM_CT_ACTIVE_DEF   6u          /* Onboard CTs only*/
 #define SAMPLE_RATE         4800u
 #define SAMPLES_IN_SET      2u
