@@ -110,7 +110,7 @@
 #define TIMER_ADC                   TC3
 #define TIMER_DELAY                 TC4
 #define TIMER_TICK                  TC6
-#define IRQ_TIMER2                  irq_handler_tc4
+#define IRQ_TIMER_DELAY             irq_handler_tc4
 #define IRQ_TIMER_TICK              irq_handler_tc6
 
 #define TIMER_ADC_GCLK_ID           TC3_GCLK_ID
@@ -152,14 +152,53 @@
 #define PIN_PULSE1          17u
 #define PIN_PULSE2          18u
 
-#define GRP_TEST_SENSE      0
+#define GRP_TEST_SENSE      GRP_PINA
 #define PIN_TEST_SENSE      28
 
+#define GRP_ADC_VMID        GRP_PINA
+#define PIN_ADC_VMID        2u
+#define GRP_ADC_VREF        GRP_PINA
+#define PIN_ADC_VREF        3u
+#define GRP_ADC_VSENS1      GRP_PINB
+#define PIN_ADC_VSENS1      8u
+#define GRP_ADC_VSENS2      GRP_PINB
+#define PIN_ADC_VSENS2      9u
+#define GRP_ADC_VSENS3      GRP_PINA
+#define PIN_ADC_VSENS3      4u
+#define GRP_ADC_CT1         GRP_PINA
+#define PIN_ADC_CT1         5u
+#define GRP_ADC_CT2         GRP_PINA
+#define PIN_ADC_CT2         6u
+#define GRP_ADC_CT3         GRP_PINA
+#define PIN_ADC_CT3         7u
+#define GRP_ADC_CT4         GRP_PINB
+#define PIN_ADC_CT4         0u
+#define GRP_ADC_CT5         GRP_PINB
+#define PIN_ADC_CT5         1u
+#define GRP_ADC_CT6         GRP_PINB
+#define PIN_ADC_CT6         2u
+#define GRP_ADC_CT7         GRP_PINB
+#define PIN_ADC_CT7         3u
+#define GRP_ADC_CT8         GRP_PINB
+#define PIN_ADC_CT8         4u
+#define GRP_ADC_CT9         GRP_PINB
+#define PIN_ADC_CT9         5u
+#define GRP_ADC_CT10        GRP_PINB
+#define PIN_ADC_CT10        6u
+#define GRP_ADC_CT11        GRP_PINB
+#define PIN_ADC_CT11        7u
+#define GRP_ADC_AIN         GRP_PINA
+#define PIN_ADC_AIN         8u
+#define GRP_ADC_VCAL_H      GRP_PINA
+#define PIN_ADC_VCAL_H      9u
+#define GRP_ADC_VCAL_L      GRP_PINA
+#define PIN_ADC_VCAL_L      10u
+
 /* Debug UART related defines */
-#define GRP_SERCOM_UART_DBG0    0u
+#define GRP_SERCOM_UART_DBG0    GRP_PINA
 #define PIN_UART_DBG_RX0        13u
 #define PIN_UART_DBG_TX0        12u
-#define GRP_SERCOM_UART_DBG1    1u
+#define GRP_SERCOM_UART_DBG1    GRP_PINB
 #define PIN_UART_DBG_RX1        30u
 #define PIN_UART_DBG_TX1        31u
 #define UART_DBG_PAD_RX     1u
@@ -167,7 +206,7 @@
 #define UART_DBG_BAUD       38400u
 
 /* SPI related defines */
-#define GRP_SERCOM_SPI      0u
+#define GRP_SERCOM_SPI      GRP_PINA
 #define PIN_SPI_MISO        14u
 #define PIN_SPI_MOSI        15u
 #define PIN_SPI_SCK         16u
@@ -187,7 +226,7 @@
 #define PMUX_I2CM           PORT_PMUX_PMUXE_C
 
 /* Data UART related defines */
-#define GRP_SERCOM_UART_DATA 0u
+#define GRP_SERCOM_UART_DATA GRP_PINA
 #define PIN_UART_DATA_RX    21u
 #define PIN_UART_DATA_TX    22u
 #define UART_DATA_PAD_RX    3u
