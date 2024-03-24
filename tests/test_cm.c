@@ -17,16 +17,16 @@
 #define REPORT_CT       3       /* Number of CT channels to report */
 
 typedef struct {
-    double omega;
-    double phi;
+    double omega;       /* Angular velocity */
+    double phi;         /* Offset (rad) */
+    double s;           /* Scale (0 < s <= 1.0) */
 } wave_t;
 
 
 /*! @param [in] w       : pointer to wave information
  *  @param [in] tMicros : time in microseconds
- *  @param [in] s       : scaling factor (0 < s <= 1.0)
  */
-q15_t generateWave(wave_t *w, int tMicros, double s);
+q15_t generateWave(wave_t *w, int tMicros);
 
 
 int
@@ -46,13 +46,15 @@ main(int argc, char *argv[])
         92, -279, 957, -2670, 10113, 10113, -2670, 957, -279, 92
     };
 
-    volatile RawSampleSetPacked_t *volatile smpRaw;
+    volatile RawSampleSetPacked_t *volatile smpRaw[2];
     SampleSet_t                             smpProc;
+    unsigned int                            smpIdx = 0;
 
     /* Set all waves to 50 Hz, all CTs to 5 deg offset */
     for (int i = 0; i < VCT_TOTAL; i++)
     {
         wave[i].omega = 2 * M_PI * 50.0;
+        wave[i].s     = 1.0;
     }
     for (int i = NUM_V; i < VCT_TOTAL; i++)
     {
@@ -65,7 +67,10 @@ main(int argc, char *argv[])
      * data into.
      */
     memset(&smpProc, 0, sizeof(SampleSet_t));
-    smpRaw = ecmDataBuffer();
+    smpRaw[0] = ecmDataBuffer();
+    ecmDataBufferSwap();
+    smpRaw[1] = ecmDataBuffer();
+    ecmDataBufferSwap();
 
     pEcmCfg->downsample = 1u;
     pEcmCfg->reportCycles = (unsigned int)(REPORT_TIME * MAINS_FREQ);
@@ -92,7 +97,7 @@ main(int argc, char *argv[])
     fptr = fopen("cm-test-sine.csv", "w");
     for (int t = 0; t < ((1000000 * 10) / MAINS_FREQ); t += (SMP_TICK * (VCT_TOTAL)))
     {
-        q15_t a = generateWave(&wave[0], t, 1.0);
+        q15_t a = generateWave(&wave[0], t);
         fprintf(fptr, "%d,%d\n", t, a);
     }
     fclose(fptr);
@@ -114,38 +119,41 @@ main(int argc, char *argv[])
      * Inject an implulse, should get all the coefficients (except middle) out
      * TODO parameterise this for any size of filter
      */
-    printf("  Half band filter tests:\n");
-    printf("    - Impulse: ");
-
-    for (unsigned int i = 0; i < VCT_TOTAL; i++)
+    if (pEcmCfg->downsample)
     {
-        smpRaw->samples[0].smp[i] = 0;
-        smpRaw->samples[1].smp[i] = INT16_MAX;
-    }
+        printf("  Half band filter tests:\n");
+        printf("    - Impulse: ");
 
-    ecmDataBufferSwap();
-    ecmFilterSample(&smpProc);
-    if (coeffLut[0] != smpProc.smpV[0])
-    {
-        printf("\nsmpRaw->samples[0]: %d\n", smpRaw->samples[0].smp[0]);
-        printf("smpRaw->samples[1]: %d\n", smpRaw->samples[1].smp[0]);
-        printf("smpProc.smpV[0]: %d\n", smpProc.smpV[0]);
+        for (unsigned int i = 0; i < VCT_TOTAL; i++)
+        {
+            smpRaw[smpIdx]->samples[0].smp[i] = 0;
+            smpRaw[smpIdx]->samples[1].smp[i] = INT16_MAX;
+        }
 
-        printf("Gold: %d Test: %d\n", coeffLut[0], smpProc.smpV[0]);
-        assert(0);
-    }
-
-    for (unsigned int i = 0; i < VCT_TOTAL; i++)
-    {
-        smpRaw->samples[0].smp[0] = 0;
-        smpRaw->samples[1].smp[0] = 0;
-    }
-    for (unsigned int idxCoeff = 0; idxCoeff < 9u; idxCoeff++)
-    {
+        ecmDataBufferSwap();
         ecmFilterSample(&smpProc);
-        assert(coeffLut[idxCoeff + 1u] == smpProc.smpV[0]);
+        if (coeffLut[0] != smpProc.smpV[0])
+        {
+            printf("\nsmpRaw[smpIdx]->samples[0]: %d\n", smpRaw[smpIdx]->samples[0].smp[0]);
+            printf("smpRaw[smpIdx]->samples[1]: %d\n", smpRaw[smpIdx]->samples[1].smp[0]);
+            printf("smpProc.smpV[0]: %d\n", smpProc.smpV[0]);
+
+            printf("Gold: %d Test: %d\n", coeffLut[0], smpProc.smpV[0]);
+            assert(0);
+        }
+
+        for (unsigned int i = 0; i < VCT_TOTAL; i++)
+        {
+            smpRaw[smpIdx]->samples[0].smp[0] = 0;
+            smpRaw[smpIdx]->samples[1].smp[0] = 0;
+        }
+        for (unsigned int idxCoeff = 0; idxCoeff < 9u; idxCoeff++)
+        {
+            ecmFilterSample(&smpProc);
+            assert(coeffLut[idxCoeff + 1u] == smpProc.smpV[0]);
+        }
+        printf("Complete\n\n");
     }
-    printf("Complete\n\n");
 
     printf("  Dynamic test...\n\n");
     while (time < TEST_TIME)
@@ -157,10 +165,11 @@ main(int argc, char *argv[])
         {
             for (int i = 0; i < VCT_TOTAL; i++)
             {
-                smpRaw->samples[j].smp[i] = generateWave(&wave[i], time, 1.0);
+                smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
                 time += SMP_TICK;
             }
         }
+        smpIdx = !smpIdx;
         ecmDataBufferSwap();
         status = ecmInjectSample();
 
@@ -190,8 +199,9 @@ main(int argc, char *argv[])
     printf("Done!\n\n");
 }
 
-q15_t generateWave(wave_t *w, int tMicros, double s)
+q15_t generateWave(wave_t *w, int tMicros)
 {
-    double a = sin(((w->omega * tMicros)/1000000.0) + w->phi) * s;
+    assert((w->s > 0.0) && (w->s <= 1.0));
+    double a = sin(((w->omega * tMicros)/1000000.0) + w->phi) * w->s;
     return (q15_t)(a * 2048);
 }

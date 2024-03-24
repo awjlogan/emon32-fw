@@ -405,7 +405,6 @@ ecmInjectSample(void)
     const unsigned int idxLast = (idxInject - 1u) & (PROC_DEPTH - 1u);
     const q15_t thisV = sampleRingBuffer[idxInject].smpV[0];
     const q15_t lastV = sampleRingBuffer[idxLast].smpV[0];
-
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
         accumCollecting->processV[idxV].sumV_sqr += (q31_t) thisV * thisV;
@@ -459,6 +458,7 @@ ecmInjectSample(void)
 
     return ECM_CYCLE_ONGOING;
 }
+
 
 RAMFUNC ECM_STATUS_t
 ecmProcessCycle(void)
@@ -527,7 +527,7 @@ ecmProcessSet(ECMDataset_t *pData)
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
         vCal = ecmCfg.voltageCal[idxV];
-        pData->rmsV[idxV] = qfp_fdiv(ecmCycle.rmsV[idxV], (float)ecmCycle.cycleCount);
+        pData->rmsV[idxV] = qfp_fdiv((float)ecmCycle.rmsV[idxV], (float)ecmCycle.cycleCount);
         pData->rmsV[idxV] = qfp_fmul(pData->rmsV[idxV], vCal);
     }
 
