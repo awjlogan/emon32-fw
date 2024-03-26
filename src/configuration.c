@@ -63,7 +63,7 @@ static unsigned int     resetReq = 0;
 
 /*! @brief Set all configuration values to defaults */
 static void
-configDefault()
+configDefault(void)
 {
     pCfg->key = CONFIG_NVM_KEY;
 
@@ -111,7 +111,7 @@ configDefault()
  *         accumulator space to.
  */
 static void
-configInitialiseNVM()
+configInitialiseNVM(void)
 {
     unsigned int eepromSize = 0;
 
@@ -131,7 +131,7 @@ configInitialiseNVM()
 
 /*! @brief Configure an analog channel. */
 static void
-configureAnalog()
+configureAnalog(void)
 {
     /* String format: k<x> <yy.y> <zz.z>
      * Find space delimiters, then convert to null and a->i/f
@@ -196,7 +196,7 @@ configureAnalog()
 
 /*! @brief Configure a pulse channel. */
 static void
-configurePulse()
+configurePulse(void)
 {
     /* String format in inBuffer:
      *      [1] -> ch;
@@ -245,7 +245,7 @@ configurePulse()
  *  @return : board revision, 0-7
  */
 static uint32_t
-getBoardRevision()
+getBoardRevision(void)
 {
     uint32_t boardRev = 0;
     boardRev |= portPinValue(GRP_REV, PIN_REV0);
@@ -259,7 +259,7 @@ getBoardRevision()
  *  @return : null-terminated string with the last cause.
  */
 static char*
-getLastReset()
+getLastReset(void)
 {
     const RCAUSE_t lastReset = (RCAUSE_t)PM->RCAUSE.reg;
     switch (lastReset)
@@ -294,7 +294,7 @@ getLastReset()
 static uint32_t
 getUniqueID(unsigned int idx)
 {
-    /* Section 9.6 Serial Number */
+    /* Section 10.3.3 Serial Number */
     const uint32_t id_addr_lut[4] = {
         0x0080A00C, 0x0080A040, 0x0080A044, 0x0080A048
     };
@@ -304,7 +304,7 @@ getUniqueID(unsigned int idx)
 
 /*! @brief Start auto calibration for CT lead */
 static void
-phaseAutoCalibrate()
+phaseAutoCalibrate(void)
 {
     unsigned int ch = utilAtoi(inBuffer + 1u, ITOA_BASE10);
 
@@ -326,7 +326,7 @@ phaseAutoCalibrate()
 
 /*! @brief Print the emon32's configuration settings */
 static void
-printSettings()
+printSettings(void)
 {
     dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
     printf_("Mains frequency (Hz)       %d\r\n",
@@ -394,7 +394,7 @@ printSettings()
 
 /*! @brief Blocking wait for a key from the serial link. */
 static char
-waitForChar()
+waitForChar(void)
 {
     /* Disable the NVIC for the interrupt if needed while waiting for the
      * character otherwise it is handled by the configuration buffer.
@@ -414,7 +414,7 @@ waitForChar()
 
 /*! @brief Zero the accumulator portion of the NVM */
 static void
-zeroAccumulators()
+zeroAccumulators(void)
 {
     char c;
     dbgPuts("> Zero accumulators. This can not be undone. 'y' to proceed.\r\n");
@@ -448,13 +448,13 @@ configCmdChar(const uint8_t c)
 
 
 void
-configFirmwareBoardInfo()
+configFirmwareBoardInfo(void)
 {
     dbgPuts("\033c==== emon32 ====\r\n\r\n");
 
     dbgPuts("> Board:\r\n");
     /* REVISIT : don't hardcode board type */
-    printf_("  - emon32-Pi2 (arch. rev. %"PRIu32")\r\n", getBoardRevision());
+    printf_("  - emonPi3 (arch. rev. %"PRIu32")\r\n", getBoardRevision());
     printf_("  - Serial:     0x%02x%02x%02x%02x\r\n",
             (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
             (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
@@ -516,7 +516,7 @@ configLoadFromNVM(Emon32Config_t *pConfig)
 
 
 void
-configProcessCmd()
+configProcessCmd(void)
 {
     unsigned int arglen = 0;
     unsigned int termFound = 0;
@@ -700,7 +700,7 @@ configProcessCmd()
 
 
 unsigned int
-configTimeToCycles(const float repTime, const unsigned int mainsFreq)
+configTimeToCycles(const float time, const unsigned int mainsFreq)
 {
-    return qfp_float2uint(qfp_fmul(repTime, qfp_uint2float(mainsFreq)));
+    return qfp_float2uint(qfp_fmul(time, qfp_uint2float(mainsFreq)));
 }

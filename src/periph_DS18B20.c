@@ -66,7 +66,7 @@ calcCRC8(const uint8_t crc, const uint8_t value)
  *            0: no devices present
  */
 static int
-oneWireFirst()
+oneWireFirst(void)
 {
     /* Reset the search state */
     lastDiscrepancy         = 0;
@@ -81,13 +81,13 @@ oneWireFirst()
  *            0: device not found, end of search
  */
 static int
-oneWireNext()
+oneWireNext(void)
 {
     return oneWireSearch();
 }
 
 static unsigned int
-oneWireReadBit()
+oneWireReadBit(void)
 {
     unsigned int result = 0;
 
@@ -123,7 +123,7 @@ oneWireReadBytes(void *pDst, const uint8_t n)
 }
 
 static unsigned int
-oneWireReset()
+oneWireReset(void)
 {
     /* t_RSTL (min) = 480 us
      * t_RSTH (min) = 480 us
@@ -157,7 +157,7 @@ oneWireReset()
 }
 
 static int
-oneWireSearch()
+oneWireSearch(void)
 {
     /* Initialise for search */
     const uint8_t   cmdSearchRom    = 0xF0u;
@@ -337,7 +337,7 @@ ds18b20InitSensors(const DS18B20_conf_t *pCfg)
 
 
 int
-ds18b20StartSample()
+ds18b20StartSample(void)
 {
     const uint8_t cmds[2] = {0xCC, 0x44};
 

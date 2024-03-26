@@ -16,17 +16,18 @@
 
 #include "eeprom.h"
 
+typedef struct Address_ {
+    unsigned int    msb;
+    unsigned int    lsb;
+} Address_t;
+
 /* Local data for interrupt driven EEPROM write */
-typedef struct {
+typedef struct wrLocal_ {
     unsigned int    addr;
     unsigned int    n_residual;
     uint8_t         *pData;
 } wrLocal_t;
 
-typedef struct {
-    unsigned int    msb;
-    unsigned int    lsb;
-} Address_t;
 
 /* FUNCTIONS */
 static Address_t    calcAddress     (const unsigned int addrFull);
@@ -34,10 +35,8 @@ static unsigned int nextValidByte   (const uint8_t currentValid);
 static void         wlFindLast      (eepromPktWL_t *pPkt);
 static int          writeBytes      (wrLocal_t *wr, unsigned int n);
 
-
 /* Local values */
 static unsigned int eepromSizeBytes = 1024;
-
 
 /* Precalculate wear limiting addresses */
 const unsigned int   blkCnt  = 14;
@@ -70,7 +69,6 @@ calcAddress (const unsigned int addrFull)
 static unsigned int
 nextValidByte(const uint8_t currentValid)
 {
-
     unsigned int validByte = currentValid;
 
     /* The valid byte is calculated to have even bit 0/1 writes. */
@@ -100,7 +98,37 @@ nextValidByte(const uint8_t currentValid)
 }
 
 
-/*! @brief Send n bytes over I2C using DMA
+/*! @brief Find the index of the last valid write to a wear levelled block
+ *  @param [in] pPkt : pointer to the packet
+ */
+static void
+wlFindLast(eepromPktWL_t *pPkt)
+{
+    /* Step through from the base address in (data) sized steps. The first
+     * byte that is different to the 0-th byte is the oldest block. If all
+     * blocks are the same, then the 0-th index is the next to be written.
+     */
+
+    unsigned int firstByte = 0;
+
+    pPkt->idxNextWrite = 0;
+    eepromRead(EEPROM_WL_OFFSET, &firstByte, 1u);
+
+    for (unsigned int idxBlk = 1u; idxBlk < blkCnt; idxBlk++)
+    {
+        unsigned int validByte;
+
+        eepromRead((EEPROM_WL_OFFSET + (idxBlk * blkSize)), &validByte, 1u);
+        if (firstByte != validByte)
+        {
+            pPkt->idxNextWrite = idxBlk;
+            break;
+        }
+    }
+}
+
+
+/*! @brief Send n bytes over I2C
  *  @param [in] wr : pointer to local address, data, and remaining bytes
  *  @param [in] n : number of bytes to send in this chunk
  */
@@ -132,40 +160,8 @@ writeBytes(wrLocal_t *wr, unsigned int n)
 }
 
 
-/*! @brief Find the index of the last valid write to a wear levelled block
- *  @param [in] pPkt : pointer to the packet
- */
-static void
-wlFindLast(eepromPktWL_t *pPkt)
-{
-    unsigned int    idxNextWr = 0;
-    unsigned int    firstByte = 0;
-
-    /* Step through from the base address in (data) sized steps. The first
-     * byte that is different to the 0-th byte is the oldest block. If all
-     * blocks are the same, then the 0-th index is the next to be written.
-     */
-    eepromRead(EEPROM_WL_OFFSET, &firstByte, 1u);
-    pPkt->idxNextWrite = 0;
-    for (unsigned int idxBlk = 1u; idxBlk < blkCnt; idxBlk++)
-    {
-        unsigned int validByte;
-
-
-        eepromRead((EEPROM_WL_OFFSET + (idxBlk * blkSize)), &validByte, 1u);
-        idxNextWr++;
-
-        if (firstByte != validByte)
-        {
-            pPkt->idxNextWrite = idxBlk;
-            break;
-        }
-    }
-}
-
-
 unsigned int
-eepromDiscoverSize()
+eepromDiscoverSize(void)
 {
     /* Read the first 16 bytes as the key value, then search on each power-of-2
      * boundary for a match. Store the found value so it only has to be done
@@ -202,8 +198,9 @@ eepromDiscoverSize()
     return index;
 }
 
+
 void
-eepromDump()
+eepromDump(void)
 {
     /* Write out EEPROM content to debug UART 16 bytes (one page) at a time.
      * Each byte is written out as hex with a space in between
@@ -215,6 +212,7 @@ eepromDump()
     {
         /* Bytes in page */
         eepromRead((i * 16), eeprom, 16);
+        printf_("%04x: ", (i * 16));
         for (unsigned int j = 0; j < 16; j++)
         {
             printf_("%02x ", eeprom[j]);
@@ -264,13 +262,13 @@ eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n)
     return 0;
 }
 
+
 void
 eepromInitConfig(const void *pSrc, const unsigned int n)
 {
     /* Write the first line and wait, then loop through until all n bytes have
      * been written.
      */
-
     const uint8_t *p = (uint8_t *)pSrc;
 
     eepromWrite(0, p, n);
@@ -309,11 +307,11 @@ eepromRead(unsigned int addr, void *pDst, unsigned int n)
         return -1;
     }
 
-    do
+    while (n--)
     {
         *pData++ = i2cDataRead(SERCOM_I2CM);
         i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_CONTINUE);
-    } while (n--);
+    }
     i2cAck(SERCOM_I2CM, I2CM_NACK, I2CM_ACK_CMD_STOP);
 
     return 0;
@@ -419,7 +417,7 @@ eepromWrite(unsigned int addr, const void *pSrc, unsigned int n)
 
 
 void
-eepromWriteCB()
+eepromWriteCB(void)
 {
     const eepromWrStatus_t wrStatus = eepromWrite(0, 0, 0);
 

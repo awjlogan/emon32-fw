@@ -232,7 +232,7 @@ emon32EventClr(const EVTSRC_t evt)
  *         should be done here (UI update, watchdog etc)
  */
 static void
-evtKiloHertz()
+evtKiloHertz(void)
 {
     static volatile uint32_t    msLast          = 0;
     uint32_t                    msDelta;
@@ -296,7 +296,7 @@ evtPending(EVTSRC_t evt)
 
 /*! @brief Turn off the PROG LED */
 static void
-ledProgOff()
+ledProgOff(void)
 {
     /* For active LOW, change from PIN_DRV_CLR to PIN_DRV_SET */
     portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_CLR);
@@ -305,7 +305,7 @@ ledProgOff()
 
 /*! @brief Turn on the PROG LED */
 static void
-ledProgOn()
+ledProgOn(void)
 {
     /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
     portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_SET);
@@ -314,7 +314,7 @@ ledProgOn()
 
 /*! @brief Turn off the STATUS LED */
 static void
-ledStatusOff()
+ledStatusOff(void)
 {
     /* For active LOW, change from PIN_DRV_CLR to PIN_DRV_SET */
     portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_CLR);
@@ -323,7 +323,7 @@ ledStatusOff()
 
 /*! @brief Turn on the STATUS LED */
 static void
-ledStatusOn()
+ledStatusOn(void)
 {
     /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
     portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
@@ -468,7 +468,7 @@ pulseConfigure(const Emon32Config_t *pCfg)
  *         These can be empty if they are not used.
  */
 static void
-ucSetup()
+ucSetup(void)
 {
     clkSetup    ();
     timerSetup  ();
@@ -483,7 +483,7 @@ ucSetup()
 
 /*! @brief Setup the SSD1306 display, if present. Display a basic message */
 static void
-ssd1306Setup()
+ssd1306Setup(void)
 {
     SSD1306_Status_t s;
     PosXY_t a = {15,0};
@@ -500,7 +500,7 @@ ssd1306Setup()
  *  @return : number of temperature sensors found
  */
 static uint32_t
-tempSetup()
+tempSetup(void)
 {
     unsigned int    numTempSensors  = 0;
     DS18B20_conf_t  dsCfg           = {0};
@@ -532,7 +532,7 @@ totalEnergy(const Emon32Dataset_t *pData)
 
 
 int
-main()
+main(void)
 {
     Emon32Config_t  e32Config               = {0};
     ECMDataset_t    ecmDataset              = {0};

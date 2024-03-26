@@ -32,12 +32,12 @@
 /* Configurable options. All the structs are packed to allow simple write to
  * EEPROM as a contiguous set.
  */
-typedef enum __attribute__ ((__packed__)) {
+typedef enum __attribute__ ((__packed__)) DataTx_ {
     DATATX_RFM69    = 0,
     DATATX_UART     = 1
 } DataTx_t;
 
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) BaseCfg_ {
     uint8_t     nodeID;         /* ID for report*/
     uint8_t     mainsFreq;      /* Mains frequency */
     float       reportTime;     /* Cycle count before reporting */
@@ -47,22 +47,22 @@ typedef struct __attribute__((__packed__)) {
     uint8_t     logToSerial;    /* Log data to serial output */
 } BaseCfg_t;
 
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
     uint8_t     period;
     uint8_t     edge;
 } PulseCfgPacked_t;
 
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) VoltageCfg_ {
    float        voltageCal;      /* Conversion to real V value */
 } VoltageCfg_t;
 
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) CTCfg_ {
     float   ctCal;          /* Conversion to real I value */
     float   phase;          /* Phase angle, recalculated to fixed point */
     uint8_t vChan;
 } CTCfg_t;
 
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) Emon32Config_ {
     uint32_t            key;
     BaseCfg_t           baseCfg;
     float               voltageAssumed;
@@ -74,7 +74,7 @@ typedef struct __attribute__((__packed__)) {
     uint16_t            crc16_ccitt;
 } Emon32Config_t;
 
-typedef struct {
+typedef struct Emon32Dataset_ {
     uint32_t        msgNum;
     ECMDataset_t    *pECM;
     uint32_t        pulseCnt[NUM_PULSECOUNT];
@@ -82,18 +82,18 @@ typedef struct {
     unsigned int    numTempSensors;
 } Emon32Dataset_t;
 
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) Emon32Cumulative_ {
     uint32_t    wattHour[NUM_CT];
     uint32_t    pulseCnt[NUM_PULSECOUNT];
 } Emon32Cumulative_t;
 
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) Emon32CumulativeSave_ {
     uint8_t             valid;  /* Valid byte for wear levelling */
     Emon32Cumulative_t  report;
     uint16_t            crc;    /* CRC16-CCITT of data */
 } Emon32CumulativeSave_t;
 
-typedef struct __attribute__((__packed__)) {
+typedef struct __attribute__((__packed__)) PackedData_ {
     uint32_t    msg;
     int16_t     V[NUM_V];
     int16_t     P[NUM_CT];
@@ -106,7 +106,7 @@ typedef struct __attribute__((__packed__)) {
 /* EVTSRC_t contains all the event/interrupts sources. This value is shifted
  * to provide a vector of set events as bits.
  */
-typedef enum {
+typedef enum EVTSRC_ {
     EVT_DMA             = 0u,
     EVT_TICK_1kHz       = 1u,
     EVT_TCC             = 2u,

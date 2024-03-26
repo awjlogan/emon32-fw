@@ -171,7 +171,7 @@ static unsigned int posBuf = 0;
 
 
 static SSD1306_Status_t
-bufUpdatePos()
+bufUpdatePos(void)
 {
     unsigned int y = posBuf >> 7;
     unsigned int x = posBuf - (y << 7);
@@ -214,14 +214,14 @@ drawChar(const char c)
 
 
 void
-ssd1306ClearBuffer()
+ssd1306ClearBuffer(void)
 {
     memset(lineBuffer, 0, LINE_MEM_SIZE);
 }
 
 
 SSD1306_Status_t
-ssd1306DisplayOff()
+ssd1306DisplayOff(void)
 {
     i2cActivate(pSercom, (SSD1306_ADDR << 1));
     i2cDataWrite(pSercom, SSD1306_COMMAND);
@@ -233,7 +233,7 @@ ssd1306DisplayOff()
 
 
 SSD1306_Status_t
-ssd1306DisplayUpdate()
+ssd1306DisplayUpdate(void)
 {
     i2cActivate(pSercom, SSD1306_ADDR<<1);
     i2cDataWrite(pSercom, SSD1306_DATA_STREAM);

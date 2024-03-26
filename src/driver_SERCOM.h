@@ -5,25 +5,25 @@
 #include "emon32_samd.h"
 #include "driver_DMAC.h"
 
-typedef enum {
+typedef enum I2CM_Status_ {
     I2CM_SUCCESS,
     I2CM_ERROR,
     I2CM_TIMEOUT
 } I2CM_Status_t;
 
-typedef enum {
+typedef enum I2CM_Ack_ {
     I2CM_ACK    = 0u,
     I2CM_NACK   = 1u
 } I2CM_Ack_t;
 
-typedef enum {
+typedef enum I2CM_AckCmd_ {
     I2CM_ACK_CMD_NONE       = 0u,
     I2CM_ACK_CMD_START      = 1u,
     I2CM_ACK_CMD_CONTINUE   = 2u,
     I2CM_ACK_CMD_STOP       = 3u
 } I2CM_AckCmd_t;
 
-typedef enum {
+typedef enum UART_BAUD_ {
     UART_BAUD_9600      = 9600,
     UART_BAUD_19200     = 19200,
     UART_BAUD_28800     = 28800,

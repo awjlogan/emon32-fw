@@ -7,7 +7,7 @@
 #include "periph_rfm69.h"
 
 /* Register definitions */
-typedef enum {
+typedef enum RFM_register_ {
     REG_FIFO            = 0x00,
     REG_OPMODE          = 0x01,
     REG_FRFMSB          = 0x07,
@@ -45,7 +45,7 @@ rfmReadReg(const RFM_register_t addr)
 static volatile unsigned int timedOut = 0;
 
 void
-setTimedOut()
+setTimedOut(void)
 {
     timedOut = 1u;
 }
@@ -68,7 +68,7 @@ crc16_update(uint16_t crc, const uint8_t d)
 }
 
 static void
-rfmSleep()
+rfmSleep(void)
 {
     uint8_t tempRecv;
 
@@ -84,7 +84,7 @@ rfmSleep()
 }
 
 RFMPkt_t *
-rfmGetHandle()
+rfmGetHandle(void)
 {
     return &rfmPkt;
 }

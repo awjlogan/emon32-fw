@@ -19,9 +19,9 @@ void configLoadFromNVM(Emon32Config_t *pConfig);
 /*! @brief Process a pending command from the UART */
 void configProcessCmd(void);
 
-/*! @brief Convert the reporting time to cycles
- *  @param [in] repTime: reporting time in seconds
+/*! @brief Convert a time into cycles
+ *  @param [in] time: time in seconds
  *  @param [in] mainsFreq: mains frequency in Hertz {50, 60}
  *  @return : number of cycles between reports
  */
-unsigned int configTimeToCycles(const float repTime, const unsigned int mainsFreq);
+unsigned int configTimeToCycles(const float time, const unsigned int mainsFreq);

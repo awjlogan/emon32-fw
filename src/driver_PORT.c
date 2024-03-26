@@ -2,7 +2,7 @@
 #include "driver_PORT.h"
 
 void
-portSetup()
+portSetup(void)
 {
     extern const uint8_t pinsGPIO_Out[][2];
     extern const uint8_t pinsGPIO_In[][2];
@@ -27,7 +27,7 @@ portSetup()
                    PIN_DRV_SET);
     }
 
-    /* Unused pins: input, pull down (Table 22-1) */
+    /* Unused pins: input, pull down (Table 23-2) */
     for (unsigned int i = 0; pinsUnused[i][0] != 0xFF; i++)
     {
         portPinDir(pinsUnused[i][0], pinsUnused[i][1], PIN_DIR_IN);

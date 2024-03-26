@@ -3,7 +3,7 @@
 
 
 void
-evsysSetup()
+evsysSetup(void)
 {
     /* Enable APB clock, connect to generator 3 (OSC8M @ F_PERIPH)
      * Each EVSYS channel has a separate GCLK channel
@@ -13,11 +13,11 @@ evsysSetup()
                         | GCLK_CLKCTRL_GEN(3u)
                         | GCLK_CLKCTRL_CLKEN;
 
-    /* Connect TC1 -> ADC (Section 23.6.2.1) - select channel N-1 */
+    /* Connect TC1 -> ADC (Section 24.6.2.1) - select channel N-1 */
     EVSYS->USER.reg =   EVSYS_USER_USER(EVSYS_ID_USER_ADC_START)
                       | EVSYS_USER_CHANNEL(1u);
 
-    /* ADC path must be async (Table 23-6)
+    /* ADC path must be async
      * NB : the channel ID in the CHANNEL register is the channel number; for
      * the USER register it is (n - 1).
      */

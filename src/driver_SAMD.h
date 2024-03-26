@@ -1,6 +1,6 @@
 #pragma once
 
-typedef enum {
+typedef enum Calibration_ {
     CAL_ADC_LINEARITY,
     CAL_ADC_BIAS,
     CAL_OSC32K,

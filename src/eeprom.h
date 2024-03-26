@@ -2,13 +2,13 @@
 
 #include <stdint.h>
 
-typedef struct {
+typedef struct eepromPktWL_ {
     int             idxNextWrite;   /* Index of next write to EEPROM */
     unsigned int    dataSize;       /* Size (bytes) of the data */
     void *          pData;          /* Pointer to the packed data */
 } eepromPktWL_t;
 
-typedef enum {
+typedef enum eepromWrStatus_ {
     EEPROM_WR_PEND,
     EEPROM_WR_BUSY,
     EEPROM_WR_COMPLETE,

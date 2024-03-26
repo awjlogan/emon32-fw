@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-typedef struct {
+typedef struct DS18B20_conf_ {
     unsigned int    grp;
     unsigned int    pin;
     unsigned int    t_wait_us;

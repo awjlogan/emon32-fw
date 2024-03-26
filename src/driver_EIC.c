@@ -5,7 +5,7 @@
 #include "driver_PORT.h"
 
 void
-eicSetup()
+eicSetup(void)
 {
     /* EIC APB clock is unmasked on reset (16.8.8).
      * Require EIC GCLK for edge detection. (21.6.2.1)
@@ -24,13 +24,13 @@ eicSetup()
 }
 
 void
-eicZeroXClr()
+eicZeroXClr(void)
 {
     EIC->INTFLAG.reg |= EIC_INTFLG_ZEROX;
 }
 
 int
-eicZeroXStat()
+eicZeroXStat(void)
 {
     return (EIC->INTFLAG.reg & EIC_INTFLG_ZEROX) ? 1 : 0;
 }

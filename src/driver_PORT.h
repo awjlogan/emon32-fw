@@ -3,17 +3,17 @@
 #include <stdint.h>
 
 /* Types */
-typedef enum {
+typedef enum PINDIR_ {
     PIN_DIR_IN,
     PIN_DIR_OUT
 } PINDIR_t;
 
-typedef enum {
+typedef enum PINCFG_ {
     PIN_CFG_SET,
     PIN_CFG_CLR
 } PINCFG_t;
 
-typedef enum {
+typedef enum PINDRV_ {
     PIN_DRV_CLR,
     PIN_DRV_SET,
     PIN_DRV_TGL

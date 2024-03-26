@@ -65,7 +65,7 @@ timerDelay_us(uint32_t delay)
 
 
 void
-timerDelayNB_NotInUse()
+timerDelayNB_NotInUse(void)
 {
     TIMER_DELAY->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
     TIMER_DELAYInUse = 0;
@@ -90,7 +90,7 @@ timerDelayNB_us(uint32_t delay, void (*cb)())
 
 
 void
-timerDisable()
+timerDisable(void)
 {
     TIMER_DELAY->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
     NVIC_DisableIRQ(TIMER_DELAY_IRQn);
@@ -98,7 +98,7 @@ timerDisable()
 
 
 int
-timerElapsedStart()
+timerElapsedStart(void)
 {
     /* Return -1 if timer is already in use */
     if (TIMER_DELAYInUse)
@@ -120,7 +120,7 @@ timerElapsedStart()
 
 
 uint32_t
-timerElapsedStop()
+timerElapsedStop(void)
 {
     /* Disable timer, and return value of COUNT */
     __disable_irq();
@@ -133,7 +133,7 @@ timerElapsedStop()
 
 
 uint32_t
-timerMicros()
+timerMicros(void)
 {
     /* Resynchronise COUNT32.COUNT, and then return the result */
     TIMER_TICK->COUNT32.READREQ.reg =   TC_READREQ_RREQ
@@ -164,7 +164,7 @@ timerMicrosDelta(const uint32_t prevMicros)
 
 
 uint32_t
-timerMillis()
+timerMillis(void)
 {
     return timeMillisCounter;
 }
@@ -189,7 +189,7 @@ timerMillisDelta(const uint32_t prevMillis)
 
 
 void
-timerSetup()
+timerSetup(void)
 {
     /* TIMER_ADC is used to trigger ADC sampling at constant rate. Enable APB
      * clock, run from generator 3 (OSC8M @ F_PERIPH).
@@ -212,7 +212,7 @@ timerSetup()
     TIMER_ADC->COUNT16.EVCTRL.reg |= TC_EVCTRL_MCEO0;
 
     /* TIMER_ADC is running at 1 MHz, each tick is 1 us
-     * PER, COUNT, and Enable require synchronisation (28.6.6)
+     * PER, COUNT, and Enable require synchronisation (30.6.6)
      */
     const unsigned int cntPer = F_TIMER_ADC / SAMPLE_RATE / (VCT_TOTAL);
     TIMER_ADC->COUNT16.CC[0].reg = (uint16_t)cntPer;
@@ -265,14 +265,14 @@ timerSetup()
 
 
 uint32_t
-timerUptime()
+timerUptime(void)
 {
     return timeSecondsCounter;
 }
 
 
 void
-timerUptimeIncr()
+timerUptimeIncr(void)
 {
     timeSecondsCounter++;
 }
@@ -281,7 +281,7 @@ timerUptimeIncr()
 /*! @brief On delay timer (TIMER_DELAY) expiration, call the callback function
  */
 void
-IRQ_TIMER_DELAY()
+IRQ_TIMER_DELAY(void)
 {
     if (0 != tc2_cb)
     {
@@ -293,7 +293,7 @@ IRQ_TIMER_DELAY()
  *         and handle any immediate priority actions.
  */
 void
-IRQ_TIMER_TICK()
+IRQ_TIMER_TICK(void)
 {
     if (TIMER_TICK->COUNT32.INTFLAG.reg & TC_INTFLAG_MC0)
     {

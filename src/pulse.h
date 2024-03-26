@@ -1,12 +1,12 @@
 #pragma once
 
-typedef enum {
+typedef enum PulseEdge_ {
     PULSE_EDGE_RISING   = 0,
     PULSE_EDGE_FALLING  = 1,
     PULSE_EDGE_BOTH     = 2
 } PulseEdge_t;
 
-typedef struct {
+typedef struct PulseCfg_ {
     PulseEdge_t     edge;
     unsigned int    grp;
     unsigned int    pin;

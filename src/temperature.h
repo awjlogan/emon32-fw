@@ -4,7 +4,7 @@
 
 #define TEMP_CONVERSION_T   750 /* Minimum temperature sample time */
 
-typedef enum {
+typedef enum TEMP_INTF_ {
     TEMP_INTF_ONEWIRE,
     TEMP_INTF_I2C
 } TEMP_INTF_t;

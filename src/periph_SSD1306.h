@@ -3,12 +3,12 @@
 #include "emon32_samd.h"
 
 
-typedef enum {
+typedef enum SSD1306_Status_ {
     SSD1306_SUCCESS,
     SSD1306_FAIL
 } SSD1306_Status_t;
 
-typedef struct _posXY {
+typedef struct PosXY_ {
     unsigned int x;
     unsigned int y;
 } PosXY_t;

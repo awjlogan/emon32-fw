@@ -1,12 +1,12 @@
 #pragma once
 
-typedef enum {
+typedef enum RFM_Freq_ {
     RF12_868MHz,
     RF12_915MHz,
     RF12_433MHz
 } RFM_Freq_t;
 
-typedef struct _RFMPkt {
+typedef struct RFMPkt_ {
     void            *data;
     unsigned int    n;
     unsigned int    node;

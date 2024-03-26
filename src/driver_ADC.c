@@ -17,7 +17,7 @@ static void adcConfigureDMAC(void);
  *         available when using SAMD21 with sufficient ADC pins.
  */
 static void
-adcCalibrate()
+adcCalibrate(void)
 {
     /* Expected ADC values for 1/4 and 3/4 scale */
     /* REVISIT for 0.1 onwards, this is correct. The dev board is 1/3, 2/3
@@ -99,7 +99,7 @@ adcCalibrate()
  *         available when using SAMD21 with sufficient ADC pins.
  */
 static void
-adcConfigureDMAC()
+adcConfigureDMAC(void)
 {
     DMACCfgCh_t             dmacConfig;
     volatile DmacDescriptor *dmacDesc[2];
@@ -144,7 +144,7 @@ adcConfigureDMAC()
 
 
 void
-adcDMACStart()
+adcDMACStart(void)
 {
     dmacChannelEnable(DMA_CHAN_ADC0);
 
@@ -158,14 +158,14 @@ adcDMACStart()
 
 
 void
-adcDMACStop()
+adcDMACStop(void)
 {
     dmacChannelDisable(DMA_CHAN_ADC0);
 }
 
 
 void
-adcSetup()
+adcSetup(void)
 {
     extern uint8_t          pinsADC[][2];
 
@@ -196,7 +196,7 @@ adcSetup()
     adcCalibrate();
 
     /* Differential mode, /4 prescale of F_PERIPH, right aligned, enable
-     * averaging. Requires synchronisation after write (30.6.13)
+     * averaging. Requires synchronisation after write (33.6.15)
      */
     ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV4
                      | ADC_CTRLB_DIFFMODE
@@ -212,7 +212,7 @@ adcSetup()
     /* REVISIT : Oversampling to increase effective resolution */
     ADC->AVGCTRL.reg = 0;
 
-    /* Input control - requires synchronisation (30.6.13) */
+    /* Input control - requires synchronisation (33.6.15) */
     ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXPOS_PIN2
                          | ADC_INPUTCTRL_MUXNEG_PIN0
                          /* INPUTSCAN is number of channels - 1 */

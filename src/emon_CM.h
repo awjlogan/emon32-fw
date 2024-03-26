@@ -25,7 +25,7 @@ typedef int16_t     q15_t;
 typedef int32_t     q31_t;
 
 /* SingleSampleSet_t contains a single set of V + CT ADC samples */
-typedef struct __attribute__((__packed__)) SingleSampleSet {
+typedef struct __attribute__((__packed__)) SingleSampleSet_ {
     q15_t smp[VCT_TOTAL];
 } SingleRawSampleSet_t;
 
@@ -33,7 +33,7 @@ typedef struct __attribute__((__packed__)) SingleSampleSet {
  * DMAC to blit samples across multiple sample sets, depending on processing
  * needs.
  */
-typedef struct __attribute__((__packed__)) SampleSetPacked {
+typedef struct __attribute__((__packed__)) SampleSetPacked_ {
     SingleRawSampleSet_t samples[SAMPLES_IN_SET];
 } RawSampleSetPacked_t;
 
@@ -42,12 +42,12 @@ typedef struct RawSampleSetUnpacked {
 } RawSampleSetUnpacked_t;
 
 /* SampleSet_t contains an unpacked set of single sample sets */
-typedef struct SampleSet {
+typedef struct SampleSet_ {
     q15_t smpV[NUM_V];
     q15_t smpCT[NUM_CT];
 } SampleSet_t;
 
-typedef struct {
+typedef struct CTCfgUnpacked_ {
     q15_t           phaseX;
     q15_t           phaseY;
     float           ctCal;
@@ -55,7 +55,7 @@ typedef struct {
     unsigned int    vChan;
 } CTCfgUnpacked_t;
 
-typedef struct {
+typedef struct ECMCfg_ {
     unsigned int    downsample;             /* DSP enabled */
     int             (*zx_hw_stat)(void);    /* HW zero crossing status function */
     void            (*zx_hw_clr)(void);     /* HW zero crossing clear function */
@@ -64,53 +64,53 @@ typedef struct {
     float           voltageCal[NUM_V];      /* Voltage calibration */
 } ECMCfg_t;
 
-typedef enum {
+typedef enum Polarity_ {
     POL_POS,
     POL_NEG
 } Polarity_t;
 
-typedef struct {
+typedef struct VAccumulator_ {
     uint32_t    sumV_sqr;
     int32_t     sumV_deltas;
 } VAccumulator_t;
 
-typedef struct {
+typedef struct CTAccumulator_ {
     uint32_t    sumPA;
     uint32_t    sumPB;
     uint32_t    sumI_sqr;
     int32_t     sumI_deltas;
 } CTAccumulator_t;
 
-typedef struct {
+typedef struct Accumulator_ {
     VAccumulator_t  processV[NUM_V];
     CTAccumulator_t processCT[NUM_CT];
     unsigned int    numSamples;
 } Accumulator_t;
 
 /* This struct matches emonLibCM's calculations */
-typedef struct {
+typedef struct CycleCT_ {
     int32_t powerNow;           /* Summed power in cycles */
     int32_t rmsCT;              /* Accumulated I_RMS */
 } CycleCT_t;
 
-typedef struct {
+typedef struct ECMCycle_ {
     uint32_t    cycleCount;
     int32_t     rmsV[NUM_V];    /* Accumulated V_RMS */
     CycleCT_t   valCT[NUM_CT];  /* Combined CT values */
 } ECMCycle_t;
 
-typedef struct {
+typedef struct DataCT_ {
     float       realPower;
     uint32_t    wattHour;
     float       residualEnergy; /* Energy held over to next set */
 } DataCT_t;
 
-typedef struct {
+typedef struct ECMDataset_ {
     float       rmsV[NUM_V];
     DataCT_t    CT[NUM_CT];
 } ECMDataset_t;
 
-typedef struct {
+typedef struct PhaseXY_ {
     q15_t phaseX;
     q15_t phaseY;
 } PhaseXY_t;

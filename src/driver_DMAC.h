@@ -2,7 +2,7 @@
 
 #include "emon32_samd.h"
 
-typedef struct {
+typedef struct DMACCfgCh {
     uint32_t    ctrlb;
 } DMACCfgCh_t;
 

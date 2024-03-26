@@ -3,7 +3,7 @@
 #include "emon32.h"
 #include "pulse.h"
 
-typedef enum {
+typedef enum PulseLvl_ {
     PULSE_LVL_HIGH,
     PULSE_LVL_LOW
 } PulseLvl_t;
@@ -53,7 +53,7 @@ pulseGetCount(const unsigned int index)
 }
 
 void
-pulseUpdate()
+pulseUpdate(void)
 {
     unsigned int mask;
     PulseLvl_t   level;

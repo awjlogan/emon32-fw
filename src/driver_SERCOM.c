@@ -19,7 +19,7 @@ i2cmCommon(Sercom *pSercom)
 {
     /* For 400 kHz I2C, SCL T_high >= 0.6 us, T_low >= 1.3 us, with
      * (T_high + T_low) <= 2.5 us, and T_low / T_high ~ 1.8.
-     * From I2C->Clock generation (27.6.2.4):
+     * From I2C->Clock generation (28.6.2.4.1):
      * BAUD.BAUDLOW = (T_low * f_clk) - 5 (1.625 us -> 8 @ 8 MHz)
      * BAUD.BAUD = (T_high * f_clk) - 5 (0.875 us -> 2 @ 8 MHz)
      */
@@ -33,7 +33,7 @@ i2cmCommon(Sercom *pSercom)
     pSercom->I2CM.CTRLA.reg |= SERCOM_I2CM_CTRLA_ENABLE;
     while (pSercom->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP);
 
-    /* After enabling the I2C SERCOM, the bus state is UNKNOWN (Table 27.13)
+    /* After enabling the I2C SERCOM, the bus state is UNKNOWN (Table 28-13)
      * Force into IDLE state, with sync
      */
     pSercom->I2CM.STATUS.reg |= SERCOM_I2CM_STATUS_BUSSTATE(0x1u);
@@ -46,7 +46,7 @@ i2cmCommon(Sercom *pSercom)
 
 
 void
-sercomSetup()
+sercomSetup(void)
 {
     /*****************
     * Debug UART setup
@@ -165,7 +165,7 @@ sercomSetupUART(const UART_Cfg_t *pCfg)
 
     pCfg->sercom->USART.BAUD.reg = baud;
 
-    /* Enable requires synchronisation (25.6.6) */
+    /* Enable requires synchronisation (26.6.6) */
     pCfg->sercom->USART.CTRLA.reg |= SERCOM_USART_CTRLA_ENABLE;
     while (pCfg->sercom->USART.STATUS.reg & SERCOM_USART_SYNCBUSY_ENABLE);
 
@@ -175,7 +175,7 @@ sercomSetupUART(const UART_Cfg_t *pCfg)
 
 
 void
-sercomSetupSPI()
+sercomSetupSPI(void)
 {
     /**********************
     * SPI Setup (for RFM69)
@@ -184,7 +184,7 @@ sercomSetupSPI()
     portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI, PMUX_SPI_DATA);
     portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK, PMUX_SPI_DATA);
 
-    /* Table 24-2 - driven @ F_REF = F_PERIPH */
+    /* Table 27-2 - driven @ F_REF = F_PERIPH */
     const uint32_t baud_data    = SPI_DATA_BAUD;
     const uint32_t br_data      = ((uint32_t)F_PERIPH / (2 * baud_data) - 1u);
 
@@ -201,7 +201,7 @@ sercomSetupSPI()
 
     /* While disabled, RXEN will be set immediately. When the SPI SERCOM is
      * enabled, this requires synchronisation before the SPI is ready. See
-     * field description in 26.8.2
+     * field description in 27.8.2
      */
     SERCOM_SPI_DATA->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_RXEN;
     SERCOM_SPI_DATA->SPI.CTRLA.reg |= SERCOM_SPI_CTRLA_ENABLE;
@@ -231,7 +231,7 @@ uartPutsBlocking(Sercom *sercom, const char *s)
 
 
 void
-uartConfigureDMA()
+uartConfigureDMA(void)
 {
     volatile DmacDescriptor * dmacDesc = dmacGetDescriptor(DMA_CHAN_UART_DBG);
     dmacDesc->BTCTRL.reg =   DMAC_BTCTRL_VALID

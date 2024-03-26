@@ -2,7 +2,7 @@
 
 #include <stdint.h>
 
-typedef enum {
+typedef enum WDT_PER_ {
     WDT_PER_8   = 0x0u,
     WDT_PER_16  = 0x1u,
     WDT_PER_32  = 0x2u,

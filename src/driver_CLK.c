@@ -2,7 +2,7 @@
 #include "driver_SAMD.h"
 
 void
-clkSetup()
+clkSetup(void)
 {
     /* Set up brown out detector to catch:
      *   - Brown in at startup before setting waiting states @ 48 MHz
@@ -51,8 +51,9 @@ clkSetup()
                           | SYSCTRL_OSC32K_EN32K
                           | SYSCTRL_OSC32K_ENABLE;
     while (0 == (SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_OSC32KRDY));
-    /* Reset clock system; 32K sources are not affected (Section 13.7)
-     * CTRL.SWRST and STATUS.SYNCBUSY will be cleared simultaneously (Section 14.8.1)
+
+    /* Reset clock system; 32K sources are not affected (Section 14.7)
+     * CTRL.SWRST and STATUS.SYNCBUSY will be cleared simultaneously (Section 15.8.1)
      */
     GCLK->CTRL.reg = GCLK_CTRL_SWRST;
     while ((GCLK->CTRL.reg & GCLK_CTRL_SWRST) && (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY));
@@ -69,7 +70,7 @@ clkSetup()
                         | GCLK_CLKCTRL_CLKEN;
     while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
 
-    /* 4. Enable DFLL48M in closed loop mode (Section 16.6.7.1) */
+    /* 4. Enable DFLL48M in closed loop mode (Section 17.6.7.1) */
     /* ERRATA 9905: DFLL48 must be requested before configuration */
     SYSCTRL->DFLLCTRL.reg = SYSCTRL_DFLLCTRL_ENABLE;
     while (0 == (SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_DFLLRDY));
@@ -108,7 +109,6 @@ clkSetup()
                         | GCLK_GENCTRL_IDC
                         | GCLK_GENCTRL_GENEN;
     while (GCLK->STATUS.reg & GCLK_STATUS_SYNCBUSY);
-
 
     /* OSC8M -> 8 MHz, connect to generator 3 */
     SYSCTRL->OSC8M.bit.PRESC = SYSCTRL_OSC8M_PRESC_0_Val;

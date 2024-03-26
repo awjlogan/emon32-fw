@@ -6,7 +6,7 @@
 #include "emon_CM.h"
 
 
-void irqHandlerADCCommon();
+void irqHandlerADCCommon(void);
 
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
@@ -15,9 +15,9 @@ static          DmacDescriptor dmacs_wb[NUM_CHAN_DMA];
 /* Useful ref: https://aykevl.nl/2019/09/samd21-dma */
 
 void
-dmacSetup()
+dmacSetup(void)
 {
-    /* Clocking - AHB and APB are both enabled at reset (15.8.8, 15.8.10) */
+    /* Clocking - AHB and APB are both enabled at reset (16.8.8, 16.8.10) */
     DMAC->BASEADDR.reg  = (uint32_t)dmacs;
     DMAC->WRBADDR.reg   = (uint32_t)dmacs_wb;
     DMAC->CTRL.reg      =   DMAC_CTRL_DMAENABLE
@@ -118,7 +118,7 @@ dmacChannelBusy(unsigned int ch)
 
 
 void
-irqHandlerADCCommon()
+irqHandlerADCCommon(void)
 {
     ECM_STATUS_t injectStatus;
     ecmDataBufferSwap();
@@ -131,7 +131,7 @@ irqHandlerADCCommon()
 
 
 void
-irq_handler_dmac()
+irq_handler_dmac(void)
 {
     /* Check which channel has triggered the interrupt, set the event, and
      * clear the interrupt source

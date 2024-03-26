@@ -19,7 +19,7 @@
 
 
 /* "Fat" string with current length and buffer size. */
-typedef struct {
+typedef struct StrN {
     char            *str;   /* Pointer to the string */
     unsigned int    n;      /* Length of the string  */
     unsigned int    m;      /* Buffer length */

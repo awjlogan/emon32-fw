@@ -14,15 +14,15 @@ wdtSetup(WDT_PER_t per)
 
     WDT->CONFIG.reg |= per;
 
-    /* Enable and synchronise (17.6.5) */
+    /* Enable and synchronise (18.6.5) */
     WDT->CTRL.reg |= WDT_CTRL_ENABLE;
     while (WDT->STATUS.reg & WDT_STATUS_SYNCBUSY);
 }
 
 void
-wdtFeed()
+wdtFeed(void)
 {
-    /* Write key (17.6.2.4) and synchronise (17.6.5) */
+    /* Write key (18.6.2.4) and synchronise (18.6.5) */
     WDT->CLEAR.reg = WDT_CLEAR_CLEAR_KEY;
     while (WDT->STATUS.reg & WDT_STATUS_SYNCBUSY);
 }
