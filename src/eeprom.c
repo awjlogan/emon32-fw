@@ -1,13 +1,14 @@
 #include <string.h>
 
 #ifndef HOSTED
+
 #include "emon32_samd.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
 #include "emon32.h"
-#include "util.h"
 
 #include "printf.h"
+
 #else
 
 #include "test_eeprom.h"
@@ -30,12 +31,15 @@ typedef struct wrLocal_ {
 
 
 /* FUNCTIONS */
-static Address_t    calcAddress     (const unsigned int addrFull);
-static unsigned int nextValidByte   (const uint8_t currentValid);
-static void         wlFindLast      (eepromPktWL_t *pPkt);
-static int          writeBytes      (wrLocal_t *wr, unsigned int n);
+static Address_t        calcAddress     (const unsigned int addrFull);
+static unsigned int     nextValidByte   (const uint8_t currentValid);
+static void             wlFindLast      (eepromPktWL_t *pPkt);
+static I2CM_Status_t    writeBytes      (wrLocal_t *wr, unsigned int n);
 
 /* Local values */
+/* REVISIT Discover this at run time, loop round until the address overflows
+ * and reads the KEY value again.
+ */
 static unsigned int eepromSizeBytes = 1024;
 
 /* Precalculate wear limiting addresses */
@@ -131,8 +135,9 @@ wlFindLast(eepromPktWL_t *pPkt)
 /*! @brief Send n bytes over I2C
  *  @param [in] wr : pointer to local address, data, and remaining bytes
  *  @param [in] n : number of bytes to send in this chunk
+ *  @return : status from the write
  */
-static int
+static I2CM_Status_t
 writeBytes(wrLocal_t *wr, unsigned int n)
 {
     I2CM_Status_t   i2cm_s;
@@ -146,17 +151,17 @@ writeBytes(wrLocal_t *wr, unsigned int n)
     i2cm_s = i2cActivate (SERCOM_I2CM, address.msb);
     if (I2CM_SUCCESS != i2cm_s)
     {
-        return -1;
+        return i2cm_s;
     }
-    i2cDataWrite(SERCOM_I2CM, address.lsb);
 
+    i2cDataWrite(SERCOM_I2CM, address.lsb);
     while (n--)
     {
         i2cDataWrite(SERCOM_I2CM, *wr->pData++);
     }
     i2cAck(SERCOM_I2CM, I2CM_ACK, I2CM_ACK_CMD_STOP);
 
-    return 0;
+    return i2cm_s;
 }
 
 
@@ -220,6 +225,7 @@ eepromDump(void)
         printf_("\r\n");
     }
 }
+
 
 int
 eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n)
@@ -416,23 +422,10 @@ eepromWrite(unsigned int addr, const void *pSrc, unsigned int n)
 }
 
 
-void
-eepromWriteCB(void)
+eepromWrStatus_t
+eepromWriteContinue(void)
 {
-    const eepromWrStatus_t wrStatus = eepromWrite(0, 0, 0);
-
-    /* If not complete, start next write slot, retry if the timer is busy.
-     * When complete, free the timer.
-     */
-    if (EEPROM_WR_COMPLETE != wrStatus)
-    {
-        while(-1 == timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB));
-    }
-    else
-    {
-        /* Disable timer and return mutex to the peripheral */
-        timerDelayNB_NotInUse();
-    }
+    return eepromWrite(0, 0, 0);
 }
 
 

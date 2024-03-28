@@ -127,7 +127,8 @@ typedef enum EVTSRC_ {
     EVT_CONFIG_SAVED    = 17u,
     EVT_SAFE_RESET_REQ  = 18u,
     EVT_PROCESS_CMD     = 19u,
-    EVT_PROCESS_DATASET = 20u
+    EVT_PROCESS_DATASET = 20u,
+    EVT_EEPROM_STORE    = 21u
 } EVTSRC_t;
 
 

@@ -69,9 +69,9 @@ void eepromSetup(const unsigned int wlOffset);
  */
 eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc, unsigned int n);
 
-/*! @brief Callback function for allow async write to EEPROM from timer
+/*! @brief Continue a multi page write to EEPROM
  */
-void eepromWriteCB(void);
+eepromWrStatus_t eepromWriteContinue(void);
 
 /*! @brief Save data to EEPROM with wear leveling.
  *  @param [in] pPktWr : pointer to write packet

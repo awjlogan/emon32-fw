@@ -8,7 +8,8 @@
 typedef enum I2CM_Status_ {
     I2CM_SUCCESS,
     I2CM_ERROR,
-    I2CM_TIMEOUT
+    I2CM_TIMEOUT,
+    I2CM_NOACK
 } I2CM_Status_t;
 
 typedef enum I2CM_Ack_ {

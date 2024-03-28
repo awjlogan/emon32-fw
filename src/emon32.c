@@ -372,8 +372,6 @@ nvmCumulativeLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
 static void
 nvmCumulativeStore(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
 {
-    int timerStatus;
-
     Emon32CumulativeSave_t data;
     pPkt->pData = &data;
 
@@ -390,14 +388,8 @@ nvmCumulativeStore(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
 
     data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Cumulative_t));
 
-    eepromWriteWL(pPkt);
-    /* If the timer is in use, then add a pending event to finish the EEPROM
-     * save if required */
-    timerStatus = timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB);
-    if (-1 == timerStatus)
-    {
-        emon32EventSet(EVT_EEPROM_TMR);
-    }
+    (void)eepromWriteWL(pPkt);
+    emon32EventSet(EVT_EEPROM_STORE);
 }
 
 
@@ -416,8 +408,8 @@ processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsig
     /* Store cumulative values if over threshold */
     latestWh = totalEnergy(pData);
 
-    /* Catch overflow of energy. This corresponds to ~4 MWh(!), so
-     * unlikely to happen, but handle safely.
+    /* Catch overflow of energy. This corresponds to ~4 MWh(!), so unlikely to
+     * but handle safely.
      */
     energyOverflow = (latestWh < lastStoredWh);
     if (energyOverflow)
@@ -547,6 +539,7 @@ main(void)
     int16_t         tempValue               = 0;
     unsigned int    reportCycles            = 0;
     unsigned int    timeSinceTrigger        = 0;
+    eepromWrStatus_t eepromWrStatus         = EEPROM_WR_PEND;
 
     ucSetup     ();
     ledStatusOn ();
@@ -588,7 +581,7 @@ main(void)
     ecmConfigure    (&e32Config, reportCycles);
     ecmFlush        ();
     adcDMACStart    ();
-    dbgPuts("> Start monitoring...\r\n");
+    dbgPuts         ("> Start monitoring...\r\n");
 
     for (;;)
     {
@@ -734,12 +727,12 @@ main(void)
                 emon32EventClr      (EVT_ECM_SET_CMPL);
             }
 
-            /* If timer for EEPROM was not available, then retry until it is free */
-            if (evtPending(EVT_EEPROM_TMR))
+            if (evtPending(EVT_EEPROM_STORE))
             {
-                if (0 == timerDelayNB_us(EEPROM_WR_TIME, &eepromWriteCB))
+                eepromWrStatus = eepromWriteContinue();
+                if (EEPROM_WR_COMPLETE == eepromWrStatus)
                 {
-                    emon32EventClr(EVT_EEPROM_TMR);
+                    emon32EventClr(EVT_EEPROM_STORE);
                 }
             }
 

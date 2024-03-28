@@ -303,6 +303,7 @@ i2cActivate(Sercom *sercom, uint8_t addr)
 {
     unsigned int t = timerMicros();
     I2CM_Status_t s = I2CM_SUCCESS;
+
     sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
 
     while (!(sercom->I2CM.INTFLAG.reg & (SERCOM_I2CM_INTFLAG_MB | SERCOM_I2CM_INTFLAG_SB)))
@@ -313,6 +314,15 @@ i2cActivate(Sercom *sercom, uint8_t addr)
             break;
         }
     }
+
+    /* Check for NoAck response from client (28.6.2.4.2) */
+    if (sercom->I2CM.STATUS.reg & SERCOM_I2CM_STATUS_RXNACK)
+    {
+        s = I2CM_NOACK;
+    }
+    sercom->I2CM.INTFLAG.reg |=   SERCOM_I2CM_INTFLAG_MB
+                                | SERCOM_I2CM_INTFLAG_SB;
+
     return s;
 }
 
