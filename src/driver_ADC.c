@@ -79,14 +79,16 @@ adcCalibrate(void)
      * GAINCORR is 1 unsigned bit + 11 fractional bits (33.8.17 Gain Correction)
      *  : 1/2 < GAINCORR < 2.
      */
-    gain_fp = qfp_fdiv  ((float)(normalQuarter - normalThreeQuarter),
-                         (float)(actualQuarter - actualThreeQuarter));
+    gain_fp = qfp_fdiv  (qfp_int2float((normalQuarter - normalThreeQuarter)),
+                         qfp_int2float((actualQuarter - actualThreeQuarter)));
     gain = qfp_float2fix(gain_fp, 11);
 
     offset_inter[0] = (int)qfp_fadd(0.5f,
-                                    qfp_fdiv((float)normalQuarter, gain_fp)) - actualQuarter;
+                                    qfp_fdiv(qfp_int2float(normalQuarter),
+                                             gain_fp)) - actualQuarter;
     offset_inter[1] = (int)qfp_fadd(0.5f,
-                                    qfp_fdiv((float)normalThreeQuarter, gain_fp)) - actualThreeQuarter;
+                                    qfp_fdiv(qfp_int2float(normalThreeQuarter),
+                                             gain_fp)) - actualThreeQuarter;
     offset = (offset_inter[0] + offset_inter[1]) / 2;
 
     /* Registers are 12 bit, shift 16 bit intermediate offset 4 */

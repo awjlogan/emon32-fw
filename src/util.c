@@ -2,6 +2,8 @@
 
 #include "util.h"
 
+#include "qfplib-m0-full.h"
+
 void
 utilStrReverse(char *pBuf, unsigned int len)
 {
@@ -209,7 +211,7 @@ utilAtof(char *pBuf)
         /* Allow period/comma delimit, divide down if found */
         if ('.' != c && ',' != c)
         {
-            const float toAdd = (float)(c - '0') * mulCnt;
+            const float toAdd = qfp_uint2float((c - '0') * mulCnt);
             val += toAdd;
             mulCnt *= 10;
         }

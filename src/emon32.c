@@ -695,6 +695,10 @@ main(void)
 
                 pktLength = dataPackageESP_n(&dataset, txBuffer, TX_BUFFER_W);
 
+                /* REVISIT can find the maximum required TX_BUFFER_W from
+                 * the parameters. Should never hit this condition, perhaps
+                 * change to assert. int32: 10 digits
+                 */
                 if (pktLength >= TX_BUFFER_W)
                 {
                     dbgPuts("> TX buffer overflowed!\r\n");

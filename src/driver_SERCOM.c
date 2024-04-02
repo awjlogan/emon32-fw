@@ -306,6 +306,7 @@ i2cActivate(Sercom *sercom, uint8_t addr)
 
     sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
 
+    /* MB: master on bus, SB: slave on bus */
     while (!(sercom->I2CM.INTFLAG.reg & (SERCOM_I2CM_INTFLAG_MB | SERCOM_I2CM_INTFLAG_SB)))
     {
         if (timerMicrosDelta(t) > I2CM_ACTIVATE_TIMEOUT_US)
@@ -320,6 +321,8 @@ i2cActivate(Sercom *sercom, uint8_t addr)
     {
         s = I2CM_NOACK;
     }
+
+    /* Clear interrupt flags */
     sercom->I2CM.INTFLAG.reg |=   SERCOM_I2CM_INTFLAG_MB
                                 | SERCOM_I2CM_INTFLAG_SB;
 
