@@ -154,10 +154,10 @@ utilFtoa(char *pBuf, float val)
     if (val < 0.0)
     {
         isNegative = 1u;
-        val = -val;
+        val = qfp_fmul(val, -1.0f);
     }
-    decimals = (int)(val * 100) % 100;
-    units = (int)val;
+    decimals = qfp_float2int(qfp_fmul(val, 100.0f)) % 100;
+    units = qfp_float2int(val);
 
     charCnt += 3u;
     *pBuf++ = (decimals % 10) + '0';
@@ -212,7 +212,7 @@ utilAtof(char *pBuf)
         if ('.' != c && ',' != c)
         {
             const float toAdd = qfp_uint2float((c - '0') * mulCnt);
-            val += toAdd;
+            val = qfp_fadd(val, toAdd);
             mulCnt *= 10;
         }
         else
@@ -223,12 +223,12 @@ utilAtof(char *pBuf)
 
     if (0 != fraction)
     {
-        val = val / fraction;
+        val = qfp_fdiv(val, qfp_uint2float(fraction));
     }
 
     if (isNegative)
     {
-        val = -val;
+        val = qfp_fmul(val, -1.0f);
     }
     return val;
 }

@@ -232,6 +232,7 @@ typedef unsigned int printf_size_t;
 
 #if (PRINTF_SUPPORT_DECIMAL_SPECIFIERS || PRINTF_SUPPORT_EXPONENTIAL_SPECIFIERS)
 #include <float.h>
+#include "qfplib-m0-full.h"
 #if FLT_RADIX != 2
 #error "Non-binary-radix floating-point types are unsupported."
 #endif
@@ -581,17 +582,21 @@ static struct double_components get_components(double number, printf_size_t prec
 {
   struct double_components number_;
   number_.is_negative = get_sign_bit(number);
-  double abs_number = (number_.is_negative) ? -number : number;
-  number_.integral = (int_fast64_t)abs_number;
-  double remainder = (abs_number - (double) number_.integral) * powers_of_10[precision];
-  number_.fractional = (int_fast64_t)remainder;
+  double abs_number =  (number_.is_negative)
+                     ? qfp_dmul(number, -1.0)
+                     : number;
+  number_.integral = qfp_double2int64(abs_number);
 
-  remainder -= (double) number_.fractional;
+  double remainder = qfp_dsub(abs_number, qfp_int642double(number_.integral));
+  remainder = qfp_dmul(remainder, powers_of_10[precision]);
+  number_.fractional = qfp_double2int64(remainder);
+
+  remainder = qfp_dsub(remainder, qfp_int642double(number_.fractional));
 
   if (remainder > 0.5) {
     ++number_.fractional;
     // handle rollover, e.g. case 0.99 with precision 1 is 1.0
-    if ((double) number_.fractional >= powers_of_10[precision]) {
+    if (qfp_int642double(number_.fractional) >= powers_of_10[precision]) {
       number_.fractional = 0;
       ++number_.integral;
     }
@@ -602,7 +607,7 @@ static struct double_components get_components(double number, printf_size_t prec
   }
 
   if (precision == 0U) {
-    remainder = abs_number - (double) number_.integral;
+    remainder = qfp_dsub(abs_number, qfp_int642double(number_.integral));
     if ((!(remainder < 0.5) || (remainder > 0.5)) && (number_.integral & 1)) {
       // exactly 0.5 and ODD, then round up
       // 1.5 -> 2, but 2.5 -> 2

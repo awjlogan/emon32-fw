@@ -83,12 +83,12 @@ adcCalibrate(void)
                          qfp_int2float((actualQuarter - actualThreeQuarter)));
     gain = qfp_float2fix(gain_fp, 11);
 
-    offset_inter[0] = (int)qfp_fadd(0.5f,
-                                    qfp_fdiv(qfp_int2float(normalQuarter),
-                                             gain_fp)) - actualQuarter;
-    offset_inter[1] = (int)qfp_fadd(0.5f,
-                                    qfp_fdiv(qfp_int2float(normalThreeQuarter),
-                                             gain_fp)) - actualThreeQuarter;
+    offset_inter[0] =  qfp_float2int(qfp_fadd(0.5f,
+                                     qfp_fdiv(qfp_int2float(normalQuarter),
+                                              gain_fp))) - actualQuarter;
+    offset_inter[1] =  qfp_float2int(qfp_fadd(0.5f,
+                                     qfp_fdiv(qfp_int2float(normalThreeQuarter),
+                                             gain_fp))) - actualThreeQuarter;
     offset = (offset_inter[0] + offset_inter[1]) / 2;
 
     /* Registers are 12 bit, shift 16 bit intermediate offset 4 */
