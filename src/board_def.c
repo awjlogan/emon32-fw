@@ -9,7 +9,9 @@
 const uint8_t pinsGPIO_Out[][2] = {
     {GRP_PINB,      PIN_LED_STATUS},
     {GRP_PINA,      PIN_LED_PROG},
-    {0xFF,      0}
+    {GRP_PINB,      PIN_LED_USER0},
+    {GRP_PINB,      PIN_LED_USER1},
+    {0xFF,          0}
 };
 
 const uint8_t pinsGPIO_In[][2] = {
@@ -25,7 +27,6 @@ const uint8_t pinsGPIO_In[][2] = {
 const uint8_t pinsUnused[][2] = {
     {GRP_PINA,  0},
     {GRP_PINA,  1},
-    {GRP_PINA,  19},
     {0xFF,      0}
 };
 
@@ -50,5 +51,5 @@ const uint8_t pinsADC[][2] = {
     {GRP_ADC_AIN,       PIN_ADC_AIN},
     {GRP_ADC_VCAL_H,    PIN_ADC_VCAL_H},
     {GRP_ADC_VCAL_L,    PIN_ADC_VCAL_L},
-    {0xFF,      0}
+    {0xFF,              0}
 };

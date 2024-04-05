@@ -299,7 +299,7 @@ static void
 ledProgOff(void)
 {
     /* For active LOW, change from PIN_DRV_CLR to PIN_DRV_SET */
-    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_CLR);
+    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_SET);
 }
 
 
@@ -308,7 +308,7 @@ static void
 ledProgOn(void)
 {
     /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
-    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_SET);
+    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_CLR);
 }
 
 
@@ -317,7 +317,7 @@ static void
 ledStatusOff(void)
 {
     /* For active LOW, change from PIN_DRV_CLR to PIN_DRV_SET */
-    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_CLR);
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
 }
 
 
@@ -326,7 +326,7 @@ static void
 ledStatusOn(void)
 {
     /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
-    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_CLR);
 }
 
 

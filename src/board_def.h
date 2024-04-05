@@ -65,38 +65,34 @@
 
 /* Serial Communication Instances */
 
-#define SERCOM_UART_DBG             SERCOM2
-#define SERCOM_I2CM                 SERCOM3
-#define SERCOM_UART_DATA            SERCOM2
-#define SERCOM_SPI_DATA             SERCOM4
-#define SERCOM_I2CM_EXT             SERCOM5
+#define SERCOM_SPI_DATA             SERCOM2
+#define SERCOM_I2CM_EXT             SERCOM3
+#define SERCOM_I2CM                 SERCOM4
+#define SERCOM_UART_DBG             SERCOM5
+#define SERCOM_UART_DATA            SERCOM5
 
-#define SERCOM_UART_DBG_APBCMASK    PM_APBCMASK_SERCOM2
-#define SERCOM_UART_DATA_APBCMASK   PM_APBCMASK_SERCOM2
-#define SERCOM_I2CM_INT_APBCMASK    PM_APBCMASK_SERCOM3
-#define SERCOM_SPI_APBCMASK         PM_APBCMASK_SERCOM4
-#define SERCOM_I2CM_EXT_APBCMASK    PM_APBCMASK_SERCOM5
+#define SERCOM_SPI_APBCMASK         PM_APBCMASK_SERCOM2
+#define SERCOM_I2CM_EXT_APBCMASK    PM_APBCMASK_SERCOM3
+#define SERCOM_I2CM_INT_APBCMASK    PM_APBCMASK_SERCOM4
+#define SERCOM_UART_DBG_APBCMASK    PM_APBCMASK_SERCOM5
+#define SERCOM_UART_DATA_APBCMASK   PM_APBCMASK_SERCOM5
 
-#define SERCOM_UART_DBG_GCLK_ID     SERCOM2_GCLK_ID_CORE
-#define SERCOM_UART_DATA_GCLK_ID    SERCOM2_GCLK_ID_CORE
-#define SERCOM_I2CM_INT_GCLK_ID     SERCOM3_GCLK_ID_CORE
-#define SERCOM_SPI_GCLK_ID          SERCOM4_GCLK_ID_CORE
-#define SERCOM_I2CM_EXT_GCLK_ID     SERCOM5_GCLK_ID_CORE
+#define SERCOM_SPI_GCLK_ID          SERCOM2_GCLK_ID_CORE
+#define SERCOM_I2CM_EXT_GCLK_ID     SERCOM3_GCLK_ID_CORE
+#define SERCOM_I2CM_INT_GCLK_ID     SERCOM4_GCLK_ID_CORE
+#define SERCOM_UART_DBG_GCLK_ID     SERCOM5_GCLK_ID_CORE
+#define SERCOM_UART_DATA_GCLK_ID    SERCOM5_GCLK_ID_CORE
 
-#define SERCOM_UART_DBG_DMAC_ID_TX  SERCOM2_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_TX      SERCOM3_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_RX      SERCOM3_DMAC_ID_RX
-#define SERCOM_UART_DATA_DMAC_ID_TX SERCOM2_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_TX      SERCOM4_DMAC_ID_TX
+#define SERCOM_I2CM_DMAC_ID_RX      SERCOM4_DMAC_ID_RX
+#define SERCOM_UART_DBG_DMAC_ID_TX  SERCOM5_DMAC_ID_TX
+#define SERCOM_UART_DATA_DMAC_ID_TX SERCOM5_DMAC_ID_TX
 
-#define PMUX_UART_DBG0              PORT_PMUX_PMUXE_C
-#define PMUX_UART_DBG1              PORT_PMUX_PMUXE_D
-#define PMUX_UART_DATA              PORT_PMUX_PMUXE_C
+#define SERCOM_UART_INTERACTIVE_HANDLER irq_handler_sercom5()
+#define SERCOM_UART_INTERACTIVE     SERCOM5
 
-#define SERCOM_UART_INTERACTIVE_HANDLER irq_handler_sercom2()
-#define SERCOM_UART_INTERACTIVE     SERCOM2
-
-#define SERCOM_UART_DBG_NVIC_IRQn   SERCOM2_IRQn
-#define SERCOM_UART_INTERACTIVE_IRQn SERCOM2_IRQn
+#define SERCOM_UART_DBG_NVIC_IRQn   SERCOM5_IRQn
+#define SERCOM_UART_INTERACTIVE_IRQn SERCOM5_IRQn
 
 /* Timer Instances */
 
@@ -127,10 +123,8 @@
 
 
 /* Pin Configuration (nb. logical, not physical) */
-
 #define GRP_PINA            0u
 #define GRP_PINB            1u
-
 
 #define GRP_REV             GRP_PINA
 #define PIN_REV0            19u
@@ -138,19 +132,19 @@
 #define PIN_REV2            21u
 
 #define GRP_LED_STATUS      GRP_PINB
-#define PIN_LED_STATUS      23u
-#define GRP_LED_PROG        GRP_PINA
-#define PIN_LED_PROG        27u
+#define PIN_LED_STATUS      22u
+#define GRP_LED_PROG        GRP_PINB
+#define PIN_LED_PROG        23u
 #define GRP_LED_USER        GRP_PINB
 #define PIN_LED_USER0       10u
 #define PIN_LED_USER1       11u
 
 #define GRP_ONEWIRE         GRP_PINA
-#define PIN_ONEWIRE         16u
+#define PIN_ONEWIRE         18u
 
 #define GRP_PULSE           GRP_PINA
 #define PIN_PULSE1          17u
-#define PIN_PULSE2          18u
+#define PIN_PULSE2          16u
 
 #define GRP_TEST_SENSE      GRP_PINA
 #define PIN_TEST_SENSE      28
@@ -195,43 +189,48 @@
 #define PIN_ADC_VCAL_L      10u
 
 /* Debug UART related defines */
-#define GRP_SERCOM_UART_DBG0    GRP_PINA
-#define PIN_UART_DBG_RX0        13u
-#define PIN_UART_DBG_TX0        12u
+#define PMUX_UART_DBG0      PORT_PMUX_PMUXE_C   /* SERCOM */
+#define PMUX_UART_DBG1      PORT_PMUX_PMUXE_D   /* SERCOM-ALT */
+
+#define GRP_SERCOM_UART_DBG0    GRP_PINB
+#define PIN_UART_DBG_RX0        17u
+#define PIN_UART_DBG_TX0        16u
 #define GRP_SERCOM_UART_DBG1    GRP_PINB
-#define PIN_UART_DBG_RX1        30u
-#define PIN_UART_DBG_TX1        31u
-#define UART_DBG_PAD_RX     1u
-#define UART_DBG_PAD_TX     2u
-#define UART_DBG_BAUD       38400u
+#define PIN_UART_DBG_RX1        31u
+#define PIN_UART_DBG_TX1        30u
+#define UART_DBG_PAD_RX         1u
+#define UART_DBG_PAD_TX         0u
+#define UART_DBG_BAUD           38400u
+
+/* Data UART related defines */
+#define PMUX_UART_DATA      PORT_PMUX_PMUXE_C
+
+#define GRP_SERCOM_UART_DATA GRP_PINB
+#define PIN_UART_DATA_RX    17u
+#define PIN_UART_DATA_TX    16u
+#define UART_DATA_PAD_RX    1u
+#define UART_DATA_PAD_TX    0u
+#define UART_DATA_BAUD      38400u
 
 /* SPI related defines */
 #define GRP_SERCOM_SPI      GRP_PINA
-#define PIN_SPI_MISO        14u
-#define PIN_SPI_MOSI        15u
-#define PIN_SPI_SCK         16u
-#define PIN_SPI_RFM_SS      17u
+#define PIN_SPI_MISO        12u
+#define PIN_SPI_MOSI        14u
+#define PIN_SPI_SCK         13u
+#define PIN_SPI_RFM_SS      15u
 #define SPI_DATA_BAUD       4000000ul
 #define PMUX_SPI_DATA       PORT_PMUX_PMUXE_D
 
 /* I2C related defines */
-#define GRP_SERCOM_I2C_INT  GRP_PINA
-#define PIN_I2C_INT_SDA     22u
-#define PIN_I2C_INT_SCL     23u
-#define PMUX_I2CM           PORT_PMUX_PMUXE_C
+#define GRP_SERCOM_I2C_INT  GRP_PINB
+#define PIN_I2C_INT_SDA     12u
+#define PIN_I2C_INT_SCL     13u
+#define PMUX_I2CM_INT       PORT_PMUX_PMUXE_C
 
-#define GRP_SERCOM_I2C_EXT  GRP_PINB
-#define PIN_I2C_EXT_SDA     16u
-#define PIN_I2C_EXT_SCL     17u
-#define PMUX_I2CM           PORT_PMUX_PMUXE_C
-
-/* Data UART related defines */
-#define GRP_SERCOM_UART_DATA GRP_PINA
-#define PIN_UART_DATA_RX    21u
-#define PIN_UART_DATA_TX    22u
-#define UART_DATA_PAD_RX    3u
-#define UART_DATA_PAD_TX    1u
-#define UART_DATA_BAUD      115200u
+#define GRP_SERCOM_I2C_EXT  GRP_PINA
+#define PIN_I2C_EXT_SDA     22u
+#define PIN_I2C_EXT_SCL     23u
+#define PMUX_I2CM_EXT       PORT_PMUX_PMUXE_C
 
 /* DMA defines */
 #define NUM_CHAN_DMA        5u

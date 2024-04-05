@@ -87,8 +87,8 @@ sercomSetup(void)
     /*****************
     * I2C Setup
     ******************/
-    portPinMux(GRP_SERCOM_I2C_INT, PIN_I2C_INT_SDA, PMUX_I2CM);
-    portPinMux(GRP_SERCOM_I2C_INT, PIN_I2C_INT_SCL, PMUX_I2CM);
+    portPinMux(GRP_SERCOM_I2C_INT, PIN_I2C_INT_SDA, PMUX_I2CM_INT);
+    portPinMux(GRP_SERCOM_I2C_INT, PIN_I2C_INT_SCL, PMUX_I2CM_INT);
 
     PM->APBCMASK.reg |= SERCOM_I2CM_INT_APBCMASK;
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_I2CM_INT_GCLK_ID)
@@ -97,8 +97,8 @@ sercomSetup(void)
 
     i2cmCommon(SERCOM_I2CM);
 
-    portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA, PMUX_I2CM);
-    portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL, PMUX_I2CM);
+    portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA, PMUX_I2CM_EXT);
+    portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL, PMUX_I2CM_EXT);
 
     PM->APBCMASK.reg |= SERCOM_I2CM_EXT_APBCMASK;
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_I2CM_EXT_GCLK_ID)
@@ -311,8 +311,7 @@ i2cActivate(Sercom *sercom, uint8_t addr)
     {
         if (timerMicrosDelta(t) > I2CM_ACTIVATE_TIMEOUT_US)
         {
-            s = I2CM_TIMEOUT;
-            break;
+            return I2CM_TIMEOUT;
         }
     }
 
@@ -321,10 +320,6 @@ i2cActivate(Sercom *sercom, uint8_t addr)
     {
         s = I2CM_NOACK;
     }
-
-    /* Clear interrupt flags */
-    sercom->I2CM.INTFLAG.reg |=   SERCOM_I2CM_INTFLAG_MB
-                                | SERCOM_I2CM_INTFLAG_SB;
 
     return s;
 }
