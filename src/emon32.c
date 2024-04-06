@@ -478,7 +478,7 @@ static void
 ssd1306Setup(void)
 {
     SSD1306_Status_t s;
-    PosXY_t a = {15,0};
+    PosXY_t a = {44,0};
     s = ssd1306Init(SERCOM_I2CM_EXT);
     if (SSD1306_SUCCESS == s)
     {
@@ -694,15 +694,6 @@ main(void)
                 datasetUpdate(&dataset);
 
                 pktLength = dataPackageESP_n(&dataset, txBuffer, TX_BUFFER_W);
-
-                /* REVISIT can find the maximum required TX_BUFFER_W from
-                 * the parameters. Should never hit this condition, perhaps
-                 * change to assert. int32: 10 digits
-                 */
-                if (pktLength >= TX_BUFFER_W)
-                {
-                    dbgPuts("> TX buffer overflowed!\r\n");
-                }
 
                 if (0 == rfmPkt)
                 {

@@ -60,6 +60,7 @@
 static SSD1306_Status_t     bufUpdatePos();
 static SSD1306_Status_t     drawChar    (const char c);
 
+static int displayFound;
 
 /* Font definition */
 static const uint8_t FONTS[][CHARS_COLS_LENGTH] = {
@@ -307,6 +308,8 @@ ssd1306Init(Sercom *pSercomI2C)
     i2cAck(pSercom, I2CM_ACK, I2CM_ACK_CMD_STOP);
 
     ssd1306ClearBuffer();
+
+    displayFound = 1;
     return SSD1306_SUCCESS;
 }
 

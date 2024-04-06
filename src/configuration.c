@@ -453,8 +453,7 @@ configFirmwareBoardInfo(void)
     dbgPuts("\033c==== emon32 ====\r\n\r\n");
 
     dbgPuts("> Board:\r\n");
-    /* REVISIT : don't hardcode board type */
-    printf_("  - emonPi3 (arch. rev. %"PRIu32")\r\n", getBoardRevision());
+    printf_("  - emonPi3     (arch. rev. %"PRIu32")\r\n", getBoardRevision());
     printf_("  - Serial:     0x%02x%02x%02x%02x\r\n",
             (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
             (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
@@ -462,7 +461,8 @@ configFirmwareBoardInfo(void)
     printf_("  - Uptime (s): %"PRIu32"\r\n", timerUptime());
 
     dbgPuts("> Firmware:\r\n");
-    printf_("  - Version:    %d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN);
+    printf_("  - Version:    %d.%d.%d\r\n",
+            VERSION_FW_MAJ, VERSION_FW_MIN, VERSION_FW_REV);
     dbgPuts("  - Build:      ");
     dbgPuts(emon32_build_info_string());
     dbgPuts("\r\n\r\n");

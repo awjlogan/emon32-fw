@@ -3,31 +3,33 @@
 #include <stdint.h>
 #include "emon_CM.h"
 
-/* Firmware version */
+/*********************************
+ * Common configurable options
+ *********************************/
+
+#define DELTA_WH_STORE      200u    /* Threshold in WH to store to NVM */
+#define DOWNSAMPLE_DSP      1u      /* 0: no downsampling; 1: half band LPF */
+#define NODE_ID             17u     /* Node ID for reports */
+#define TX_INDICATE_T       250u    /* Transmission indication time (ms) */
+
+/*********************************
+ * Firmware version
+ *********************************/
 #define VERSION_FW_MAJ      0u
-#define VERSION_FW_MIN      1u
+#define VERSION_FW_MIN      0u
+#define VERSION_FW_REV      1u
 
-/* Transmission indication time (ms) */
-#define TX_INDICATE_T       250u
-
-#define NODE_ID             17u
-#define TX_BUFFER_W         256u
+/*********************************
+ * Remaining
+ *********************************/
+#define TX_BUFFER_W         448u
 
 /* Configuration key - indicates that the configuration is the default or
  * has been retrieved from non-volatile storage */
 #define CONFIG_NVM_KEY      0xca55e77eul
 
-/* Voltage and CT setup.
- */
-#define DELTA_WH_STORE      200u    /* Threshold to store to non-volatile */
-
 /* Pulse count setup */
 #define NUM_PULSECOUNT      2
-
-/* Set to 1 to downsample the sample rate by low pass filter. Otherwise, the
- * second sample from each set will be discarded.
- */
-#define DOWNSAMPLE_DSP      1u
 
 /* Configurable options. All the structs are packed to allow simple write to
  * EEPROM as a contiguous set.

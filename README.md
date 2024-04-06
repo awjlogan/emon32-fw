@@ -18,7 +18,7 @@ Please include as much information as possible (run the `v` command on the seria
 - The emon32 hardware that you using (board name and revision, and serial number)
 - The firmware version
 - All settings (run the `l` command on the serial link)
-- A full description, including a reproduction, of the issue
+- A full description, including a reproduction if possible, of the issue
 
 ### Contributing
 
@@ -28,6 +28,19 @@ Contributions are welcome! Small PRs can be accepted at any time. Please get in 
 > Please bear in mind that this is an open source project and PRs and enhancements may not be addressed quickly, or at all. This is no comment on the quality of the contribution, and please feel free to fork as you like!
 
 ## Functional Description
+
+### Version information
+
+The firmware version numbering follows [semantic versioning](https://semver.org/). That is, for version `X.Y.Z`:
+
+- `X` : major version with no guaranteed backward compatibility with previous major versions
+- `Y` : minoor version where any added functionality has backward compatibility
+- `Z` : improvements and bug fixes
+
+Any firmware with `X == 0` is considered unstable and subject to change.
+
+> [!NOTE]
+> Build information, including compiler version and commit, is generated during the build process and included in the binary.
 
 ### Hardware serial connection
 
@@ -46,7 +59,7 @@ It is available on:
   - 1 (UART RX _to_ the Raspberry Pi)
 - Test harness pads (only when TEST_SENSE is LOW)
 
-### Configuration
+### Run time configuration
 
 The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configuration](https://docs.openenergymonitor.org/emonpi2/configuration.html) options, which can be accessed through the debug serial link. In addition, the following options are added:
 
@@ -78,7 +91,7 @@ When a full report is ready, the following actions take place:
   - Mains frequency.
   - Power factor
 - Data are packed into two formats:
-  - Comma separated values for serial transmission.
+  - Key:value pairs for serial transmission.
   - Packed structure for transmission by the RFM module.
 - Data are sent over the configured interface.
   - It is configurable whether data are always echoed on the debug console.
@@ -87,7 +100,10 @@ When a full report is ready, the following actions take place:
 
 ### Compiling
 
-Compiling the firmware requires the correct toolchain. The Makefile is for a Cortex-M0+ based microcontrollers, specifically the [Atmel ATSAMD21J](https://www.microchip.com/en-us/product/ATSAMD21J17). You will need the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution).
+Compiling the firmware requires the the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution). The Makefile is for a Cortex-M0+ based microcontrollers, specifically the [Atmel ATSAMD21J17](https://www.microchip.com/en-us/product/ATSAMD21J17).
+
+> [!NOTE]
+> To find which version, if any, of the toolchain is on your path, enter `arm-none-eabi-gcc --version`. You can set the path to a compiler off your path by setting the `TC_PATH` variable in `Makefile`.
 
 To build the firmware:
 
@@ -101,40 +117,49 @@ In `build/`, the following binary files will be generated:
 
 ### Uploading
 
-The emon32-Pi3 comes preloaded with a [UF2 bootloader](https://microsoft.github.io/uf2/). This allows the firmware to be updated without any specialised hardware.
-
-The bootloader binary is included in `bin/bootloader.elf`
+The emonPi3 comes preloaded with a [UF2 bootloader](https://microsoft.github.io/uf2/). This allows the firmware to be updated over USB without any specialised hardware. The following procedure should be used:
 
   1. Connect to the host computer through the USB-C port.
-  2. Double press the `RESET` button.
+  2. Quickly double press the `RESET` button.
     - The **PROG** LED will pulse slowly to indicate it has entered bootloader mode,
-    - The drive `EMONBOOT` will appear on the host.
+    - The drive `EMONBOOT` will appear on the host computer.
   3. Copy `emon32.uf` to the `EMONBOOT` drive. The board will reset and enter the main program.
+
+#### Updating the bootloader
+
+The bootloader can be updated by the same process as for uploading normal firmware. This will not normally need to be done.
+
+#### Restoring the bootloader
+
+If, for whatever reason, the bootloader is corrupted it can be flashed back to the board with the included binary. The bootloader binary is included in `bin/bootloader-emonPi3-v*` as a `.bin` and `.elf` file. You will need a suitable SWD programmer to do this.
 
 ## Modifications
 
-### Compile Time Configuration Options
+### Compile Time Configuration
 
-Most compile time options are contained in `/src/emon32.h`. The following options are configurable:
+Below is a list of the compile time options, grouped by location. The default value and allowed range for the emonPi3 is also given:
 
-- **NUM_V**: The number of voltage channels. This can be less than or equal, but not more than, the number of physical channels on the board.
-- **NUM_CT**: The number of CT channels. This can be less than or equal, but not more than, the number of physical channels on the board.
-- **SAMPLE_RATE**: _Per channel_ sample rate. The ADC's overall sample rate is `(NUM_V + NUM_CT) * SAMPLE_RATE`.
-- **DOWNSAMPLE_DSP**: If this is defined, then the digital filter will be used for downsampling, rather than simply discarding samples.
-- **DOWNSAMPLE_TAPS**: The number of taps in the digital filter.
-- **SAMPLES_IN_SET**: Number of full sets (all V + CT channels and analog channels) to acquire before raising interrupt.
-- **SAMPLE_BUF_DEPTH**: Buffer depth for digital filter front end.
-- **PROC_DEPTH**: Buffer depth for samples in power calculation.
+- `src/board_def.h`; values mostly constrained by the physical arrangement.
+  - **NUM_CT**: The number of CT channels. These must be contiguous from the lowest index above the voltage channels, but can be less than the number of physical channels. **12** \[1..12\]
+  - **NUM_V**: The number of physical voltage channels. Due to the ADC and software architecture, this must always be the physical number of voltage channels even when only using a single phase. **3**, \[3\].
+  - **SAMPLE_RATE**: Sample rate, in Hz, for each channel _before_ any downsampling. This is typically restricted by the -3dB point of the anti-aliasing filter. The total ADC sampling rate is (**SAMPLE_RATE** \* (**NUM_V** + **NUM_CT**)). **4800**, \[4800\]
+  - **ZEROX_HW_SPT**: **0** use software zero crossing detection; **1** use hardware zero crossing detection. **1**, **\{0, 1\}
+- `src/emon32.h`; values constrained by software implementation.
+  - **DELTA_WH_STORE**: the energy difference, in Wh, to accumulate before storing in NVM. This can be changed at run time. **200** \[1.. \]
+  - **DOWNSAMPLE_DSP**: 0: no DSP used, just drop samples; 1: half band LPF filter. **1**, \[0, 1\]
+  - **NODE-ID**: the default node ID. This can be changed at run time.
+  - **TX_INDICATE_T**: time, in milliseconds, to blink the status LED when a transmission is occuring. Useful visual check for activity. **250** \[1.. \]
 
 ### Digital filter
 
-The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter (**ecmFilterSample()**). The half band filter is exposed for testing. Filter coefficients can be generated using the **filter.py** script (_./helpers/filter.py_). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need **scipy** and **matplotlib** to use the filter designer,
+The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter. Filter coefficients can be generated using the **filter.py** script (_./helpers/filter.py_). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matplotlib.org/) to use the filter designer,
+
+> ![NOTE]
+> A Python virtual environment can be setup by running `python -m venv venv && pip install -r requirements.txt` in `./helpers/`.
 
 ### Tests
 
-A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware.
-
-There are tests available to run on local system (tested on macOS and Linux), rather than on a physical device, for some functions. These are in _./tests_. In that folder, run `make all` to build the tests. These allow for development on a faster system with better debug options. The firmware is structured to remove, as far as possible, direct calls to hardware. Do note that some functions will not behave identically. For example, in the configuration menu terminal entry may be different to that through a UART.
+A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware. In _./tests_. In that folder, run `make cm` to build the tests (tested on macOS and Linux).
 
 ## Hardware Description
 
@@ -159,7 +184,7 @@ The following table lists the peripherals used in the SAMD21.
 
 ### Designing a new board
 
-The files `/src/board_def.h` and `/src/board_def.c` contain options for configuring the microcontroller for a given board. For example, different pin mappings may be required.
+The files `/src/board_def.h` and `/src/board_def.c` contain options for configuring the microcontroller for a given board. Pin mappings and peripheral usage will need to be adjusted to your design.
 
 ### Porting to different microcontroller
 
@@ -173,11 +198,11 @@ You will also need to ensure that the vendor's headers are included and visible 
 
 ### Third party libraries and tools
 
-- [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation.
-- [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M.
-- [SSD1306 library](https://github.com/Matiasus/SSD1306/tree/master) - used
+- [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation. Note that floating point operations have been replaced with Qfplib functions.
+- [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M0.
+- [SSD1306 library](https://github.com/Matiasus/SSD1306/tree/master) - used as a reference for this implementation.
 - [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build scripts from Winterbloom.
 
 ### Others
 
-- Rob Wall
+- Rob Wall on the OpenEnergyMonitor forums for discussions around all aspects of energy monitoring.

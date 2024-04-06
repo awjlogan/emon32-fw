@@ -29,12 +29,9 @@
 #define SAMPLE_RATE         4800u
 #define SAMPLES_IN_SET      2u
 #define SAMPLE_BUF_DEPTH    2u
-#define DOWNSAMPLE_TAPS     19u
 
 /* If there is hardware support of zero-crossing detection, set 1*/
-#define ZEROX_HW_SPT        0
-#define GRP_ZEROX           0
-#define PIN_ZEROX           27u
+#define ZEROX_HW_SPT        1
 #define EIC_INTEN_ZEROX     EIC_INTENSET_EXTINT15
 #define EIC_INTDIS_ZEROX    EIC_INTENCLR_EXTINT15
 #define EIC_INTFLG_ZEROX    EIC_INTFLAG_EXTINT15
@@ -126,11 +123,13 @@
 #define GRP_PINA            0u
 #define GRP_PINB            1u
 
+/* Revision information */
 #define GRP_REV             GRP_PINA
 #define PIN_REV0            19u
 #define PIN_REV1            20u
 #define PIN_REV2            21u
 
+/* LEDs */
 #define GRP_LED_STATUS      GRP_PINB
 #define PIN_LED_STATUS      22u
 #define GRP_LED_PROG        GRP_PINB
@@ -139,16 +138,20 @@
 #define PIN_LED_USER0       10u
 #define PIN_LED_USER1       11u
 
+/* OneWire Interface */
 #define GRP_ONEWIRE         GRP_PINA
 #define PIN_ONEWIRE         18u
 
+/* Pulse interface */
 #define GRP_PULSE           GRP_PINA
 #define PIN_PULSE1          17u
 #define PIN_PULSE2          16u
 
+/* !(TEST_SENSE) pin */
 #define GRP_TEST_SENSE      GRP_PINA
 #define PIN_TEST_SENSE      28
 
+/* ADC Pins */
 #define GRP_ADC_VMID        GRP_PINA
 #define PIN_ADC_VMID        2u
 #define GRP_ADC_VREF        GRP_PINA
@@ -187,6 +190,10 @@
 #define PIN_ADC_VCAL_H      9u
 #define GRP_ADC_VCAL_L      GRP_PINA
 #define PIN_ADC_VCAL_L      10u
+
+/* Zero crossing detection */
+#define GRP_ZEROX           GRP_PINA
+#define PIN_ZEROX           27u
 
 /* Debug UART related defines */
 #define PMUX_UART_DBG0      PORT_PMUX_PMUXE_C   /* SERCOM */
@@ -233,7 +240,8 @@
 #define PMUX_I2CM_EXT       PORT_PMUX_PMUXE_C
 
 /* DMA defines */
-#define NUM_CHAN_DMA        5u
+#define NUM_CHAN_DMA        6u
+#define DMA_CHAN_I2CM_EXT   5u
 #define DMA_CHAN_UART_DATA  4u
 #define DMA_CHAN_I2CM       3u
 #define DMA_CHAN_UART_DBG   2u
