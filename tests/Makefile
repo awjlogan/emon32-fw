@@ -16,3 +16,5 @@ cm:
 	${CC} ${CFLAGS} $(DEFINES) -I$(INCLUDES) -o $@.test $(OBJS) ${LIBS}
 clean:
 	rm *.test
+	rm -rf *dSYM/
+

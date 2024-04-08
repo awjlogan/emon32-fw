@@ -8,9 +8,11 @@
 
 #else
 
-#include <stdio.h>
 #include <assert.h>
+#include <math.h>
 #include <stdlib.h>
+#include <stdio.h>
+
 #include "emonCM_test.h"
 
 #endif /* HOSTED */
@@ -24,9 +26,7 @@
  * Function prototypes
  *************************************/
 
-static inline uint8_t   __CLZ           (uint32_t data) RAMFUNC;
 static inline q15_t     __STRUNCATE     (int32_t val)   RAMFUNC;
-static q15_t            sqrt_q15        (q15_t in)      RAMFUNC;
 static void             ecmSwapPtr      (void **pIn1, void **pIn2);
 static int              zeroCrossingSW  (q15_t smpV)    RAMFUNC;
 
@@ -34,15 +34,6 @@ static int              zeroCrossingSW  (q15_t smpV)    RAMFUNC;
  *
  * Adapted from Arm CMSIS-DSP: https://github.com/ARM-software/CMSIS-DSP
  */
-
-#define Q12QUARTER  0x2000
-/* Source/CommonTables/arm_common_tables.c:70534 */
-const q15_t sqrt_initial_lut[16] = {
-    8192, 7327, 6689, 6193,
-    5793, 5461, 5181, 4940,
-    4730, 4544, 4379, 4230,
-    4096, 3974, 3862, 3759
-};
 
 /*! @brief Truncate Q31 to a Q15 fixed point, round to nearest LSB
  *  @param [in] val value to truncate
@@ -59,83 +50,6 @@ __STRUNCATE(int32_t val)
     return (q15_t) ((val >> 15) + roundUp);
 }
 
-
-/*! @brief Count the number of leading 0s
- *  @param[in] data : input value
- *  @return Number of leading 0s in data
- */
-/* TODO ARMv7-M has a CLZ instruction, use intrinsic */
-static RAMFUNC inline uint8_t
-__CLZ(uint32_t data)
-{
-    uint32_t count = 0u;
-    uint32_t mask = 0x80000000u;
-
-    if (0 == data)
-    {
-        return 32u;
-    }
-
-    while ((data & mask) == 0U)
-    {
-        count += 1U;
-        mask = mask >> 1U;
-    }
-    return count;
-}
-
-/*! @brief Square root of Q15 number
- *  @details Modified CMSIS-DSP: Source/FastMathFunctions/arm_sqrt_q15.c
- *  @param [in] in : input vaue in range [0 +1)
- *  @return square root of the input value
- */
-static RAMFUNC q15_t
-sqrt_q15(q15_t in)
-{
-    q15_t number, var1, signBits1, temp;
-    number = in;
-
-    signBits1 = __CLZ(number) - 17;
-    if (0 == (signBits1 % 2))
-    {
-        number = number << signBits1;
-    }
-    else
-    {
-        number = number << (signBits1 - 1);
-    }
-
-    /* Start value for 1/sqrt(x) for Newton-Raphson */
-    var1 = sqrt_initial_lut[(number >> 11) - (Q12QUARTER >> 11)];
-
-    /* TODO Loop is unrolled, can compact if needed */
-    temp = ((q31_t) var1 * var1) >> 12;
-    temp = ((q31_t) number * temp) >> 15;
-    temp = 0x3000 - temp;
-    var1 = ((q31_t) var1 * temp) >> 13;
-
-    temp = ((q31_t) var1 * var1) >> 12;
-    temp = ((q31_t) number * temp) >> 15;
-    temp = 0x3000 - temp;
-    var1 = ((q31_t) var1 * temp) >> 13;
-
-    temp = ((q31_t) var1 * var1) >> 12;
-    temp = ((q31_t) number * temp) >> 15;
-    temp = 0x3000 - temp;
-    var1 = ((q31_t) var1 * temp) >> 13;
-
-    /* Multiply the inverse sqrt with the original, and shift down */
-    var1 = ((q15_t) (((q31_t) number * var1) >> 12));
-    if (0 == (signBits1 % 2))
-    {
-        var1 = var1 >> (signBits1 / 2);
-    }
-    else
-    {
-        var1 = var1 >> ((signBits1 - 1) / 2);
-    }
-    return var1;
-}
 
 /***** END FIXED POINT FUNCIONS *****/
 
@@ -198,8 +112,8 @@ static SampleSet_t              sampleRingBuffer[PROC_DEPTH];
  *****************************************************************************/
 
 static Accumulator_t    accumBuffer[2];
-static Accumulator_t *  accumCollecting = accumBuffer;
-static Accumulator_t *  accumProcessing = accumBuffer + 1;
+static Accumulator_t    *accumCollecting = accumBuffer;
+static Accumulator_t    *accumProcessing = accumBuffer + 1;
 static ECMCycle_t       ecmCycle;
 
 /******************************************************************************
@@ -210,7 +124,7 @@ static ECMCycle_t       ecmCycle;
  *  @param [in] smpV : current voltage sample
  *  @return 1 for positive crossing, 0 otherwise
  */
-RAMFUNC int
+RAMFUNC static int
 zeroCrossingSW(q15_t smpV)
 {
     Polarity_t          polarityNow;
@@ -233,6 +147,14 @@ zeroCrossingSW(q15_t smpV)
         }
     }
     return 0;
+}
+
+
+float
+ecmCalibrationCalculate(float cal)
+{
+    const unsigned int adcWidth = 12u;
+    return qfp_fdiv(cal, qfp_uint2float(1 << (adcWidth - 1u)));
 }
 
 
@@ -472,15 +394,16 @@ ecmProcessCycle(void)
     /* RMS for V channels */
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
-        /* Truncate and calculate RMS, subtracting off fine offset */
-        accumProcessing->processV[idxV].sumV_sqr       = __STRUNCATE(accumProcessing->processV[idxV].sumV_sqr);
-        accumProcessing->processV[idxV].sumV_deltas    *= accumProcessing->processV[idxV].sumV_deltas;
-        accumProcessing->processV[idxV].sumV_deltas    = __STRUNCATE(accumProcessing->processV[idxV].sumV_deltas);
+        /* Calculate RMS, subtracting off fine offset */
+        accumProcessing->processV[idxV].sumV_deltas *= accumProcessing->processV[idxV].sumV_deltas;
 
-        q15_t thisRms = sqrt_q15(
-                        (accumProcessing->processV[idxV].sumV_sqr / numSamples)
-                      - (accumProcessing->processV[idxV].sumV_deltas / (numSamplesSqr)));
-        ecmCycle.rmsV[idxV] += thisRms;
+        int meanSqr = accumProcessing->processV[idxV].sumV_sqr / numSamples;
+        int dcCorr  = accumProcessing->processV[idxV].sumV_deltas / numSamplesSqr;
+        meanSqr -= dcCorr;
+
+        ecmCycle.rmsV[idxV] += qfp_fsqrt(qfp_int2float(meanSqr));
+        // if (0 == idxV)
+        // printf("meanSqr: %d, ecmCycle: %d, thisRms: %d\n", meanSqr, ecmCycle.rmsV[idxV], sqrt_q31(meanSqr));
     }
 
     /* CT channels */
@@ -488,20 +411,23 @@ ecmProcessCycle(void)
     {
         if (0 != ecmCfg.ctCfg[idxCT].active)
         {
-            accumProcessing->processCT[idxCT].sumI_sqr    = __STRUNCATE(accumProcessing->processCT[idxCT].sumI_sqr);
+            int32_t powerNow;
+            int32_t ctCurrent;
+            int32_t deltasScaled;
             int32_t sumI_deltas_sqr =   accumProcessing->processCT[idxCT].sumI_deltas
                                       * accumProcessing->processCT[idxCT].sumI_deltas;
-            sumI_deltas_sqr = __STRUNCATE(sumI_deltas_sqr);
-
 
             /* Apply phase calibration for CT interpolated between V samples */
             int32_t sumRealPower =   accumProcessing->processCT[idxCT].sumPA * ecmCfg.ctCfg[idxCT].phaseX
                                    + accumProcessing->processCT[idxCT].sumPB * ecmCfg.ctCfg[idxCT].phaseY;
 
-            ecmCycle.valCT[idxCT].powerNow += (sumRealPower / numSamples) - (sumI_deltas_sqr / numSamplesSqr);
+            deltasScaled = sumI_deltas_sqr / numSamplesSqr;
+            powerNow = (sumRealPower / numSamples) - deltasScaled;
+            ctCurrent = accumProcessing->processCT[idxCT].sumI_sqr / numSamples;
+            ctCurrent -= deltasScaled;
 
-            ecmCycle.valCT[idxCT].rmsCT +=   sqrt_q15(((accumProcessing->processCT[idxCT].sumI_sqr / numSamples)
-                                           - (sumI_deltas_sqr / numSamplesSqr)));
+            ecmCycle.valCT[idxCT].powerNow += powerNow;
+            ecmCycle.valCT[idxCT].rmsCT += qfp_fsqrt(qfp_int2float(ctCurrent));
         }
         else
         {
@@ -527,7 +453,8 @@ ecmProcessSet(ECMDataset_t *pData)
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
         vCal = ecmCfg.voltageCal[idxV];
-        pData->rmsV[idxV] = qfp_fdiv((float)ecmCycle.rmsV[idxV], (float)ecmCycle.cycleCount);
+        pData->rmsV[idxV] = qfp_fdiv(ecmCycle.rmsV[idxV],
+                                     qfp_uint2float(ecmCycle.cycleCount));
         pData->rmsV[idxV] = qfp_fmul(pData->rmsV[idxV], vCal);
     }
 
@@ -548,10 +475,11 @@ ecmProcessSet(ECMDataset_t *pData)
 
             /* TODO add frequency deviation scaling */
             energyNow                       = qfp_fadd(scaledPower, pData->CT[idxCT].residualEnergy);
-            wattHoursRecent                 = (int)energyNow / 3600;
+            wattHoursRecent                 = qfp_float2int(energyNow) / 3600;
             pData->CT[idxCT].wattHour       += wattHoursRecent;
             pData->CT[idxCT].residualEnergy = qfp_fsub(energyNow,
-                                                       qfp_fmul(wattHoursRecent, 3600.0f));
+                                                       qfp_fmul(wattHoursRecent,
+                                                                3600.0f));
         }
         else
         {

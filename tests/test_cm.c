@@ -77,14 +77,14 @@ main(int argc, char *argv[])
 
     for (int i = 0; i < NUM_V; i++)
     {
-        pEcmCfg->voltageCal[i] = 268.97f;
+        pEcmCfg->voltageCal[i] = ecmCalibrationCalculate(268.97f);
     }
 
     phase = ecmPhaseCalculate(5.0f);
     for (int i = 0; i < NUM_CT; i++)
     {
         pEcmCfg->ctCfg[i].active    = 1;
-        pEcmCfg->ctCfg[i].ctCal     = 90.91f;
+        pEcmCfg->ctCfg[i].ctCal     = ecmCalibrationCalculate(90.91f);
         pEcmCfg->ctCfg[i].phaseX    = phase.phaseX;
         pEcmCfg->ctCfg[i].phaseY    = phase.phaseY;
         pEcmCfg->ctCfg[i].vChan     = 0;
@@ -108,8 +108,10 @@ main(int argc, char *argv[])
     printf("    - Number of V     : %d\n", NUM_V),
     printf("    - Number of CT    : %d\n", NUM_CT);
     printf("    - Mains frequency : %d\n", MAINS_FREQ);
+    printf("    - DSP enabled     : %s\n", pEcmCfg->downsample ? "Yes" : "No");
     printf("    - Report time     : %.2f\n", REPORT_TIME);
     printf("    - Sample tick (us): %d\n", SMP_TICK);
+    printf("    - Voltage cal     : %.2f\n", pEcmCfg->voltageCal[0]);
     printf("\n");
 
     /* ============ START : HALF BAND TEST ============ */

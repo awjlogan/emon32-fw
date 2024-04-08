@@ -9,6 +9,8 @@
  * Type definitions
  *****************************************************************************/
 
+#define DOWNSAMPLE_TAPS     19u
+
 typedef enum {
     ECM_INIT_SUCCESS,           /* Init was successful */
     ECM_INIT_FAIL_ENABLED,      /* Init failed as currently enabled */
@@ -23,6 +25,7 @@ typedef enum {
 /* Alias integer types for fixed point calculation */
 typedef int16_t     q15_t;
 typedef int32_t     q31_t;
+typedef int64_t     q63_t;
 
 /* SingleSampleSet_t contains a single set of V + CT ADC samples */
 typedef struct __attribute__((__packed__)) SingleSampleSet_ {
@@ -95,7 +98,7 @@ typedef struct CycleCT_ {
 
 typedef struct ECMCycle_ {
     uint32_t    cycleCount;
-    int32_t     rmsV[NUM_V];    /* Accumulated V_RMS */
+    float       rmsV[NUM_V];    /* Accumulated V_RMS */
     CycleCT_t   valCT[NUM_CT];  /* Combined CT values */
 } ECMCycle_t;
 
@@ -118,6 +121,13 @@ typedef struct PhaseXY_ {
 /******************************************************************************
  * Function prototypes
  *****************************************************************************/
+
+/*! @brief Turn an amplitude calibration value into a factor to change the
+ *         abstract value into the real value, accounting for ADC width.
+ *  @param [in] cal : the calibration value
+ *  @return : the scaled calibration value
+ */
+float ecmCalibrationCalculate(float cal);
 
 /*! @brief Returns a pointer to the ADC data buffer
  *  @return : pointer to the active ADC data buffer.
