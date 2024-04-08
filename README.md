@@ -34,7 +34,7 @@ Contributions are welcome! Small PRs can be accepted at any time. Please get in 
 The firmware version numbering follows [semantic versioning](https://semver.org/). That is, for version `X.Y.Z`:
 
 - `X` : major version with no guaranteed backward compatibility with previous major versions
-- `Y` : minoor version where any added functionality has backward compatibility
+- `Y` : minor version where any added functionality has backward compatibility
 - `Z` : improvements and bug fixes
 
 Any firmware with `X == 0` is considered unstable and subject to change.
@@ -65,10 +65,11 @@ The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configur
 
 |Command    |Definition                                             |
 |-----------|-------------------------------------------------------|
-|o&lt;x&gt; |Auto calibrate CT lead for channel _x_                 |
+|e&lt;_n_&gt; |SPI and external I2C interfaces enabled (_n_ = 1) or disabled (_n_ = 0) |
+|o&lt;_x_&gt; |Auto calibrate CT lead for channel _x_               |
 |t          |Trigger a data set processing event                    |
 |v          |Print firmware and board information                   |
-|w&lt;n&gt; |Minimum energy difference, _n_ Wh, before saving       |
+|w&lt;_n_&gt; |Minimum energy difference, _n_ Wh, before saving     |
 
 All options can be listed by entering `?`.
 
@@ -100,7 +101,7 @@ When a full report is ready, the following actions take place:
 
 ### Compiling
 
-Compiling the firmware requires the the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution). The Makefile is for a Cortex-M0+ based microcontrollers, specifically the [Atmel ATSAMD21J17](https://www.microchip.com/en-us/product/ATSAMD21J17).
+Compiling the firmware requires the the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution). The Makefile is for a Cortex-M0+ based microcontrollers, specifically the [Microchip ATSAMD21J17](https://www.microchip.com/en-us/product/ATSAMD21J17).
 
 > [!NOTE]
 > To find which version, if any, of the toolchain is on your path, enter `arm-none-eabi-gcc --version`. You can set the path to a compiler off your path by setting the `TC_PATH` variable in `Makefile`.
@@ -137,11 +138,11 @@ If, for whatever reason, the bootloader is corrupted it can be flashed back to t
 
 ### Compile Time Configuration
 
-Below is a list of the compile time options, grouped by location. The default value and allowed range for the emonPi3 is also given:
+Below is a list of the compile time options, grouped by location. The value for emonPi3 is given in bold, and the allowed range in general is given:
 
 - `src/board_def.h`; values mostly constrained by the physical arrangement.
   - **NUM_CT**: The number of CT channels. These must be contiguous from the lowest index above the voltage channels, but can be less than the number of physical channels. **12** \[1..12\]
-  - **NUM_V**: The number of physical voltage channels. Due to the ADC and software architecture, this must always be the physical number of voltage channels even when only using a single phase. **3**, \[3\].
+  - **NUM_V**: The number of physical voltage channels. Due to the ADC and software architecture, this must always be the physical number of voltage channels even when only using a single phase. **3**, \[1..3\]
   - **SAMPLE_RATE**: Sample rate, in Hz, for each channel _before_ any downsampling. This is typically restricted by the -3dB point of the anti-aliasing filter. The total ADC sampling rate is (**SAMPLE_RATE** \* (**NUM_V** + **NUM_CT**)). **4800**, \[4800\]
   - **ZEROX_HW_SPT**: **0** use software zero crossing detection; **1** use hardware zero crossing detection. **1**, **\{0, 1\}
 - `src/emon32.h`; values constrained by software implementation.
@@ -155,11 +156,11 @@ Below is a list of the compile time options, grouped by location. The default va
 The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter. Filter coefficients can be generated using the **filter.py** script (_./helpers/filter.py_). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matplotlib.org/) to use the filter designer,
 
 > ![NOTE]
-> A Python virtual environment can be setup by running `python -m venv venv && pip install -r requirements.txt` in `./helpers/`.
+> A Python virtual environment can be setup by running `python3 -m venv venv && pip3 install -r requirements.txt` in `./helpers/`.
 
 ### Tests
 
-A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware. In _./tests_. In that folder, run `make cm` to build the tests (tested on macOS and Linux).
+A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware. In _./tests_, run `make cm` to build the tests (tested on macOS and Linux).
 
 ## Hardware Description
 
@@ -193,6 +194,11 @@ Within the top level loop, there are no direct calls to low level hardware. You 
 All peripheral drivers are in header/source pairs named **driver_\<PERIPHERAL\>**. For example, the ADC driver is in **driver_ADC.\***. If you are porting to a new microcontroller, you will need to provide implementations of all the functions exposed in **driver_\<PERIPHERAL\>.h** and any internal functions within **driver_\<PERIPHERAL\>.c**. If your microcontroller does not support a particular function (for example, it doesn't have a DMA), then either no operation or an alternative must be provided.
 
 You will also need to ensure that the vendor's headers are included and visible to the compiler.
+
+## Datasheets
+
+- [HopeRF RFM69CW](https://www.hoperf.com/modules/rf_transceiver/RFM69CW.html)
+- [Microchip ATSAMD21J17](https://www.microchip.com/en-us/product/ATSAMD21J17)
 
 ## Acknowledgements
 
