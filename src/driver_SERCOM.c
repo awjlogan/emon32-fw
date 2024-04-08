@@ -106,6 +106,12 @@ sercomSetup(void)
                         | GCLK_CLKCTRL_CLKEN;
 
     i2cmCommon(SERCOM_I2CM_EXT);
+
+    /*****************
+    * SPI Setup
+    ******************/
+
+   sercomSetupSPI();
 }
 
 
@@ -184,20 +190,26 @@ sercomSetupSPI(void)
     portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI, PMUX_SPI_DATA);
     portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK, PMUX_SPI_DATA);
 
-    /* Table 27-2 - driven @ F_REF = F_PERIPH */
-    const uint32_t baud_data    = SPI_DATA_BAUD;
-    const uint32_t br_data      = ((uint32_t)F_PERIPH / (2 * baud_data) - 1u);
-
     /* Configure clocks - runs from the OSC8M clock on gen 3 */
     PM->APBCMASK.reg |= SERCOM_SPI_APBCMASK;
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_SPI_GCLK_ID)
                         | GCLK_CLKCTRL_GEN(3u)
                         | GCLK_CLKCTRL_CLKEN;
 
-    SERCOM_SPI_DATA->SPI.BAUD.reg = br_data;
+    /* Table 25-2 - driven @ F_REF = F_PERIPH. BAUD = F_REF / 2F_BAUD - 1
+     * RFM69 maximum SCK is 10 MHz, so can go at maximum 4 MHz SCK easily.
+     */
+    SERCOM_SPI_DATA->SPI.BAUD.reg = 0;
 
     /* SPI mode 0: CPOL == 0, CPHA == 0 */
-    SERCOM_SPI_DATA->SPI.CTRLA.reg  = SERCOM_SPI_CTRLA_MODE_SPI_MASTER;
+    /* In v0.1 MOSI and !SS are swapped, fix by hand and revise for v0.2 */
+    SERCOM_SPI_DATA->SPI.CTRLA.reg =   SERCOM_SPI_CTRLA_MODE_SPI_MASTER
+                                     | SERCOM_SPI_CTRLA_DOPO(0x2);
+
+    /* Enable TX and RX interrupts (complete and empty), not routed to NVIC */
+    SERCOM_SPI_DATA->SPI.INTENSET.reg |=   SERCOM_SPI_INTENSET_RXC
+                                         | SERCOM_SPI_INTENSET_TXC
+                                         | SERCOM_SPI_INTENSET_DRE;
 
     /* While disabled, RXEN will be set immediately. When the SPI SERCOM is
      * enabled, this requires synchronisation before the SPI is ready. See

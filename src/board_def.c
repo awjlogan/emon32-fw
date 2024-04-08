@@ -11,6 +11,7 @@ const uint8_t pinsGPIO_Out[][2] = {
     {GRP_PINA,      PIN_LED_PROG},
     {GRP_PINB,      PIN_LED_USER0},
     {GRP_PINB,      PIN_LED_USER1},
+    {GRP_PINA,      PIN_SPI_RFM_SS},
     {0xFF,          0}
 };
 
