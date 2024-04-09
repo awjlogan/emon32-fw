@@ -152,7 +152,7 @@ timerMicrosDelta(const uint32_t prevMicros)
     /* Check for wrap (every ~1 h) */
     if (prevMicros > timeMicrosNow)
     {
-        delta = (UINT32_MAX - prevMicros) + timeMicrosNow;
+        delta = (UINT32_MAX - prevMicros) + timeMicrosNow + 1u;;
     }
     else
     {

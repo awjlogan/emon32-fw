@@ -144,18 +144,19 @@ Below is a list of the compile time options, grouped by location. The value for 
   - **NUM_CT**: The number of CT channels. These must be contiguous from the lowest index above the voltage channels, but can be less than the number of physical channels. **12** \[1..12\]
   - **NUM_V**: The number of physical voltage channels. Due to the ADC and software architecture, this must always be the physical number of voltage channels even when only using a single phase. **3**, \[1..3\]
   - **SAMPLE_RATE**: Sample rate, in Hz, for each channel _before_ any downsampling. This is typically restricted by the -3dB point of the anti-aliasing filter. The total ADC sampling rate is (**SAMPLE_RATE** \* (**NUM_V** + **NUM_CT**)). **4800**, \[4800\]
-  - **ZEROX_HW_SPT**: **0** use software zero crossing detection; **1** use hardware zero crossing detection. **1**, **\{0, 1\}
+  - **ZEROX_HW_SPT**: **0** use software zero crossing detection; **1** use hardware zero crossing detection. **1**, \{0, 1\}
 - `src/emon32.h`; values constrained by software implementation.
   - **DELTA_WH_STORE**: the energy difference, in Wh, to accumulate before storing in NVM. This can be changed at run time. **200** \[1.. \]
   - **DOWNSAMPLE_DSP**: 0: no DSP used, just drop samples; 1: half band LPF filter. **1**, \[0, 1\]
   - **NODE-ID**: the default node ID. This can be changed at run time.
+  - **PERF_ENABLE**: enable performance reporting. **0**, \[0, 1\]
   - **TX_INDICATE_T**: time, in milliseconds, to blink the status LED when a transmission is occuring. Useful visual check for activity. **250** \[1.. \]
 
 ### Digital filter
 
 The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter. Filter coefficients can be generated using the **filter.py** script (_./helpers/filter.py_). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matplotlib.org/) to use the filter designer,
 
-> ![NOTE]
+> [!NOTE]
 > A Python virtual environment can be setup by running `python3 -m venv venv && pip3 install -r requirements.txt` in `./helpers/`.
 
 ### Tests

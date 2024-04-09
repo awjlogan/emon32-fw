@@ -10,6 +10,7 @@
 #define DELTA_WH_STORE      200u    /* Threshold in WH to store to NVM */
 #define DOWNSAMPLE_DSP      1u      /* 0: no downsampling; 1: half band LPF */
 #define NODE_ID             17u     /* Node ID for reports */
+#define PERF_ENABLED        1u      /* Performance tracing enabled (1) or disabled (0) */
 #define TX_INDICATE_T       250u    /* Transmission indication time (ms) */
 
 /*********************************

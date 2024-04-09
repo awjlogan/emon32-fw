@@ -59,12 +59,14 @@ typedef struct CTCfgUnpacked_ {
 } CTCfgUnpacked_t;
 
 typedef struct ECMCfg_ {
-    unsigned int    downsample;             /* DSP enabled */
-    int             (*zx_hw_stat)(void);    /* HW zero crossing status function */
-    void            (*zx_hw_clr)(void);     /* HW zero crossing clear function */
-    unsigned int    reportCycles;           /* Number of cycles before reporting */
-    CTCfgUnpacked_t ctCfg[NUM_CT];          /* CT Configuration */
-    float           voltageCal[NUM_V];      /* Voltage calibration */
+    unsigned int    downsample;                     /* DSP enabled */
+    int             (*zx_hw_stat)(void);            /* HW zero crossing status function */
+    void            (*zx_hw_clr)(void);             /* HW zero crossing clear function */
+    uint32_t        (*timeMicros)(void);            /* Time in microseconds now */
+    uint32_t        (*timeMicrosDelta)(uint32_t);   /* Time delta in microseconds */
+    unsigned int    reportCycles;                   /* Number of cycles before reporting */
+    CTCfgUnpacked_t ctCfg[NUM_CT];                  /* CT Configuration */
+    float           voltageCal[NUM_V];              /* Voltage calibration */
 } ECMCfg_t;
 
 typedef enum Polarity_ {
@@ -118,6 +120,15 @@ typedef struct PhaseXY_ {
     q15_t phaseY;
 } PhaseXY_t;
 
+typedef struct ECMPerformance_ {
+    int numSlices;
+    int microsSlices;
+    int numCycles;
+    int microsCycles;
+    int numDatasets;
+    int microsDatasets;
+} ECMPerformance_t;
+
 /******************************************************************************
  * Function prototypes
  *****************************************************************************/
@@ -158,6 +169,11 @@ ECMCfg_t *ecmGetConfig(void);
 /*! @brief Injects a raw sample from the ADC into the accumulators.
  */
 ECM_STATUS_t ecmInjectSample(void) RAMFUNC;
+
+/*! @brief Gets the performance counter
+ *  @return : pointer to the performance counter
+ */
+ECMPerformance_t *ecmPerformance(void);
 
 /*! @brief Decompose a floating point CT phase into an X/Y pair for
  *         interpolation.

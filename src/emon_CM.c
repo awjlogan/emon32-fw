@@ -108,13 +108,16 @@ static RawSampleSetUnpacked_t   dspBuffer[DOWNSAMPLE_TAPS];
 static SampleSet_t              sampleRingBuffer[PROC_DEPTH];
 
 /******************************************************************************
- * Power accumulators
+ * Accumulators
  *****************************************************************************/
 
 static Accumulator_t    accumBuffer[2];
 static Accumulator_t    *accumCollecting = accumBuffer;
 static Accumulator_t    *accumProcessing = accumBuffer + 1;
 static ECMCycle_t       ecmCycle;
+static ECMPerformance_t perfCounter[2];
+static ECMPerformance_t *perfActive = perfCounter;
+static ECMPerformance_t *perfIdle   = perfCounter + 1;
 
 /******************************************************************************
  * Functions
@@ -312,6 +315,12 @@ ecmInjectSample(void)
 {
     unsigned int        zerox_flag = 0;
     static unsigned int idxInject;
+    uint32_t            t_start = 0;
+
+    if (0 != ecmCfg.timeMicros)
+    {
+        t_start = (*ecmCfg.timeMicros)();
+    }
 
     SampleSet_t smpProc;
     SampleSet_t *pSmpProc = &smpProc;
@@ -378,13 +387,36 @@ ecmInjectSample(void)
     /* Advance injection point, masking for overflow */
     idxInject = (idxInject + 1u) & (PROC_DEPTH - 1u);
 
+    if (0 != ecmCfg.timeMicrosDelta)
+    {
+        perfActive->numSlices++;
+        perfActive->microsSlices += (*ecmCfg.timeMicrosDelta)(t_start);
+    }
+
     return ECM_CYCLE_ONGOING;
+}
+
+
+ECMPerformance_t *
+ecmPerformance(void)
+{
+    ecmSwapPtr((void **)&perfActive, (void **)&perfIdle);
+    memset(perfActive, 0, sizeof(ECMPerformance_t));
+
+    return perfIdle;
 }
 
 
 RAMFUNC ECM_STATUS_t
 ecmProcessCycle(void)
 {
+    uint32_t t_start = 0;
+
+    if (0 != ecmCfg.timeMicros)
+    {
+        t_start = (*ecmCfg.timeMicros)();
+    }
+
     ecmCycle.cycleCount++;
 
     /* Reused constants */
@@ -402,8 +434,6 @@ ecmProcessCycle(void)
         meanSqr -= dcCorr;
 
         ecmCycle.rmsV[idxV] += qfp_fsqrt(qfp_int2float(meanSqr));
-        // if (0 == idxV)
-        // printf("meanSqr: %d, ecmCycle: %d, thisRms: %d\n", meanSqr, ecmCycle.rmsV[idxV], sqrt_q31(meanSqr));
     }
 
     /* CT channels */
@@ -436,6 +466,12 @@ ecmProcessCycle(void)
         }
     }
 
+    if (0 != ecmCfg.timeMicrosDelta)
+    {
+        perfActive->numCycles++;
+        perfActive->microsCycles += (*ecmCfg.timeMicrosDelta)(t_start);
+    }
+
     if ((ecmCycle.cycleCount >= ecmCfg.reportCycles) || processTrigger)
     {
         processTrigger = 0;
@@ -448,7 +484,14 @@ ecmProcessCycle(void)
 RAMFUNC void
 ecmProcessSet(ECMDataset_t *pData)
 {
-    float vCal;
+    uint32_t    t_start = 0;
+    float       vCal;
+
+    if (0 != ecmCfg.timeMicros)
+    {
+        t_start = (*ecmCfg.timeMicros)();
+    }
+
     /* Mean value for each RMS voltage */
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
@@ -490,6 +533,12 @@ ecmProcessSet(ECMDataset_t *pData)
 
     /* Zero out cycle accummulator */
     memset((void *)&ecmCycle, 0, sizeof(ECMCycle_t));
+
+    if (0 != ecmCfg.timeMicrosDelta)
+    {
+        perfActive->numDatasets++;
+        perfActive->microsDatasets += (*ecmCfg.timeMicrosDelta)(t_start);
+    }
 }
 
 void
