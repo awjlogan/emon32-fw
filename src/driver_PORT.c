@@ -1,6 +1,79 @@
 #include "emon32_samd.h"
 #include "driver_PORT.h"
 
+
+void
+portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg, PINCFG_t cs)
+{
+    if (PIN_CFG_SET == cs)
+    {
+        PORT->Group[grp].PINCFG[pin].reg |= cfg;
+    }
+    else
+    {
+        PORT->Group[grp].PINCFG[pin].reg &= ~cfg;
+    }
+}
+
+void
+portPinDir(unsigned int grp, unsigned int pin, PINDIR_t mode)
+{
+    if (PIN_DIR_IN == mode)
+    {
+        PORT->Group[grp].DIRCLR.reg = (1u << pin);
+    }
+    else
+    {
+        PORT->Group[grp].DIRSET.reg = (1u << pin);
+    }
+    PORT->Group[grp].PINCFG[pin].reg |= PORT_PINCFG_INEN;
+}
+
+void
+portPinDrv(unsigned int grp, unsigned int pin, PINDRV_t drv)
+{
+    switch (drv)
+    {
+        case PIN_DRV_CLR:
+            PORT->Group[grp].OUTCLR.reg = (1u << pin);
+            break;
+        case PIN_DRV_SET:
+            PORT->Group[grp].OUTSET.reg = (1u << pin);
+            break;
+        case PIN_DRV_TGL:
+            PORT->Group[grp].OUTTGL.reg = (1u << pin);
+            break;
+    }
+}
+
+void
+portPinMux(unsigned int grp, unsigned int pin, unsigned int mux)
+{
+    PORT->Group[grp].PINCFG[pin].reg |= PORT_PINCFG_PMUXEN;
+    if (pin & 1u)
+    {
+        PORT->Group[grp].PMUX[pin >> 1].bit.PMUXO = mux;
+    }
+    else
+    {
+        PORT->Group[grp].PMUX[pin >> 1].bit.PMUXE = mux;
+    }
+}
+
+void
+portPinMuxClear(unsigned int grp, unsigned int pin)
+{
+    PORT->Group[grp].PINCFG[pin].reg &= ~PORT_PINCFG_PMUXEN;
+}
+
+unsigned int
+portPinValue(unsigned int grp, unsigned int pin)
+{
+    unsigned int ret;
+    ret = (0u == (PORT->Group[grp].IN.reg & (1u << pin))) ? 0u : 1u;
+    return ret;
+}
+
 void
 portSetup(void)
 {
@@ -34,70 +107,4 @@ portSetup(void)
         portPinCfg(pinsUnused[i][0], pinsUnused[i][1],
                    PORT_PINCFG_PULLEN, PIN_CFG_SET);
     }
-}
-
-void
-portPinDir(unsigned int grp, unsigned int pin, PINDIR_t mode)
-{
-    if (PIN_DIR_IN == mode)
-    {
-        PORT->Group[grp].DIRCLR.reg = (1u << pin);
-    }
-    else
-    {
-        PORT->Group[grp].DIRSET.reg = (1u << pin);
-    }
-    PORT->Group[grp].PINCFG[pin].reg |= PORT_PINCFG_INEN;
-}
-
-void
-portPinMux(unsigned int grp, unsigned int pin, unsigned int mux)
-{
-    PORT->Group[grp].PINCFG[pin].reg |= PORT_PINCFG_PMUXEN;
-    if (pin & 1u)
-    {
-        PORT->Group[grp].PMUX[pin >> 1].bit.PMUXO = mux;
-    }
-    else
-    {
-        PORT->Group[grp].PMUX[pin >> 1].bit.PMUXE = mux;
-    }
-}
-
-void
-portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg, PINCFG_t cs)
-{
-    if (PIN_CFG_SET == cs)
-    {
-        PORT->Group[grp].PINCFG[pin].reg |= cfg;
-    }
-    else
-    {
-        PORT->Group[grp].PINCFG[pin].reg &= ~cfg;
-    }
-}
-
-void
-portPinDrv(unsigned int grp, unsigned int pin, PINDRV_t drv)
-{
-    switch (drv)
-    {
-        case PIN_DRV_CLR:
-            PORT->Group[grp].OUTCLR.reg = (1u << pin);
-            break;
-        case PIN_DRV_SET:
-            PORT->Group[grp].OUTSET.reg = (1u << pin);
-            break;
-        case PIN_DRV_TGL:
-            PORT->Group[grp].OUTTGL.reg = (1u << pin);
-            break;
-    }
-}
-
-unsigned int
-portPinValue(unsigned int grp, unsigned int pin)
-{
-    unsigned int ret;
-    ret = (0u == (PORT->Group[grp].IN.reg & (1u << pin))) ? 0u : 1u;
-    return ret;
 }

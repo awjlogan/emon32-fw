@@ -65,7 +65,6 @@ The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configur
 
 |Command    |Definition                                             |
 |-----------|-------------------------------------------------------|
-|e&lt;_n_&gt; |SPI and external I2C interfaces enabled (_n_ = 1) or disabled (_n_ = 0) |
 |o&lt;_x_&gt; |Auto calibrate CT lead for channel _x_               |
 |t          |Trigger a data set processing event                    |
 |v          |Print firmware and board information                   |

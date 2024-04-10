@@ -151,6 +151,14 @@
 #define GRP_TEST_SENSE      GRP_PINA
 #define PIN_TEST_SENSE      28
 
+/* nDISABLE_EXT_INTF */
+/* REVISIT : in 0.1, nDISABLE_EXT and ZXC are on the same EIC line. Fixed in 0.2
+ *           so enable the EIC controller for this pin to enable and disable on
+ *           an interrupt, rather than by polling.
+*/
+#define GRP_nDISABLE_EXT    GRP_PINB
+#define PIN_nDISABLE_EXT    15
+
 /* ADC Pins */
 #define GRP_ADC_VMID        GRP_PINA
 #define PIN_ADC_VMID        2u

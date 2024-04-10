@@ -180,6 +180,12 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
         ecmCfg->zx_hw_clr   = &eicZeroXClr;
     }
 
+    if (PERF_ENABLED)
+    {
+        ecmCfg->timeMicros      = &timerMicros;
+        ecmCfg->timeMicrosDelta = &timerMicrosDelta;
+    }
+
     for (unsigned int i = 0; i < NUM_V; i ++)
     {
         ecmCfg->voltageCal[i] = pCfg->voltageCfg[i].voltageCal;
@@ -236,6 +242,8 @@ evtKiloHertz(void)
 {
     static volatile uint32_t    msLast          = 0;
     uint32_t                    msDelta;
+    int                         extEnabled;
+    int                         ndisable_ext;
     static unsigned int         statLedLast     = 0;
     static unsigned int         statLedTrack    = 0;
     unsigned int                statLed;
@@ -247,6 +255,20 @@ evtKiloHertz(void)
 
     /* Update the pulse counters, looking on different edges */
     pulseUpdate();
+
+    /* Check for nDISABLE_EXT_INTF */
+    /* REVISIT in board 0.2, this will be handled by EIC*/
+    extEnabled      = sercomExtIntfEnabled();
+    ndisable_ext    = portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT);
+    if (extEnabled && !ndisable_ext)
+    {
+        sercomExtIntfDisable();
+    }
+    else if (!extEnabled && ndisable_ext)
+    {
+        sercomExtIntfEnable();
+    }
+
 
     /* When there is a TX to the outside world, blink the STATUS LED for
      * time TX_INDICATE_T to show there is activity. Find a falling edge of
@@ -526,20 +548,20 @@ totalEnergy(const Emon32Dataset_t *pData)
 int
 main(void)
 {
+    unsigned int    cyclesProcessed         = 0u;
     Emon32Config_t  e32Config               = {0};
     ECMDataset_t    ecmDataset              = {0};
+    eepromWrStatus_t eepromWrStatus         = EEPROM_WR_PEND;
     Emon32Dataset_t dataset                 = {0};
-    eepromPktWL_t   nvmCumulative           = {0};
-    RFMPkt_t        *rfmPkt                 = 0;
-    char            txBuffer[TX_BUFFER_W]   = {0};
-    PackedData_t    packedData              = {0};
-    unsigned int    cyclesProcessed         = 0u;
     unsigned int    numTempSensors          = 0;
+    eepromPktWL_t   nvmCumulative           = {0};
+    PackedData_t    packedData              = {0};
+    unsigned int    reportCycles            = 0;
+    RFMPkt_t        *rfmPkt                 = 0;
     unsigned int    tempCount               = 0;
     int16_t         tempValue               = 0;
-    unsigned int    reportCycles            = 0;
     unsigned int    timeSinceTrigger        = 0;
-    eepromWrStatus_t eepromWrStatus         = EEPROM_WR_PEND;
+    char            txBuffer[TX_BUFFER_W]   = {0};
 
     ucSetup     ();
     ledStatusOn ();

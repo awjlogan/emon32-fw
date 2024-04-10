@@ -12,7 +12,10 @@
 
 
 static void i2cmCommon(Sercom *pSercom);
+static void i2cmExtPinsSetup(int enable);
+static void spiExtPinsSetup(int enable);
 
+static int extIntfEnabled = 0u;
 
 static void
 i2cmCommon(Sercom *pSercom)
@@ -42,6 +45,67 @@ i2cmCommon(Sercom *pSercom)
     pSercom->I2CM.INTENSET.reg =   SERCOM_I2CM_INTENSET_MB
                                  | SERCOM_I2CM_INTENSET_SB
                                  | SERCOM_I2CM_INTENSET_ERROR;
+}
+
+
+static void
+i2cmExtPinsSetup(int enable)
+{
+    if (enable)
+    {
+        portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA, PMUX_I2CM_EXT);
+        portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL, PMUX_I2CM_EXT);
+    }
+    else
+    {
+        portPinMuxClear(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA);
+        portPinMuxClear(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL);
+    }
+}
+
+
+static void
+spiExtPinsSetup(int enable)
+{
+    if (enable)
+    {
+        portPinMux(GRP_SERCOM_SPI, PIN_SPI_MISO,    PMUX_SPI_DATA);
+        portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI,    PMUX_SPI_DATA);
+        portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK,     PMUX_SPI_DATA);
+        portPinMux(GRP_SERCOM_SPI, PIN_SPI_RFM_SS,  PMUX_SPI_DATA);
+    }
+    else
+    {
+        portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_MISO);
+        portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_MOSI);
+        portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_SCK);
+        portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_RFM_SS);
+    }
+}
+
+
+void
+sercomExtIntfDisable(void)
+{
+    extIntfEnabled = 0;
+    i2cmExtPinsSetup(0);
+    spiExtPinsSetup(0);
+}
+
+
+void
+sercomExtIntfEnable(void)
+{
+    extIntfEnabled = 1;
+    i2cmExtPinsSetup(1);
+    spiExtPinsSetup(1);
+}
+
+
+int
+sercomExtIntfEnabled(void)
+{
+    return extIntfEnabled;
 }
 
 
@@ -97,8 +161,7 @@ sercomSetup(void)
 
     i2cmCommon(SERCOM_I2CM);
 
-    portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA, PMUX_I2CM_EXT);
-    portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL, PMUX_I2CM_EXT);
+    i2cmExtPinsSetup(1);
 
     PM->APBCMASK.reg |= SERCOM_I2CM_EXT_APBCMASK;
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_I2CM_EXT_GCLK_ID)
@@ -186,9 +249,7 @@ sercomSetupSPI(void)
     /**********************
     * SPI Setup (for RFM69)
     ***********************/
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MISO, PMUX_SPI_DATA);
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI, PMUX_SPI_DATA);
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK, PMUX_SPI_DATA);
+    spiExtPinsSetup(1);
 
     /* Configure clocks - runs from the OSC8M clock on gen 3 */
     PM->APBCMASK.reg |= SERCOM_SPI_APBCMASK;

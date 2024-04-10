@@ -5,12 +5,6 @@
 #include "emon32_samd.h"
 #include "driver_DMAC.h"
 
-typedef enum I2CM_Status_ {
-    I2CM_SUCCESS,
-    I2CM_ERROR,
-    I2CM_TIMEOUT,
-    I2CM_NOACK
-} I2CM_Status_t;
 
 typedef enum I2CM_Ack_ {
     I2CM_ACK    = 0u,
@@ -23,6 +17,18 @@ typedef enum I2CM_AckCmd_ {
     I2CM_ACK_CMD_CONTINUE   = 2u,
     I2CM_ACK_CMD_STOP       = 3u
 } I2CM_AckCmd_t;
+
+typedef enum I2CM_Status_ {
+    I2CM_SUCCESS,
+    I2CM_ERROR,
+    I2CM_TIMEOUT,
+    I2CM_NOACK
+} I2CM_Status_t;
+
+typedef struct Sercom_Cfg_ {
+    Sercom *sercomExtI2C;
+    Sercom *sercomExtSPI;
+} SercomCfg_t;
 
 typedef enum UART_BAUD_ {
     UART_BAUD_9600      = 9600,
@@ -50,9 +56,20 @@ typedef struct UART_Cfg_ {
     DMACCfgCh_t dmaCfg;
 } UART_Cfg_t;
 
+
+/*! @brief Disable the external SPI and I2C interfaces */
+void sercomExtIntfDisable(void);
+
+/*! @brief Enable the external SPI and I2C interfaces */
+void sercomExtIntfEnable(void);
+
+/*! @brief Status of the external SPI and I2C interfaces */
+int sercomExtIntfEnabled(void);
+
 /*! @brief configure the serial communication module. This function starts the
  *         debug UART and I2C modules. Further SPI and UART modules are
  *         configured separately
+ *  @param [in] pCfg : pointer to the configuration struct
  */
 void sercomSetup(void);
 

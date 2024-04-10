@@ -19,25 +19,6 @@ typedef enum PINDRV_ {
     PIN_DRV_TGL
 } PINDRV_t;
 
-/*! @brief   Configure the ports.
- *           Ports for peripherals are configured in their setup functions
- */
-void portSetup(void);
-
-/*! @brief Sets a pin as input or output
- *  @param [in] grp : Group number; for SAMD1x this is always 0
- *  @param [in] pin : PIN number
- *  @param [in] mode: PIN_IN for input, PIN_OUT for output
- */
-void portPinDir(unsigned int grp, unsigned int pin, PINDIR_t mode);
-
-/*! @brief Sets the mux for pin alternate function
- *  @param [in] grp : Group number; for SAMD1x this is always 0
- *  @param [in] pin : Pin number
- *  @param [in] mux : Mux mode
- */
-void portPinMux(unsigned int grp, unsigned int pin, unsigned int mux);
-
 /*! @brief Sets the pin configuration
  *  @param [in] grp : Group number; for SAMD1x this is always 0
  *  @param [in] pin : Pin number
@@ -46,6 +27,13 @@ void portPinMux(unsigned int grp, unsigned int pin, unsigned int mux);
  */
 void portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg, PINCFG_t cs);
 
+/*! @brief Sets a pin as input or output
+ *  @param [in] grp : Group number; for SAMD1x this is always 0
+ *  @param [in] pin : PIN number
+ *  @param [in] mode: PIN_IN for input, PIN_OUT for output
+ */
+void portPinDir(unsigned int grp, unsigned int pin, PINDIR_t mode);
+
 /*! @brief Sets the pin driver value
  *  @param [in] grp : Group number; for SAMD1x this is always 0
  *  @param [in] pin : Pin number
@@ -53,8 +41,26 @@ void portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg, PINCFG_t c
  */
 void portPinDrv(unsigned int grp, unsigned int pin, PINDRV_t drv);
 
+/*! @brief Sets the mux for pin alternate function
+ *  @param [in] grp : Group number; for SAMD1x this is always 0
+ *  @param [in] pin : Pin number
+ *  @param [in] mux : Mux mode
+ */
+void portPinMux(unsigned int grp, unsigned int pin, unsigned int mux);
+
+/*! @brief Clear the mux for pin alternate function
+ *  @param [in] grp : Group number; for SAMD1x this is always 0
+ *  @param [in] pin : Pin number
+ */
+void portPinMuxClear(unsigned int grp, unsigned int pin);
+
 /*! @brief Returns the pin value
  *  @param [in] grp : Group number; for SAMD1x this is always 0
  *  @param [in] pin : Pin number
  */
 unsigned int portPinValue(unsigned int grp, unsigned int pin);
+
+/*! @brief   Configure the ports.
+ *           Ports for peripherals are configured in their setup functions
+ */
+void portSetup(void);
