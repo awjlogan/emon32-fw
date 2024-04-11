@@ -117,7 +117,10 @@ dataTxConfigure(const Emon32Config_t *pCfg)
         rfmPkt->threshold   = 0u;
         rfmPkt->timeout     = 1000u;
         rfmPkt->n           = 23u;
-        rfmInit(RF12_868MHz);
+        if (sercomExtIntfEnabled())
+        {
+            rfmInit(RF12_868MHz);
+        }
     }
     else
     {
@@ -723,8 +726,15 @@ main(void)
                 }
                 else
                 {
-                    dataPackagePacked   (&dataset, &packedData);
-                    rfmSend             (&packedData);
+                    dataPackagePacked(&dataset, &packedData);
+                    if (sercomExtIntfEnabled())
+                    {
+                        /* REVISIT handle failures (timeout, no init) */
+                        if (RFM_SUCCESS == rfmSendReady(5u))
+                        {
+                            rfmSend(&packedData);
+                        }
+                    }
                 }
 
                 if (e32Config.baseCfg.logToSerial)

@@ -26,6 +26,7 @@ typedef enum RFM_register_ {
 } RFM_register_t;
 
 static RFMPkt_t     rfmPkt;
+static int          initDone;
 
 /* Alias to SPI functions */
 static void
@@ -39,15 +40,6 @@ static uint8_t
 rfmReadReg(const RFM_register_t addr)
 {
     return spiReadByte(SERCOM_SPI_DATA, (uint8_t)addr);
-}
-
-/* Call back function for the non-blocking timer to set the timed out flag */
-static volatile unsigned int timedOut = 0;
-
-void
-setTimedOut(void)
-{
-    timedOut = 1u;
 }
 
 /* Adapted from AVR GCC libc:
@@ -135,63 +127,21 @@ rfmInit(RFM_Freq_t freq)
         rfmWriteReg(config[idxCfg][0], config[idxCfg][1]);
     }
 
+    initDone = 1;
     rfmSleep();
 }
 
-int
+RFMSend_t
 rfmSend(const void *pData)
 {
     unsigned int    txState = 0;
-    int             success = 0;
+    RFMSend_t       success = RFM_FAILED;
     uint16_t        crc     = ~0;
     const uint8_t   *data   = (uint8_t *)pData;
     uint8_t         tempRecv;
     uint8_t         writeByte;
 
-    /* Wait for "clear" air to transmit in.
-     * 1. Enter receive mode
-     * 2. Listen until below threshold
-     * 3. If over time, then return with failure. Otherwise proceed
-     */
-    if (0 != rfmPkt.timeout)
-    {
-        success = -1;
-
-        tempRecv = rfmReadReg(REG_OPMODE);
-        tempRecv = (tempRecv & 0xE3) | 0x10;
-
-        /* Non-blocking timer was busy */
-        timedOut = 0;
-        if (-1 == timerDelayNB_us(rfmPkt.timeout, &setTimedOut))
-        {
-            return -1;
-        }
-        while (0 == timedOut)
-        {
-            /* Wait for READY */
-            while(0 == (rfmReadReg(0x27) & 0x80));
-
-            /* REG_RSSI_CONFIG: RSSI_START */
-            rfmWriteReg(0x23u, 0x1u);
-            /* RSSI_DONE */
-            while (0 == (rfmReadReg(0x23u) & 0x02u));
-
-            /* REG_RSSI_VALUE */
-            if (rfmReadReg(0x24u) > (rfmPkt.threshold * -2))
-            {
-                success = 0;
-                break;
-            }
-            /* Restart receiver */
-            /* REG_PACKET_CONFIG2 */
-            tempRecv = rfmReadReg(0x3Du);
-            tempRecv = (tempRecv & 0xFB) | 0x4u;
-            rfmWriteReg(0x3Du, tempRecv);
-        }
-    }
-
-
-    /* 1. Check for FIFO full each loop, then push into FIFO:
+        /* 1. Check for FIFO full each loop, then push into FIFO:
      *  - Node information (CTL, DST, ACK, ID
      *  - Number of payload bytes
      *  - Data bytes
@@ -257,3 +207,60 @@ rfmSend(const void *pData)
     rfmSleep();
     return success;
 }
+
+RFMSend_t
+rfmSendReady(uint32_t timeout)
+{
+    unsigned int    t_start_ms = timerMillis();
+    uint8_t         tempRecv;
+
+    if (0 == initDone)
+    {
+        return RFM_NO_INIT;
+    }
+
+    /* Wait for "clear" air to transmit in.
+     * 1. Enter receive mode
+     * 2. Listen until below threshold
+     * 3. If over time, then return with failure. Otherwise proceed
+     */
+    if (0 != timeout)
+    {
+        if (timerMillisDelta(t_start_ms) > timeout)
+        {
+            return RFM_TIMED_OUT;
+        }
+
+        tempRecv = rfmReadReg(REG_OPMODE);
+        tempRecv = (tempRecv & 0xE3) | 0x10;
+
+        /* Wait for READY */
+        while(0 == (rfmReadReg(0x27) & 0x80));
+
+        /* REG_RSSI_CONFIG: RSSI_START */
+        rfmWriteReg(0x23u, 0x1u);
+        /* RSSI_DONE */
+        while (0 == (rfmReadReg(0x23u) & 0x02u));
+
+        /* REG_RSSI_VALUE */
+        if (rfmReadReg(0x24u) > (rfmPkt.threshold * -2))
+        {
+            return RFM_SUCCESS;
+        }
+        /* Restart receiver */
+        /* REG_PACKET_CONFIG2 */
+        tempRecv = rfmReadReg(0x3Du);
+        tempRecv = (tempRecv & 0xFB) | 0x4u;
+        rfmWriteReg(0x3Du, tempRecv);
+    }
+
+    /* If no timeout has been set, then return success */
+    else
+    {
+        return RFM_SUCCESS;
+    }
+
+    /* Default failure catch */
+    return RFM_FAILED;
+}
+

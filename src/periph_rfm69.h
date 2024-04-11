@@ -6,6 +6,13 @@ typedef enum RFM_Freq_ {
     RF12_433MHz
 } RFM_Freq_t;
 
+typedef enum RFMSend_ {
+    RFM_NO_INIT,
+    RFM_TIMED_OUT,
+    RFM_FAILED,
+    RFM_SUCCESS
+} RFMSend_t;
+
 typedef struct RFMPkt_ {
     void            *data;
     unsigned int    n;
@@ -27,4 +34,7 @@ void rfmInit(RFM_Freq_t freq);
  *  @param [in] : Pointer to the RFM packet
  *  @return : 0 for success, -1 for failure
  */
-int rfmSend(const void *pData);
+RFMSend_t rfmSend(const void *pData);
+
+RFMSend_t rfmSendReady(uint32_t timeout);
+
