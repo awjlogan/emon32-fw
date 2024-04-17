@@ -172,14 +172,14 @@ configureAnalog(void)
     {
         pCfg->voltageCfg[ch].voltageCal = cal;
         printf_("> V%d calibration set to: %.02f\r\n",
-                (ch + 1), pCfg->voltageCfg[ch].voltageCal);
+                (ch + 1), qfp_float2double(pCfg->voltageCfg[ch].voltageCal));
         return;
     }
     else
     {
         pCfg->ctCfg[ch - 3u].ctCal = cal;
         printf_("> CT%d calibration set to: %.02f\r\n",
-                (ch - 2u), pCfg->ctCfg[ch - 3u].ctCal);
+                (ch - 2u), qfp_float2double(pCfg->ctCfg[ch - 3u].ctCal));
     }
 
     /* Didn't find a space for value "z", so exit early */
@@ -191,7 +191,7 @@ configureAnalog(void)
     cal = utilAtof(inBuffer + posPhase);
     pCfg->ctCfg[ch - 3u].phase = cal;
     printf_("> CT%d phase set to: %.02f\r\n",
-            (ch - 2u), pCfg->ctCfg[ch - 3u].phase);
+            (ch - 2u), qfp_float2double(pCfg->ctCfg[ch - 3u].phase));
 }
 
 /*! @brief Configure a pulse channel. */
@@ -332,11 +332,11 @@ printSettings(void)
     printf_("Mains frequency (Hz)       %d\r\n",
             pCfg->baseCfg.mainsFreq);
     printf_("Data log time (s):         %.02f\r\n",
-            pCfg->baseCfg.reportTime);
+            qfp_float2double(pCfg->baseCfg.reportTime));
     printf_("Minimum accumulation (Wh): %d\r\n",
             pCfg->baseCfg.whDeltaStore);
     printf_("Assumed voltage (V):       %.02f\r\n",
-            pCfg->voltageAssumed);
+            qfp_float2double(pCfg->voltageAssumed));
     printf_("Data transmission:         ");
     if (DATATX_RFM69 == pCfg->baseCfg.dataTx)
     {
@@ -379,14 +379,17 @@ printSettings(void)
     for (unsigned int i = 0; i < NUM_V; i++)
     {
         printf_("Voltage Channel %d\r\n", (i + 1u));
-        printf_("  - Conversion: %.02f\r\n", pCfg->voltageCfg[i].voltageCal);
+        printf_("  - Conversion: %.02f\r\n",
+                qfp_float2double(pCfg->voltageCfg[i].voltageCal));
     }
     dbgPuts("\r\n");
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
         printf_("CT Channel %d\r\n", (i + 1u));
-        printf_("  - Conversion:      %.02f\r\n", pCfg->ctCfg[i].ctCal);
-        printf_("  - Phase:           %.02f\r\n", pCfg->ctCfg[i].phase);
+        printf_("  - Conversion:      %.02f\r\n",
+                qfp_float2double(pCfg->ctCfg[i].ctCal));
+        printf_("  - Phase:           %.02f\r\n",
+                qfp_float2double(pCfg->ctCfg[i].phase));
         printf_("  - Voltage channel: %d\r\n", (pCfg->ctCfg[i].vChan + 1u));
     }
 }
@@ -585,7 +588,7 @@ configProcessCmd(void)
              */
             pCfg->voltageAssumed = utilAtof(inBuffer + 1);
             printf_("> Set assumed voltage to: %.02f\r\n",
-                    pCfg->voltageAssumed);
+                    qfp_float2double(pCfg->voltageAssumed));
             resetReq = 1u;
             emon32EventSet(EVT_CONFIG_CHANGED);
             break;
@@ -605,7 +608,7 @@ configProcessCmd(void)
             /* Set the datalog period (s) */
             pCfg->baseCfg.reportTime = utilAtof(inBuffer + 1);
             printf_("> Data log report time set to: %.02f\r\n",
-                    pCfg->baseCfg.reportTime);
+                    qfp_float2double(pCfg->baseCfg.reportTime));
             resetReq = 1u;
             emon32EventSet(EVT_CONFIG_CHANGED);
             break;

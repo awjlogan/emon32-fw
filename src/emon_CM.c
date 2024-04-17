@@ -169,11 +169,13 @@ ecmPhaseCalculate(float phase)
     float sampleRate = 2400.0f;
     float phaseShift = phase;
 
-    phaseXY.phaseY = qfp_fdiv(qfp_fsin(phaseShift),
-                              qfp_fsin(sampleRate));
-    phaseXY.phaseX = qfp_fsub(qfp_fcos(phaseShift),
-                              (qfp_fmul(phaseXY.phaseY,
-                                        qfp_fcos(sampleRate))));
+    float phaseY = qfp_fdiv(qfp_fsin(phaseShift),
+                            qfp_fsin(sampleRate));
+
+    phaseXY.phaseY = qfp_float2int(phaseY);
+    phaseXY.phaseX = qfp_float2int(qfp_fsub(qfp_fcos(phaseShift),
+                                  (qfp_fmul(phaseY,
+                                            qfp_fcos(sampleRate)))));
 
     return phaseXY;
 }
@@ -505,21 +507,24 @@ ecmProcessSet(ECMDataset_t *pData)
     vCal = ecmCfg.voltageCal[0];
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        int     wattHoursRecent;
+        float   wattHoursRecent;
         float   energyNow;
         float   scaledPower;
+        float   powerNow;
 
         if (0 != ecmCfg.ctCfg[idxCT].active)
         {
-            scaledPower                 =   qfp_fmul(qfp_fmul(ecmCycle.valCT[idxCT].powerNow,
+            powerNow                    = qfp_int2float(ecmCycle.valCT[idxCT].powerNow);
+            scaledPower                 =   qfp_fmul(qfp_fmul(powerNow,
                                                               vCal),
                                                      ecmCfg.ctCfg[idxCT].ctCal);
             pData->CT[idxCT].realPower  = qfp_fadd(scaledPower, 0.5f);
 
             /* TODO add frequency deviation scaling */
-            energyNow                       = qfp_fadd(scaledPower, pData->CT[idxCT].residualEnergy);
-            wattHoursRecent                 = qfp_float2int(energyNow) / 3600;
-            pData->CT[idxCT].wattHour       += wattHoursRecent;
+            energyNow                       = qfp_fadd(scaledPower,
+                                                       pData->CT[idxCT].residualEnergy);
+            wattHoursRecent                 = qfp_fdiv(energyNow, 3600.0f);
+            pData->CT[idxCT].wattHour       += qfp_float2int(wattHoursRecent);
             pData->CT[idxCT].residualEnergy = qfp_fsub(energyNow,
                                                        qfp_fmul(wattHoursRecent,
                                                                 3600.0f));
