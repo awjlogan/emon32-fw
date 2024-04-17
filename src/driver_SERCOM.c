@@ -15,7 +15,7 @@ static void i2cmCommon(Sercom *pSercom);
 static void i2cmExtPinsSetup(int enable);
 static void spiExtPinsSetup(int enable);
 
-static int extIntfEnabled = 0u;
+static int extIntfEnabled = 1;
 
 static void
 i2cmCommon(Sercom *pSercom)
@@ -161,7 +161,14 @@ sercomSetup(void)
 
     i2cmCommon(SERCOM_I2CM);
 
-    i2cmExtPinsSetup(1);
+    if (portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT))
+    {
+        i2cmExtPinsSetup(1);
+    }
+    else
+    {
+        extIntfEnabled = 0;
+    }
 
     PM->APBCMASK.reg |= SERCOM_I2CM_EXT_APBCMASK;
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID(SERCOM_I2CM_EXT_GCLK_ID)
@@ -173,7 +180,6 @@ sercomSetup(void)
     /*****************
     * SPI Setup
     ******************/
-
    sercomSetupSPI();
 }
 
@@ -249,7 +255,10 @@ sercomSetupSPI(void)
     /**********************
     * SPI Setup (for RFM69)
     ***********************/
-    spiExtPinsSetup(1);
+    if (portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT))
+    {
+        spiExtPinsSetup(1);
+    }
 
     /* Configure clocks - runs from the OSC8M clock on gen 3 */
     PM->APBCMASK.reg |= SERCOM_SPI_APBCMASK;
