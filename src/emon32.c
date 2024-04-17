@@ -119,7 +119,7 @@ dataTxConfigure(const Emon32Config_t *pCfg)
         rfmPkt->n           = 23u;
         if (sercomExtIntfEnabled())
         {
-            rfmInit(RF12_868MHz);
+            rfmInit(RF12_433MHz);
         }
     }
     else
@@ -693,7 +693,8 @@ main(void)
                 if (numTempSensors > 0)
                 {
                     tempValue = tempReadSample(TEMP_INTF_ONEWIRE, tempCount);
-                    dataset.temp[tempCount++] = tempAsFloat(TEMP_INTF_ONEWIRE, tempValue);
+                    dataset.temp[tempCount++] = tempAsFloat(TEMP_INTF_ONEWIRE,
+                                                            tempValue);
                     if (tempCount == numTempSensors)
                     {
                         emon32EventSet(EVT_ECM_SET_CMPL);
@@ -729,8 +730,15 @@ main(void)
                     dataPackagePacked(&dataset, &packedData);
                     if (sercomExtIntfEnabled())
                     {
-                        /* REVISIT handle failures (timeout, no init) */
-                        if (RFM_SUCCESS == rfmSendReady(5u))
+                        /* Try to send in "clean" air. If failed, retry on
+                         * next loop. Should not reach RFM_FAILED at all.
+                         */
+                        RFMSend_t res = rfmSendReady(5u);
+                        if (RFM_NO_INIT == res)
+                        {
+                            rfmInit(RF12_433MHz);
+                        }
+                        else if (RFM_SUCCESS == res)
                         {
                             rfmSend(&packedData);
                         }

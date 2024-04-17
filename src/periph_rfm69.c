@@ -134,14 +134,13 @@ rfmInit(RFM_Freq_t freq)
 RFMSend_t
 rfmSend(const void *pData)
 {
-    unsigned int    txState = 0;
-    RFMSend_t       success = RFM_FAILED;
     uint16_t        crc     = ~0;
     const uint8_t   *data   = (uint8_t *)pData;
     uint8_t         tempRecv;
+    unsigned int    txState = 0;
     uint8_t         writeByte;
 
-        /* 1. Check for FIFO full each loop, then push into FIFO:
+    /* 1. Check for FIFO full each loop, then push into FIFO:
      *  - Node information (CTL, DST, ACK, ID
      *  - Number of payload bytes
      *  - Data bytes
@@ -205,7 +204,7 @@ rfmSend(const void *pData)
     rfmWriteReg(REG_OPMODE, tempRecv);
 
     rfmSleep();
-    return success;
+    return RFM_SUCCESS;
 }
 
 RFMSend_t
@@ -224,7 +223,7 @@ rfmSendReady(uint32_t timeout)
      * 2. Listen until below threshold
      * 3. If over time, then return with failure. Otherwise proceed
      */
-    if (0 != timeout)
+    while(1)
     {
         if (timerMillisDelta(t_start_ms) > timeout)
         {
@@ -254,13 +253,5 @@ rfmSendReady(uint32_t timeout)
         rfmWriteReg(0x3Du, tempRecv);
     }
 
-    /* If no timeout has been set, then return success */
-    else
-    {
-        return RFM_SUCCESS;
-    }
-
-    /* Default failure catch */
     return RFM_FAILED;
 }
-

@@ -65,31 +65,6 @@ timerDelay_us(uint32_t delay)
 
 
 void
-timerDelayNB_NotInUse(void)
-{
-    TIMER_DELAY->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
-    TIMER_DELAYInUse = 0;
-}
-
-
-int
-timerDelayNB_us(uint32_t delay, void (*cb)())
-{
-
-    if (TIMER_DELAYInUse)
-    {
-        return -1;
-    }
-
-    tc2_cb = cb;
-    NVIC_EnableIRQ(TIMER_DELAY_IRQn);
-    commonSetup(delay);
-
-    return 0;
-}
-
-
-void
 timerDisable(void)
 {
     TIMER_DELAY->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
