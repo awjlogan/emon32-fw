@@ -95,7 +95,7 @@ typedef struct Accumulator_ {
 /* This struct matches emonLibCM's calculations */
 typedef struct CycleCT_ {
     int32_t powerNow;           /* Summed power in cycles */
-    int32_t rmsCT;              /* Accumulated I_RMS */
+    float   rmsCT;              /* Accumulated I_RMS */
 } CycleCT_t;
 
 typedef struct ECMCycle_ {

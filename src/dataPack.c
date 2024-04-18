@@ -1,7 +1,7 @@
 #include <string.h>
 #include <inttypes.h>
 
-
+#include "qfplib-m0-full.h"
 #include "qfpio.h"
 
 #include "dataPack.h"
@@ -199,6 +199,6 @@ dataPackagePacked(const Emon32Dataset_t *pData, PackedData_t *pPacked)
     pPacked->msg = pData->msgNum;
     for (unsigned int v = 0; v < NUM_V; v++)
     {
-        pPacked->V[v] = (int16_t)pData->pECM->rmsV[v];
+        pPacked->V[v] = qfp_float2int(pData->pECM->rmsV[v]);
     }
 }

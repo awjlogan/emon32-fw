@@ -135,6 +135,10 @@ If, for whatever reason, the bootloader is corrupted it can be flashed back to t
 
 ## Modifications
 
+### Floating point support
+
+The Cortex-M0+ does not have a hardware floating point unit, so all floating point operations are done in software. The gcc built in floating point functions are quite large and slow, and have been replaced with the [Qfplib](https://www.quinapalus.com/qfplib.html) library. All floating point operations, including type conversions, should use these functions.
+
 ### Compile Time Configuration
 
 Below is a list of the compile time options, grouped by location. The value for emonPi3 is given in bold, and the allowed range in general is given:

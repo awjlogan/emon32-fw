@@ -1,7 +1,5 @@
 #include <string.h>
 
-#include "emon_CM.h"
-
 #ifndef HOSTED
 
 #include "qfplib-m0-full.h"
@@ -16,6 +14,8 @@
 #include "emonCM_test.h"
 
 #endif /* HOSTED */
+
+#include "emon_CM.h"
 
 /* Number of samples available for power calculation. must be power of 2 */
 #define PROC_DEPTH      32u     /* REVISIT only need  to store V values */
@@ -435,7 +435,8 @@ ecmProcessCycle(void)
         int dcCorr  = accumProcessing->processV[idxV].sumV_deltas / numSamplesSqr;
         meanSqr -= dcCorr;
 
-        ecmCycle.rmsV[idxV] += qfp_fsqrt(qfp_int2float(meanSqr));
+        ecmCycle.rmsV[idxV] = qfp_fadd(ecmCycle.rmsV[idxV],
+                                       qfp_fsqrt(qfp_int2float(meanSqr)));
     }
 
     /* CT channels */
@@ -459,7 +460,8 @@ ecmProcessCycle(void)
             ctCurrent -= deltasScaled;
 
             ecmCycle.valCT[idxCT].powerNow += powerNow;
-            ecmCycle.valCT[idxCT].rmsCT += qfp_fsqrt(qfp_int2float(ctCurrent));
+            ecmCycle.valCT[idxCT].rmsCT = qfp_fadd(ecmCycle.valCT[idxCT].rmsCT,
+                                                   qfp_fsqrt(qfp_int2float(ctCurrent)));
         }
         else
         {
