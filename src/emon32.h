@@ -71,7 +71,7 @@ typedef struct __attribute__((__packed__)) Emon32Config_ {
     float               voltageAssumed;
     VoltageCfg_t        voltageCfg[NUM_V];
     CTCfg_t             ctCfg[NUM_CT];
-    uint32_t            ctActive;       /* Multihot active bits */
+    uint32_t            ctActive;       /* Bitmap of active inputs */
     PulseCfgPacked_t    pulseCfg[NUM_PULSECOUNT];
     uint8_t             pulseActive;
     uint16_t            crc16_ccitt;
@@ -96,6 +96,9 @@ typedef struct __attribute__((__packed__)) Emon32CumulativeSave_ {
     uint16_t            crc;    /* CRC16-CCITT of data */
 } Emon32CumulativeSave_t;
 
+/* This struct must match the OEM definitions found at:
+ * https://docs.openenergymonitor.org/electricity-monitoring/networking/sending-data-between-nodes-rfm.html
+ */
 typedef struct __attribute__((__packed__)) PackedData_ {
     uint32_t    msg;
     int16_t     V[NUM_V];
@@ -150,4 +153,3 @@ void emon32EventClr(const EVTSRC_t evt);
  *  @param [in] evt : Event source in enum
  */
 void emon32EventSet(const EVTSRC_t evt);
-

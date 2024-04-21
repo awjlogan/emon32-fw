@@ -109,11 +109,10 @@ dataTxConfigure(const Emon32Config_t *pCfg)
     RFMPkt_t *rfmPkt = 0;
     if (DATATX_RFM69 == pCfg->baseCfg.dataTx)
     {
-        sercomSetupSPI();
         rfmPkt              = rfmGetHandle();
         rfmPkt->node        = pCfg->baseCfg.nodeID;
-        rfmPkt->grp         = 210u; /* Fixed for OpenEnergyMonitor */
-        rfmPkt->rf_pwr      = 0u;
+        rfmPkt->grp         = 210u;             /* Fixed for OpenEnergyMonitor */
+        rfmPkt->rf_pwr      = RFM_PALEVEL_DEF;  /* 7 dBm transmit power */
         rfmPkt->threshold   = 0u;
         rfmPkt->timeout     = 1000u;
         rfmPkt->n           = 23u;

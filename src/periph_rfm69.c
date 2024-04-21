@@ -6,41 +6,43 @@
 #include "driver_TIME.h"
 #include "periph_rfm69.h"
 
-/* Register definitions */
-typedef enum RFM_register_ {
-    REG_FIFO            = 0x00,
-    REG_OPMODE          = 0x01,
-    REG_FRFMSB          = 0x07,
-    REG_AFCFEI          = 0x1E,
-    REG_RSSIVALUE       = 0x24,
-    REG_DIOMAPPING1     = 0x25,
-    REG_IRQFLAGS1       = 0x27,
-    REG_IRQFLAGS2       = 0x28,
-    REG_SYNCCONFIG      = 0x2E,
-    REG_SYNCVALUE1      = 0x2F,
-    REG_SYNCVALUE2      = 0x30,
-    REG_SYNCVALUE3      = 0x31,
-    REG_NODEADRS        = 0x39,
-    REG_PACKETCONFIG2   = 0x3D,
-    REG_AESKEY1         = 0x3E
-} RFM_register_t;
+#include "RFM69registers.h"
 
-static RFMPkt_t     rfmPkt;
-static int          initDone;
 
-/* Alias to SPI functions */
-static void
-rfmWriteReg(const RFM_register_t addr, const uint8_t data)
-{
-    /* Datasheet 5.2.1, Figure 24: "wnr is 1 for write" */
-    spiWriteByte(SERCOM_SPI_DATA, ((uint8_t)addr | 0x80), data);
-}
+static uint16_t crc16_update(uint16_t crc, const uint8_t d);
+static uint8_t  rfmReadReg(const unsigned int addr);
+static void     rfmSetAESKey(void);
+static void     rfmSleep(void);
+static void     rfmWriteReg(const unsigned int addr, const uint8_t data);
+
+
+const Pin_t     sel = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
+static int      initDone;
+static RFMPkt_t rfmPkt;
+
 
 static uint8_t
-rfmReadReg(const RFM_register_t addr)
+rfmReadReg(const unsigned int addr)
 {
-    return spiReadByte(SERCOM_SPI_DATA, (uint8_t)addr);
+    uint8_t rdByte;
+    spiSelect(sel);
+    (void)spiSendByte(SERCOM_SPI_DATA, (uint8_t)addr);
+    rdByte = spiSendByte(SERCOM_SPI_DATA, 0x00);
+    spiDeSelect(sel);
+    return rdByte;
 }
+
+
+static void
+rfmWriteReg(const unsigned int addr, const uint8_t data)
+{
+    spiSelect(sel);
+    /* Datasheet 5.2.1, Figure 24: "wnr is 1 for write" */
+    (void)spiSendByte(SERCOM_SPI_DATA, ((uint8_t)addr | 0x80));
+    (void)spiSendByte(SERCOM_SPI_DATA, data);
+    spiDeSelect(sel);
+}
+
 
 /* Adapted from AVR GCC libc:
  * https://www.nongnu.org/avr-libc/user-manual/group__util__crc.html#ga95371c87f25b0a2497d9cba13190847f
@@ -58,6 +60,22 @@ crc16_update(uint16_t crc, const uint8_t d)
 
     return crc;
 }
+
+
+static void
+rfmSetAESKey(void)
+{
+    const char  aesKey[] = "89txbe4p8aik5kt3";
+
+    /* aesKey includes the NULL terminator, so this will roll in the initial
+     * address byte as well.
+     */
+    spiSelect(sel);
+    spiSendByte(SERCOM_SPI_DATA, (REG_AESKEY1 | 0x80));
+    spiSendBuffer(SERCOM_SPI_DATA, aesKey, (sizeof(aesKey) - 1));
+    spiDeSelect(sel);
+}
+
 
 static void
 rfmSleep(void)
@@ -87,27 +105,27 @@ rfmInit(RFM_Freq_t freq)
     /* Configuration parameters */
     const uint8_t config[][2] =
     {
-        {0x01, 0x04}, /* OPMODE: Sequencer, standby, listen off */
-        {0x02, 0x00}, /* DataModul: Packet, FSK, no shaping */
-        {0x03, 0x02}, /* BitRate MSB: ~49.23 Kbps */
-        {0x04, 0x8A}, /* BitRate LSB */
-        {0x05, 0x05}, /* FdevMsb: ~90 kHz */
-        {0x06, 0xC3}, /* FdevLsb */
-        {0x07, (  RF12_868MHz == freq)
-                ? 0xD9
-                : (   (RF12_915MHz == freq)
-                    ? 0xE4
-                    : 0x6C)}, /* FrfMsb */
-        {0x08, 0x00}, /* FrfMid */
-        {0x09, 0x00}, /* FrfLsb */
-        {0x11, 0x99}, /* PaLevel */
-        {0x1E, 0x2C},
-        {0x25, 0x80}, /* DioMapping1 */
-        {0x26, 0x03}, /* DioMapping2 */
-        {0x28, 0x00}, /* IrqFlags: FIFO overrun */
-        {0x2E, 0x88}, /* SyncConfig : On, FIFO fill, 2 bytes, Tol */
-        {0x2F, 0x2D}, /* SyncValue1 */
-        {0x37, 0x00}, /* PktConfig: fixed, !DC free, !CRC, !CRCClear */
+        {REG_OPMODE,        0x04}, /* OPMODE: Sequencer, standby, listen off */
+        {REG_DATAMODUL,     0x00}, /* DataModul: Packet, FSK, no shaping */
+        {REG_BITRATEMSB,    0x02}, /* BitRate MSB: ~49.23 Kbps */
+        {REG_BITRATELSB,    0x8A}, /* BitRate LSB */
+        {REG_FDEVMSB,       0x05}, /* FdevMsb: ~90 kHz */
+        {REG_FDEVLSB,       0xC3}, /* FdevLsb */
+        {REG_FRFMSB, (  RF12_868MHz == freq)
+                      ? 0xD9
+                      : (   (RF12_915MHz == freq)
+                         ? 0xE4
+                         : 0x6C)}, /* FrfMsb */
+        {REG_FRFMID,        0x00}, /* FrfMid */
+        {REG_FRFLSB,        0x00}, /* FrfLsb */
+        {REG_PALEVEL,       (0x80 | RFM_PALEVEL_DEF)}, /* PaLevel */
+        {REG_AFCFEI,        0x2C},
+        {REG_DIOMAPPING1,   0x80}, /* DioMapping1 */
+        {REG_DIOMAPPING2,   0x03}, /* DioMapping2 */
+        {REG_IRQFLAGS2,     0x00}, /* IrqFlags: FIFO overrun */
+        {REG_SYNCCONFIG,    0x88}, /* SyncConfig : On, FIFO fill, 2 bytes, Tol */
+        {REG_SYNCVALUE1,    0x2D}, /* SyncValue1 */
+        {REG_PACKETCONFIG1, 0x00}, /* PktConfig: fixed, !DC free, !CRC, !CRCClear */
         {0xFF, 0}
     };
 
@@ -126,6 +144,8 @@ rfmInit(RFM_Freq_t freq)
     {
         rfmWriteReg(config[idxCfg][0], config[idxCfg][1]);
     }
+
+    rfmSetAESKey();
 
     initDone = 1;
     rfmSleep();

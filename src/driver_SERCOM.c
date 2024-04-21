@@ -15,7 +15,8 @@ static void i2cmCommon(Sercom *pSercom);
 static void i2cmExtPinsSetup(int enable);
 static void spiExtPinsSetup(int enable);
 
-static int extIntfEnabled = 1;
+static int      extIntfEnabled = 1;
+static Pin_t    spiSelectPin;
 
 static void
 i2cmCommon(Sercom *pSercom)
@@ -72,14 +73,14 @@ spiExtPinsSetup(int enable)
         portPinMux(GRP_SERCOM_SPI, PIN_SPI_MISO,    PMUX_SPI_DATA);
         portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI,    PMUX_SPI_DATA);
         portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK,     PMUX_SPI_DATA);
-        portPinMux(GRP_SERCOM_SPI, PIN_SPI_RFM_SS,  PMUX_SPI_DATA);
+        portPinDir(GRP_SERCOM_SPI, PIN_SPI_RFM_SS,  PIN_DIR_OUT);
     }
     else
     {
-        portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_MISO);
-        portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_MOSI);
-        portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_SCK);
-        portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_RFM_SS);
+        portPinMuxClear (GRP_SERCOM_SPI, PIN_SPI_MISO);
+        portPinMuxClear (GRP_SERCOM_SPI, PIN_SPI_MOSI);
+        portPinMuxClear (GRP_SERCOM_SPI, PIN_SPI_SCK);
+        portPinDir      (GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DIR_IN);
     }
 }
 
@@ -180,7 +181,8 @@ sercomSetup(void)
     /*****************
     * SPI Setup
     ******************/
-   sercomSetupSPI();
+    Pin_t spiPin = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
+    sercomSetupSPI(spiPin);
 }
 
 
@@ -250,11 +252,15 @@ sercomSetupUART(const UART_Cfg_t *pCfg)
 
 
 void
-sercomSetupSPI(void)
+sercomSetupSPI(Pin_t sel)
 {
     /**********************
     * SPI Setup (for RFM69)
     ***********************/
+
+    spiSelectPin.grp = sel.grp;
+    spiSelectPin.pin = sel.pin;
+
     if (portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT))
     {
         spiExtPinsSetup(1);
@@ -437,52 +443,42 @@ i2cDataRead(Sercom *sercom)
  * SPI Functions
  * =====================================
  */
+
 void
-spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data)
+spiDeSelect(const Pin_t nSS)
 {
-    portPinDrv(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DRV_CLR);
-    sercom->SPI.DATA.reg = addr;
-    while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_TXC));
-    sercom->SPI.DATA.reg = data;
-    while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_TXC));
-    portPinDrv(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DRV_SET);
+    portPinDrv(nSS.grp, nSS.pin, PIN_DRV_SET);
+}
+
+
+void
+spiSelect(const Pin_t nSS)
+{
+    portPinDrv(nSS.grp, nSS.pin, PIN_DRV_CLR);
+}
+
+
+void
+spiSendBuffer(Sercom *sercom, const void *pSrc, int n)
+{
+    uint8_t *pData = (uint8_t *)pSrc;
+
+    while (n--)
+    {
+        while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_DRE));
+        sercom->SPI.DATA.reg = *pData++;
+    }
 }
 
 
 uint8_t
-spiReadByte(Sercom *sercom, const uint8_t addr)
+spiSendByte(Sercom *sercom, const uint8_t b)
 {
-    /* Set address on first write, then send a dummy byte to provide clock
-     * for shifting out the data
-     */
-    portPinDrv(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DRV_CLR);
+    while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_DRE));
+    sercom->SPI.DATA.reg = b;
 
-    sercom->SPI.DATA.reg = addr;
-    while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_TXC));
-
-    sercom->SPI.DATA.reg = 0;
     while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_RXC));
-    portPinDrv(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DRV_SET);
-
-    return sercom->SPI.DATA.reg;
-}
-
-
-void
-spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n)
-{
-    /* Send buffer byte-wise from pBuf. Address must be the first entries in
-     * pBuf
-     */
-    uint8_t *data = (uint8_t *)pBuf;
-
-    portPinDrv(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DRV_CLR);
-    for (unsigned int i = 0; i < n; i++)
-    {
-        sercom->SPI.DATA.reg = *data++;
-        while(0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_TXC));
-    }
-    portPinDrv(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DRV_SET);
+    return (uint8_t)sercom->SPI.DATA.reg;
 }
 
 

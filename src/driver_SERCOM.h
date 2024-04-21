@@ -4,6 +4,7 @@
 
 #include "emon32_samd.h"
 #include "driver_DMAC.h"
+#include "driver_PORT.h"
 
 
 typedef enum I2CM_Ack_ {
@@ -74,7 +75,7 @@ int sercomExtIntfEnabled(void);
 void sercomSetup(void);
 
 /*! @brief Configure a SERCOM module for SPI */
-void sercomSetupSPI(void);
+void sercomSetupSPI(const Pin_t sel);
 
 /*! @brief Configure a SERCOM module for UART functions.
  *  @param [in] pCfg : pointer to configuration struct
@@ -107,27 +108,30 @@ void i2cDataWrite(Sercom *sercom, uint8_t data);
  */
 uint8_t i2cDataRead(Sercom *sercom);
 
-/*! @brief Read a byte from a configured SPI channel
- *  @param [in] sercom : SERCOM instance
- *  @param [in] addr : address to read from
- *  @return : the byte that has been read
+/*! @brief Select an SPI peripheral
+ *  @param [in] nSS : grp+pin of chip select line
  */
-uint8_t spiReadByte(Sercom *sercom, const uint8_t addr);
+void spiDeSelect(const Pin_t nSS);
 
-/*! @brief Write a set of bytes to a configured SPI channel.
- *  @param [in] sercom : SERCOM instance
- *  @param [in] pBuf : pointer to data buffer
- *  @param [in] n : size of data buffer
+/*! @brief Select an SPI peripheral
+ *  @param [in] nSS : grp+pin of chip select line
  */
-void spiWriteBuffer(Sercom *sercom, const void *pBuf, const unsigned int n);
+void spiSelect(const Pin_t nSS);
 
-/*! @brief Write a byte to a configured SPI channel. Blocks until transfer
- *         is complete.
- *  @param [in] sercom : SERCOM instance
- *  @param [in] addr : address to write to
- *  @param [in] data : data to write
+/*! @brief Send a buffer on the configured SPI channel
+ *  @param [in] sercom : pointer to the SERCOM instance
+ *  @param [in] pSrc : pointer to the source buffer
+ *  @param [in] n : number of bytes to send
  */
-void spiWriteByte(Sercom *sercom, const uint8_t addr, const uint8_t data);
+void spiSendBuffer(Sercom *sercom, const void *pSrc, int n);
+
+
+/*! @brief Send a byte on the configured SPI channel
+ *  @param [in] sercom : pointer to the SERCOM instance
+ *  @param [in] b : byte to send
+ *  @return : data in the SPI buffer
+ */
+uint8_t spiSendByte(Sercom *sercom, const uint8_t b);
 
 /*! @brief Configure the DMA for non-blocking transactions
  */

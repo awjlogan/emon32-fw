@@ -1,9 +1,5 @@
 #pragma once
 
-/* This file contains defines specific to the board that is being used. To
- * extend this, the base SAMD11 configuration can be bracketed in IFDEF
- */
-
 /* Board identification number. If a custom board is used, this should be
  * added to "dbgPutBoard" in emon32.c
   */
@@ -231,8 +227,8 @@
 #define GRP_SERCOM_SPI      GRP_PINA
 #define PIN_SPI_MISO        12u
 #define PIN_SPI_SCK         13u
-#define PIN_SPI_MOSI        14u
-#define PIN_SPI_RFM_SS      15u
+#define PIN_SPI_MOSI        15u
+#define PIN_SPI_RFM_SS      14u
 #define SPI_DATA_BAUD       4000000ul
 #define PMUX_SPI_DATA       PORT_PMUX_PMUXE_C
 

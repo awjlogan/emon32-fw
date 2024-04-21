@@ -33,6 +33,7 @@ INCLUDES += \
   -I./include/samd21 \
   -I./third_party/printf \
   -I./third_party/qfplib \
+  -I./third_party/RFM69 \
   -I./src/
 
 SRCS += $(wildcard ./src/*.c) \

@@ -72,6 +72,9 @@ The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configur
 
 All options can be listed by entering `?`.
 
+> [!WARNING]
+> The RFM69 transmitter will be damaged if it is run at maximum power without an antenna.
+
 ### Data acquisition
 
 The ADC is triggered by a dedicated timer (`TIMER_ADC`) with no intervention from the processor. Data are accumulated by DMA into a ping-pong buffer - when one sample set is being processed, another is being captured in the background.
@@ -202,6 +205,7 @@ You will also need to ensure that the vendor's headers are included and visible 
 ## Datasheets
 
 - [HopeRF RFM69CW](https://www.hoperf.com/modules/rf_transceiver/RFM69CW.html)
+- [Microchip 24FC08](https://www.microchip.com/en-us/product/24FC08)
 - [Microchip ATSAMD21J17](https://www.microchip.com/en-us/product/ATSAMD21J17)
 
 ## Acknowledgements
@@ -210,9 +214,12 @@ You will also need to ensure that the vendor's headers are included and visible 
 
 - [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation. Note that floating point operations have been replaced with Qfplib functions.
 - [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M0.
+- [RFM69](https://github.com/LowPowerLab/RFM69) - RFM69 driver from Low Power Labs used as reference.
 - [SSD1306 library](https://github.com/Matiasus/SSD1306/tree/master) - used as a reference for this implementation.
 - [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build scripts from Winterbloom.
 
 ### Others
 
-- Rob Wall on the OpenEnergyMonitor forums for discussions around all aspects of energy monitoring.
+- Glyn Hudson @ OpenEnergyMonitor
+- Rob Wall @ OpenEnergyMonitor forums for discussions around all aspects of energy monitoring.
+- Trystan Lea @ OpenEnergyMonitor
