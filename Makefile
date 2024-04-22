@@ -1,6 +1,7 @@
 ##############################################################################
 BUILD = build
 BIN = emon32
+OUT = bin
 ##############################################################################
 .PHONY: all directory clean size
 
@@ -50,20 +51,24 @@ OBJS += $(BUILD)/qfplib-m0-full.o $(BUILD)/qfpio.o
 
 # Always update the build information. This forces this to run every time
 BUILD_INFO := $(shell python3 ./scripts/build_info.py ./src/emon32_build_info.c)
+VERSION_INFO := $(shell python3 ./scripts/version_info.py)
 
 all: directory $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).hex $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2 size
 
 $(BUILD)/$(BIN).elf: $(OBJS)
 	@echo LD $@
 	@$(CC) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
+	@cp $@ $(OUT)/$(VERSION_INFO).elf
 
 $(BUILD)/$(BIN).hex: $(BUILD)/$(BIN).elf
 	@echo OBJCOPY $@
 	@$(OBJCOPY) -O ihex $^ $@
+	@cp $@ $(OUT)/$(VERSION_INFO).hex
 
 $(BUILD)/$(BIN).bin: $(BUILD)/$(BIN).elf
 	@echo OBJCOPY $@
 	@$(OBJCOPY) -O binary $^ $@
+	@cp $@ $(OUT)/$(VERSION_INFO).bin
 
 $(BUILD)/$(BIN).uf2: $(BUILD)/$(BIN).bin
 	@echo BIN_TO_UF2 $@
@@ -83,6 +88,7 @@ $(BUILD)/qfpio.o:
 
 directory:
 	@$(MKDIR) -p $(BUILD)
+	@$(MKDIR) -p $(OUT)
 
 size: $(BUILD)/$(BIN).elf
 	@echo size:
@@ -91,5 +97,6 @@ size: $(BUILD)/$(BIN).elf
 clean:
 	@echo clean
 	@-rm -rf $(BUILD)
+	@-rm -f $(OUT)/emon32*
 
 -include $(wildcard $(BUILD)/*.d)

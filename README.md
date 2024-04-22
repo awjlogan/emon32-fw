@@ -112,11 +112,13 @@ To build the firmware:
 
   `> make -j`
 
-In `build/`, the following binary files will be generated:
+In `bin/`, the following binary files will be generated:
 
-- `emon32.bin`
-- `emon32.elf`
-- `emon32.uf2`
+- `emon32-vX.Y.Z-(commit[-dirty]).bin`
+- `emon32-vX.Y.Z-(commit[-dirty]).elf`
+- `emon32-vX.Y.Z-(commit[-dirty]).uf2`
+
+The `-dirty` tag (if present) indicates that there are uncommitted changes when the binaries are built.
 
 ### Uploading
 
