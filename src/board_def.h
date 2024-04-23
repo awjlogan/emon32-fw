@@ -1,5 +1,10 @@
 #pragma once
 
+/* SAMD uses Arm Cortex-M0+ or Cortex-M4 - can place fast functions into RAM
+ * to avoid the penalty of laoding from flash with wait states.
+ */
+#define RAMFUNC __attribute__((section(".ramfunc")))
+
 /* Board identification number. If a custom board is used, this should be
  * added to "dbgPutBoard" in emon32.c
   */

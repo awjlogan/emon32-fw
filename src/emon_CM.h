@@ -2,8 +2,11 @@
 
 #include <stdint.h>
 
-#define RAMFUNC
 #include "board_def.h"
+
+#ifndef RAMFUNC
+#define RAMFUNC
+#endif
 
 /******************************************************************************
  * Type definitions

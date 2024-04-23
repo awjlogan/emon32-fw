@@ -40,43 +40,81 @@ ENTRY(irq_handler_reset)
 
 SECTIONS
 {
-  .text : ALIGN(4)
+  .text :
   {
-    FILL(0xff)
-    KEEP(*(.vectors))
-    *(.text*)
-    *(.rodata)
-    *(.rodata.*)
+    . = ALIGN(4);
+    KEEP(*(.vectors .vectors.*))
+    *(.text .text.* .gnu.linkonce.t.*)
+    *(.rodata .rodata* .gnu.linkonce.r.*)
+
+    . = ALIGN(4);
+
+    KEEP(*(.init))
+    . = ALIGN(4);
+    __preinit_array_start = .;
+    KEEP (*(.preinit_array))
+    __preinit_array_end = .;
+
+    . = ALIGN(4);
+    __init_array_start = .;
+    KEEP (*(SORT(.init_array.*)))
+    KEEP (*(.init_array))
+    __init_array_end = .;
+
+    . = ALIGN(4);
+    KEEP(*(.fini))
+
+    . = ALIGN(4);
+    __fini_array_start = .;
+    KEEP (*(.fini_array))
+    KEEP (*(SORT(.fini_array.*)))
+    __fini_array_end = .;
+
+    . = ALIGN(4);
+    KEEP (*crtbegin.o(.ctors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o) .ctors))
+    KEEP (*(SORT(.ctors.*)))
+    KEEP (*crtend.o(.ctors))
+
+    . = ALIGN(4);
+    KEEP (*crtbegin.o(.dtors))
+    KEEP (*(EXCLUDE_FILE (*crtend.o) .dtors))
+    KEEP (*(SORT(.dtors.*)))
+    KEEP (*crtend.o(.dtors))
+
     . = ALIGN(4);
   } > flash
 
-  . = ALIGN(4);
-  _etext = .;
+  .ARM.extab : {
+    *(.ARM.extab* .gnu.linkonce.armextab.*)
+  } > flash
 
-  .uninit_RESERVED : ALIGN(4)
-  {
-    KEEP(*(.bss.$RESERVED*))
-  } > ram
+  .ARM.exidx : {
+    PROVIDE(__exidx_start = .);
+    *(.ARM.exidx* .gnu.linkonce.armexidx.*)
+    PROVIDE(__exidx_end = .);
+  } > flash
 
-  .data : ALIGN(4)
+  .data :
   {
-    FILL(0xff)
+    . = ALIGN(4);
     _data = .;
     *(.ramfunc .ramfunc.*);
-    *(vtable)
-    *(.data*)
+    *(.data .data.*);
     . = ALIGN(4);
     _edata = .;
-  } > ram AT > flash
+  } > ram AT> flash
 
-  .bss : ALIGN(4)
+  _etext = LOADADDR(.data);
+
+  .bss (NOLOAD) :
   {
+    . = ALIGN(4);
     _bss = .;
-    *(.bss*)
+    *(.bss .bss.*)
     *(COMMON)
     . = ALIGN(4);
     _ebss = .;
-    PROVIDE(_end = .);
   } > ram
 
   PROVIDE(_stack_top = __top_ram - 0);
