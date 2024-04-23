@@ -49,8 +49,13 @@ CFLAGS += $(INCLUDES) $(DEFINES)
 OBJS = $(addprefix $(BUILD)/, $(notdir %/$(subst .c,.o, $(SRCS))))
 OBJS += $(BUILD)/qfplib-m0-full.o $(BUILD)/qfpio.o
 
-# Always update the build information. This forces this to run every time
+# Always update the build information. This forces this to run every time. Exit
+# if this fails - likely to be a path of Python version issue.
 BUILD_INFO := $(shell python3 ./scripts/build_info.py ./src/emon32_build_info.c)
+ifeq ($(strip $(BUILD_INFO)), )
+$(error 1)
+endif
+
 VERSION_INFO := $(shell python3 ./scripts/version_info.py)
 
 all: directory $(BUILD)/$(BIN).elf $(BUILD)/$(BIN).hex $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2 size
@@ -73,6 +78,7 @@ $(BUILD)/$(BIN).bin: $(BUILD)/$(BIN).elf
 $(BUILD)/$(BIN).uf2: $(BUILD)/$(BIN).bin
 	@echo BIN_TO_UF2 $@
 	@python3 ./scripts/bin_to_uf2.py $(BUILD)/$(BIN).bin $(BUILD)/$(BIN).uf2
+	@[ -f $@ ] && cp $@ $(OUT)/$(VERSION_INFO).uf2 || true
 
 $(BUILD)/qfplib-m0-full.o:
 	@echo AS $@

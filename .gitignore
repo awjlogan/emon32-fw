@@ -1,48 +1,17 @@
-# Firmware compilation intermediates
-*.o
-build/
-compile_commands.json
 .cache/
-.md.backup
-*.backup
-hb*.png
-venv/
-*.test
-*.tgz
-
-# For PCBs designed using KiCad: https://www.kicad.org/
-# Format documentation: https://kicad.org/help/file-formats/
-
-# Temporary files
-*.000
-*.bak
-*.bck
-*.kicad_pcb-bak
-*.kicad_sch-bak
-*-backups
-*.kicad_prl
-*.sch-bak
-*~
-_autosave-*
-*.tmp
-*-save.pro
-*-save.kicad_pcb
-fp-info-cache
-
-# Netlist files (exported from Eeschema)
-*.net
-
-# Autorouter files (exported from Pcbnew)
-*.dsn
-*.ses
-
-# Exported BOM files
-*.xml
-*.csv
 .DS_Store
-helpers/
-emon32_build_info.c
+.md.backup
 .vscode/
-cm-test-sine.csv
+*.backup
+*.test
 *.test.dSYM/
+*.tgz
+bin/emon32*
+build/
+cm-test-sine.csv
+compile_commands.json
+emon32_build_info.c
 EmonLibDB/
+hb*.png
+helpers/
+venv/

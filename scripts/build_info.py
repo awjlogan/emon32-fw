@@ -5,7 +5,6 @@
 # Full text available at: https://opensource.org/licenses/MIT
 
 import argparse
-import datetime
 import os
 import os.path
 import platform
@@ -13,6 +12,8 @@ import pwd
 import subprocess
 import tempfile
 import textwrap
+
+from datetime import datetime, timezone
 
 
 def username():
@@ -72,7 +73,7 @@ def generate_build_info_c(configuration):
 
     compiler = f"gcc {gcc_version}"
 
-    date = datetime.datetime.now(datetime.UTC).strftime("%m/%d/%Y %H:%M UTC")
+    date = datetime.now(timezone.utc).strftime("%m/%d/%Y %H:%M UTC")
 
     machine = f"{username()}@{platform.node()}"
 
