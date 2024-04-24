@@ -116,6 +116,7 @@ In `bin/`, the following binary files will be generated:
 
 - `emon32-vX.Y.Z-(commit[-dirty]).bin`
 - `emon32-vX.Y.Z-(commit[-dirty]).elf`
+- `emon32-vX.Y.Z-(commit[-dirty]).hex`
 - `emon32-vX.Y.Z-(commit[-dirty]).uf2`
 
 The `-dirty` tag (if present) indicates that there are uncommitted changes when the binaries are built.
@@ -128,7 +129,7 @@ The emonPi3 comes preloaded with a [UF2 bootloader](https://microsoft.github.io/
   2. Quickly double press the `RESET` button.
     - The **PROG** LED will pulse slowly to indicate it has entered bootloader mode,
     - The drive `EMONBOOT` will appear on the host computer.
-  3. Copy `emon32.uf` to the `EMONBOOT` drive. The board will reset and enter the main program.
+  3. Copy `bin/emon32-vX.Y.Z-(commit[-dirty]).uf2` to the `EMONBOOT` drive. The board will reset and enter the main program.
 
 #### Updating the bootloader
 
@@ -165,7 +166,7 @@ Below is a list of the compile time options, grouped by location. The value for 
 The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter. Filter coefficients can be generated using the **filter.py** script (_./helpers/filter.py_). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matplotlib.org/) to use the filter designer,
 
 > [!NOTE]
-> A Python virtual environment can be setup by running `python3 -m venv venv && pip3 install -r requirements.txt` in `./helpers/`.
+> A Python virtual environment can be setup by running `python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt` in `./scripts/`.
 
 ### Tests
 
@@ -214,11 +215,12 @@ You will also need to ensure that the vendor's headers are included and visible 
 
 ### Third party libraries and tools
 
+- [mcu-starter-projects](https://github.com/ataradov/mcu-starter-projects) - good starting point for build chains for microcontrollers.
 - [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation. Note that floating point operations have been replaced with Qfplib functions.
 - [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M0.
 - [RFM69](https://github.com/LowPowerLab/RFM69) - RFM69 driver from Low Power Labs used as reference.
 - [SSD1306 library](https://github.com/Matiasus/SSD1306/tree/master) - used as a reference for this implementation.
-- [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build scripts from Winterbloom.
+- [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build and linker scripts from Winterbloom.
 
 ### Others
 
