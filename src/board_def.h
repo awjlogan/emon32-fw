@@ -32,7 +32,7 @@
 #define SAMPLE_BUF_DEPTH    2u
 
 /* If there is hardware support of zero-crossing detection, set 1*/
-#define ZEROX_HW_SPT        1
+#define ZEROX_HW_SPT        0
 #define EIC_INTEN_ZEROX     EIC_INTENSET_EXTINT15
 #define EIC_INTDIS_ZEROX    EIC_INTENCLR_EXTINT15
 #define EIC_INTFLG_ZEROX    EIC_INTFLAG_EXTINT15
