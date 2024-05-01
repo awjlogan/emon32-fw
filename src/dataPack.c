@@ -16,6 +16,7 @@
 #define STR_PULSE   4
 #define STR_TEMP    5
 #define STR_COLON   6
+#define STR_CRLF    7
 
 
 /* "Fat" string with current length and buffer size. */
@@ -37,13 +38,14 @@ static char     tmpStr[CONV_STR_W] = {0};
 static StrN_t   strConv;    /* Fat string for conversions */
 
 /* Strings that are inserted in the transmitted message */
-const StrN_t baseStr[7] = { {.str = "MSG:",     .n = 4, .m = 5},
+const StrN_t baseStr[8] = { {.str = "MSG:",     .n = 4, .m = 5},
                             {.str = ",V",       .n = 2, .m = 3},
                             {.str = ",P",       .n = 2, .m = 3},
                             {.str = ",E",       .n = 2, .m = 3},
                             {.str = ",pulse",   .n = 6, .m = 7},
                             {.str = ",t",       .n = 2, .m = 3},
-                            {.str = ":",        .n = 1, .m = 2}};
+                            {.str = ":",        .n = 1, .m = 2},
+                            {.str = "\r\n",     .n = 2, .m = 3}};
 
 
 /*! @brief "Append <field><id>:" to the string
@@ -153,7 +155,7 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     /* V channels: "[..],V<x>:<yy.y>" */
     for (unsigned int i = 0; i < NUM_V; i++)
     {
-        catId(&strn, i, STR_V);
+        catId(&strn, (i + 1), STR_V);
         (void)strnFtoa(&strConv, pData->pECM->rmsV[i]);
         strn.n += strnCat(&strn, &strConv);
     }
@@ -161,7 +163,7 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     /* CT channels "[..],P<x>:<yy.y>" */
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        catId(&strn, i, STR_P);
+        catId(&strn, (i + 1), STR_P);
         (void)strnFtoa(&strConv, pData->pECM->CT[i].realPower);
         strn.n += strnCat(&strn, &strConv);
     }
@@ -169,7 +171,7 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     /* "[..],E<x>:<yy>" */
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        catId(&strn, i, STR_E);
+        catId(&strn, (i + 1), STR_E);
         (void)strnItoa(&strConv, pData->pECM->CT[i].wattHour);
         strn.n += strnCat(&strn, &strConv);
     }
@@ -177,7 +179,7 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     /* Pulse channels: "[..],pulse<x>:<yy>" */
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
-        catId(&strn, i, STR_PULSE);
+        catId(&strn, (i + 1), STR_PULSE);
         (void)strnItoa(&strConv, pData->pulseCnt[i]);
         strn.n += strnCat(&strn, &strConv);
     }
@@ -185,10 +187,14 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     /* Temperature sensors: "[..],t<x>:<yy.y>" */
     for (unsigned int i = 0; i < pData->numTempSensors; i++)
     {
-        catId(&strn, i, STR_TEMP);
+        catId(&strn, (i + 1), STR_TEMP);
         (void)strnFtoa(&strConv, pData->temp[i]);
         strn.n += strnCat(&strn, &strConv);
     }
+
+    /* CR-LF */
+    strn.n += strnCat(&strn, &baseStr[STR_CRLF]);
+
     return strn.n;
 }
 
