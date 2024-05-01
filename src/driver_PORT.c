@@ -15,6 +15,7 @@ portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg, PINCFG_t cs)
     }
 }
 
+
 void
 portPinDir(unsigned int grp, unsigned int pin, PINDIR_t mode)
 {
@@ -46,6 +47,7 @@ portPinDrv(unsigned int grp, unsigned int pin, PINDRV_t drv)
     }
 }
 
+
 void
 portPinMux(unsigned int grp, unsigned int pin, unsigned int mux)
 {
@@ -60,11 +62,13 @@ portPinMux(unsigned int grp, unsigned int pin, unsigned int mux)
     }
 }
 
+
 void
 portPinMuxClear(unsigned int grp, unsigned int pin)
 {
     PORT->Group[grp].PINCFG[pin].reg &= ~PORT_PINCFG_PMUXEN;
 }
+
 
 unsigned int
 portPinValue(unsigned int grp, unsigned int pin)
@@ -74,6 +78,7 @@ portPinValue(unsigned int grp, unsigned int pin)
     return ret;
 }
 
+
 void
 portSetup(void)
 {
@@ -81,10 +86,13 @@ portSetup(void)
     extern const uint8_t pinsGPIO_In[][2];
     extern const uint8_t pinsUnused[][2];
 
-    /* GPIO outputs */
+    /* GPIO outputs - also enable read buffer */
     for (unsigned int i = 0; pinsGPIO_Out[i][0] != 0xFF; i++)
     {
-        portPinDir(pinsGPIO_Out[i][0], pinsGPIO_Out[i][1], PIN_DIR_OUT);
+        portPinDir(pinsGPIO_Out[i][0], pinsGPIO_Out[i][1],
+                   PIN_DIR_OUT);
+        portPinCfg(pinsGPIO_Out[i][0], pinsGPIO_Out[i][1],
+                   PORT_PINCFG_INEN, PIN_CFG_SET);
     }
 
     /* GPIO inputs  - all inputs currently need pull ups, so default enable */

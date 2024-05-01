@@ -26,7 +26,6 @@
 
 #include "printf.h"
 
-
 /*************************************
  * Persistent state variables
  *************************************/
@@ -242,13 +241,11 @@ emon32EventClr(const EVTSRC_t evt)
 static void
 evtKiloHertz(void)
 {
-    static volatile uint32_t    msLast          = 0;
-    uint32_t                    msDelta;
     int                         extEnabled;
+    uint32_t                    msDelta;
+    static volatile uint32_t    msLast = 0;
     int                         ndisable_ext;
-    static unsigned int         statLedLast     = 0;
-    static unsigned int         statLedTrack    = 0;
-    unsigned int                statLed;
+    static unsigned int         statLedOff_time = 0;
 
     /* Feed watchdog - placed in the event handler to allow reset of stuck
      * processing rather than entering the interrupt reliably.
@@ -273,23 +270,17 @@ evtKiloHertz(void)
 
 
     /* When there is a TX to the outside world, blink the STATUS LED for
-     * time TX_INDICATE_T to show there is activity. Find a falling edge of
-     * the LED to start the timer.
+     * time TX_INDICATE_T to show there is activity.
      */
-    statLed = portPinValue(GRP_LED_STATUS, PIN_LED_STATUS);
-    if ((statLed != statLedLast) && !statLed)
+    if (portPinValue(GRP_LED_STATUS, PIN_LED_STATUS) && (0 == statLedOff_time))
     {
-        statLedTrack = timerMillis();
+        statLedOff_time = timerMillis();
     }
-    if (statLedTrack)
+    if (timerMillisDelta(statLedOff_time) > TX_INDICATE_T)
     {
-        if (timerMillisDelta(statLedLast) >= TX_INDICATE_T)
-        {
-            ledStatusOn();
-            statLedTrack = 0;
-        }
+        statLedOff_time = 0;
+        ledStatusOn();
     }
-    statLedLast = statLed;
 
     /* Track milliseconds to indicate uptime */
     msDelta = timerMillisDelta(msLast);
