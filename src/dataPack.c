@@ -21,17 +21,17 @@
 
 /* "Fat" string with current length and buffer size. */
 typedef struct StrN {
-    char            *str;   /* Pointer to the string */
-    unsigned int    n;      /* Length of the string  */
-    unsigned int    m;      /* Buffer length */
+    char    *str;   /* Pointer to the string */
+    int     n;      /* Length of the string  */
+    int     m;      /* Buffer length */
 } StrN_t;
 
 
-static void         catId(StrN_t *strD, unsigned int id, unsigned int field);
-static unsigned int strnFtoa(StrN_t *strD, const float v);
-static unsigned int strnItoa(StrN_t *strD, const uint32_t v);
-static unsigned int strnCat(StrN_t *strD, const StrN_t *strS);
-static int          strnLen(StrN_t *str);
+static void catId(StrN_t *strD, unsigned int id, unsigned int field);
+static int  strnFtoa(StrN_t *strD, const float v);
+static int  strnItoa(StrN_t *strD, const uint32_t v);
+static int  strnCat(StrN_t *strD, const StrN_t *strS);
+static int  strnLen(StrN_t *str);
 
 
 static char     tmpStr[CONV_STR_W] = {0};
@@ -64,7 +64,7 @@ catId(StrN_t *strD, unsigned int id, unsigned int field)
 }
 
 
-static unsigned int
+static int
 strnFtoa(StrN_t *strD, const float v)
 {
     /* REVISIT : check formatting parameter */
@@ -73,11 +73,17 @@ strnFtoa(StrN_t *strD, const float v)
     /* Zero the destination buffer then convert */
     memset(strD->str, 0, strD->m);
     qfp_float2str(v, strD->str, fmt);
-    (void)strnLen(strD);
+    strD->n = strnLen(strD);
+
+    /* Truncate if it exceeds the length of the string */
+    if (-1 == strD->n)
+    {
+        strD->n = strD->m;
+    }
     return strD->n;
 }
 
-static unsigned int
+static int
 strnItoa(StrN_t *strD, const uint32_t v)
 {
     /* Zero the destination buffer then convert */
@@ -88,14 +94,14 @@ strnItoa(StrN_t *strD, const uint32_t v)
 }
 
 
-static unsigned int
+static int
 strnCat(StrN_t *strD, const StrN_t *strS)
 {
     /* Check bounds to make sure it won't go over the end. If so, return the
      * actual number of bytes that are copied.
      */
-    unsigned int newLen;
-    unsigned int bytesToCopy;
+    int newLen;
+    int bytesToCopy;
 
     bytesToCopy  = strS->n;
     newLen      = strS->n + strD->n;
@@ -112,8 +118,7 @@ strnCat(StrN_t *strD, const StrN_t *strS)
 static int
 strnLen(StrN_t *str)
 {
-    /* Convert a null terminated string to a fat string */
-    unsigned int i = 0;
+    int i = 0;
     while (str->str[i++])
     {
         /* Terminate if exceeded the maximum length */
