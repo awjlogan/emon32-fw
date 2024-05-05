@@ -22,6 +22,7 @@
 #include "periph_SSD1306.h"
 #include "pulse.h"
 #include "temperature.h"
+#include "ui.h"
 #include "util.h"
 
 #include "printf.h"
@@ -43,10 +44,6 @@ static RFMPkt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
 static void     ecmConfigure            (const Emon32Config_t *pCfg, const unsigned int reportCycles);
 static void     evtKiloHertz            (void);
 static uint32_t evtPending              (EVTSRC_t evt);
-static void     ledProgOff              (void);
-static void     ledProgOn               (void);
-static void     ledStatusOff            (void);
-static void     ledStatusOn             (void);
 static void     nvmCumulativeConfigure  (eepromPktWL_t *pPkt);
 static void     nvmCumulativeLoad       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
 static void     nvmCumulativeStore      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
@@ -279,7 +276,7 @@ evtKiloHertz(void)
     if (timerMillisDelta(statLedOff_time) > TX_INDICATE_T)
     {
         statLedOff_time = 0;
-        ledStatusOn();
+        uiLedOn(LED_STATUS);
     }
 
     /* Track milliseconds to indicate uptime */
@@ -306,42 +303,6 @@ static uint32_t
 evtPending(EVTSRC_t evt)
 {
     return (evtPend & (1u << evt)) ? 1u : 0;
-}
-
-
-/*! @brief Turn off the PROG LED */
-static void
-ledProgOff(void)
-{
-    /* For active LOW, change from PIN_DRV_CLR to PIN_DRV_SET */
-    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_SET);
-}
-
-
-/*! @brief Turn on the PROG LED */
-static void
-ledProgOn(void)
-{
-    /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
-    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_CLR);
-}
-
-
-/*! @brief Turn off the STATUS LED */
-static void
-ledStatusOff(void)
-{
-    /* For active LOW, change from PIN_DRV_CLR to PIN_DRV_SET */
-    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
-}
-
-
-/*! @brief Turn on the STATUS LED */
-static void
-ledStatusOn(void)
-{
-    /* For active LOW, change from PIN_DRV_SET to PIN_DRV_CLR */
-    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_CLR);
 }
 
 
@@ -557,7 +518,7 @@ main(void)
     char            txBuffer[TX_BUFFER_W]   = {0};
 
     ucSetup     ();
-    ledStatusOn ();
+    uiLedOn     (LED_STATUS);
     ssd1306Setup();
 
     /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
@@ -748,8 +709,8 @@ main(void)
                                      e32Config.baseCfg.whDeltaStore);
 
                 /* Blink the STATUS LED, and clear the event. */
-                ledStatusOff        ();
-                emon32EventClr      (EVT_ECM_SET_CMPL);
+                uiLedOff        (LED_STATUS);
+                emon32EventClr  (EVT_ECM_SET_CMPL);
             }
 
             if (evtPending(EVT_EEPROM_STORE))
@@ -773,12 +734,12 @@ main(void)
             }
             if (evtPending(EVT_CONFIG_CHANGED))
             {
-                ledProgOn();
+                uiLedOn(LED_PROG);
                 emon32EventClr(EVT_CONFIG_CHANGED);
             }
             if (evtPending(EVT_CONFIG_SAVED))
             {
-                ledProgOff();
+                uiLedOff(LED_PROG);
                 emon32EventClr(EVT_CONFIG_SAVED);
             }
 
