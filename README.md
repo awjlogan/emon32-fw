@@ -10,8 +10,8 @@ This firmware is intended to be used with the [OpenEnergyMonitor](https://openen
 
 Issues can be reported:
 
-- As a GitHub issue
-- On the OpenEnergyMonitor forums
+- As a [GitHub issue](https://github.com/awjlogan/emon32-fw/issues)
+- On the [OpenEnergyMonitor forums](https://community.openenergymonitor.org/)
 
 Please include as much information as possible (run the `v` command on the serial link), including at least:
 
@@ -61,7 +61,12 @@ It is available on:
 
 ### Run time configuration
 
-The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configuration](https://docs.openenergymonitor.org/emonpi2/configuration.html) options, which can be accessed through the debug serial link. In addition, the following options are added:
+The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configuration](https://docs.openenergymonitor.org/emonpi2/configuration.html) options, which can be accessed through the debug serial link.
+
+> [!NOTE]
+> All options can be listed by entering `?`.
+
+The following options are added:
 
 |Command    |Definition                                             |
 |-----------|-------------------------------------------------------|
@@ -70,10 +75,11 @@ The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configur
 |v          |Print firmware and board information                   |
 |w&lt;_n_&gt; |Minimum energy difference, _n_ Wh, before saving     |
 
-All options can be listed by entering `?`.
+The following options are deprecated:
 
-> [!WARNING]
-> The RFM69 transmitter will be damaged if it is run at maximum power without an antenna.
+|Command        |Definition                                             |
+|---------------|-------------------------------------------------------|
+|a&lt;_x.x_&gt; |Assumed voltage if no AC detected                      |
 
 ### Data acquisition
 
@@ -98,6 +104,9 @@ When a full report is ready, the following actions take place:
   - Packed structure for transmission by the RFM module.
 - Data are sent over the configured interface.
   - It is configurable whether data are always echoed on the debug console.
+
+> [!WARNING]
+> The RFM69 transmitter will be damaged if it is run at maximum power without an antenna.
 
 ## Compiling and uploading
 

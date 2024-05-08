@@ -68,7 +68,6 @@ typedef struct __attribute__((__packed__)) CTCfg_ {
 typedef struct __attribute__((__packed__)) Emon32Config_ {
     uint32_t            key;
     BaseCfg_t           baseCfg;
-    float               voltageAssumed;
     VoltageCfg_t        voltageCfg[NUM_V];
     CTCfg_t             ctCfg[NUM_CT];
     uint32_t            ctActive;       /* Bitmap of active inputs */

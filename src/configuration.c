@@ -76,10 +76,12 @@ configDefault(void)
     pCfg->baseCfg.dataGrp       = 210u;
     pCfg->baseCfg.logToSerial   = 1u;
 
-    pCfg->voltageAssumed        = 230.0f;
     for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
     {
-        pCfg->voltageCfg[idxV].voltageCal = 268.97f;
+        /* This is the peak-to-peak mains voltage producing 1.024 V at the input
+         * to the emon32 system.
+         */
+        pCfg->voltageCfg[idxV].voltageCal = 405.0f;
     }
 
     /* 4.2 degree shift @ 50 Hz */
@@ -335,8 +337,6 @@ printSettings(void)
             qfp_float2double(pCfg->baseCfg.reportTime));
     printf_("Minimum accumulation (Wh): %d\r\n",
             pCfg->baseCfg.whDeltaStore);
-    printf_("Assumed voltage (V):       %.02f\r\n",
-            qfp_float2double(pCfg->voltageAssumed));
     printf_("Data transmission:         ");
     if (DATATX_RFM69 == pCfg->baseCfg.dataTx)
     {
@@ -528,7 +528,6 @@ configProcessCmd(void)
     const char helpText[] = "\r\n"
     "emon32 information and configuration commands\r\n\r\n"
     " - ?           : show this text again\r\n"
-    " - a<x.x>      : assumed voltage if no AC detected\r\n"
     " - b<n>        : set RF band. n = 4 -> 433 MHz, 8 -> 868 MHz, 9 -> 915 MHz\r\n"
     " - c<n>        : log to serial output. n = 0: OFF, n = 1: ON\r\n"
     " - d<x.x>      : data log period (s)\r\n"
@@ -581,16 +580,6 @@ configProcessCmd(void)
         case '?':
             /* Print help text */
             dbgPuts(helpText);
-            break;
-        case 'a':
-            /* Set assumed voltage.
-             * Format: a230.0
-             */
-            pCfg->voltageAssumed = utilAtof(inBuffer + 1);
-            printf_("> Set assumed voltage to: %.02f\r\n",
-                    qfp_float2double(pCfg->voltageAssumed));
-            resetReq = 1u;
-            emon32EventSet(EVT_CONFIG_CHANGED);
             break;
         case 'c':
             /* Log to serial output, default TRUE
