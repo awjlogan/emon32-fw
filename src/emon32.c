@@ -38,17 +38,18 @@ static unsigned int         lastStoredWh;
  * Static function prototypes
  *************************************/
 
+static void     cumulativeNVMConfigure  (eepromPktWL_t *pPkt);
+static void     cumulativeNVMLoad       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
+static void     cumulativeNVMStore      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
+static void     cumulativeProcess       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     datasetInit             (Emon32Dataset_t *pDst, ECMDataset_t *pECM);
 static void     datasetUpdate           (Emon32Dataset_t *pDst);
 static RFMPkt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
 static void     ecmConfigure            (const Emon32Config_t *pCfg);
 static void     evtKiloHertz            (void);
 static uint32_t evtPending              (EVTSRC_t evt);
-static void     nvmCumulativeConfigure  (eepromPktWL_t *pPkt);
-static void     nvmCumulativeLoad       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
-static void     nvmCumulativeStore      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
-static void     processCumulative       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     pulseConfigure          (const Emon32Config_t *pCfg);
+       void     putchar_                (char c);
 static void     ssd1306Setup            (void);
 static uint32_t tempSetup               (void);
 static uint32_t totalEnergy             (const Emon32Dataset_t *pData);
@@ -57,6 +58,101 @@ static void     ucSetup                 (void);
 /*************************************
  * Functions
  *************************************/
+
+
+/*! @brief Initialise the NVM packet with default values
+ *  @param [out] : pPkt : pointer to the NVM packet
+ */
+static void
+cumulativeNVMConfigure(eepromPktWL_t *pPkt)
+{
+    pPkt->dataSize      = sizeof(Emon32CumulativeSave_t);
+    pPkt->idxNextWrite  = -1;
+}
+
+
+/*! @brief Load cumulative energy and pulse values
+ *  @param [in] pEEPROM : pointer to EEPROM configuration
+ *  @param [in] pData : pointer to current dataset
+ */
+static void
+cumulativeNVMLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
+{
+    Emon32CumulativeSave_t data;
+    pPkt->pData = &data;
+
+    memset      (&data, 0, sizeof(Emon32CumulativeSave_t));
+    eepromReadWL(pPkt);
+
+    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
+    {
+        pData->pECM->CT[idxCT].wattHour = data.report.wattHour[idxCT];
+    }
+
+    for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse ++)
+    {
+        pData->pulseCnt[idxPulse] = data.report.pulseCnt[idxPulse];
+    }
+}
+
+
+/*! @brief Store cumulative energy and pulse values
+ *  @param [in] pRes : pointer to cumulative values
+ */
+static void
+cumulativeNVMStore(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
+{
+    Emon32CumulativeSave_t data;
+    pPkt->pData = &data;
+
+    /* Copy data and calculate CRC */
+    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
+    {
+        data.report.wattHour[idxCT] = pData->pECM->CT[idxCT].wattHour;
+    }
+
+    for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++)
+    {
+        data.report.pulseCnt[0] = pData->pulseCnt[0];
+    }
+
+    data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Cumulative_t));
+
+    (void)eepromWriteWL(pPkt);
+    emon32EventSet(EVT_EEPROM_STORE);
+}
+
+
+/*! @brief Calculate the cumulative energy consumption and store if the delta
+ *         since last storage is greater than a configurable threshold
+ *  @param [in] : pPkt : pointer to an NVM packet
+ *  @param [in] : pData : pointer to the current dataset
+ */
+static void
+cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore)
+{
+    int         energyOverflow;
+    uint32_t    latestWh;
+    uint32_t    deltaWh;
+
+    /* Store cumulative values if over threshold */
+    latestWh = totalEnergy(pData);
+
+    /* Catch overflow of energy. This corresponds to ~4 MWh(!), so unlikely to
+     * but handle safely.
+     */
+    energyOverflow = (latestWh < lastStoredWh);
+    if (energyOverflow)
+    {
+        dbgPuts("> Cumulative energy overflowed counter!\r\n");
+    }
+    deltaWh = latestWh - lastStoredWh;
+    if ((deltaWh > whDeltaStore) || energyOverflow)
+    {
+        cumulativeNVMStore(pPkt, pData);
+        lastStoredWh = latestWh;
+    }
+}
 
 
 /*! @brief Initialise the data set
@@ -148,14 +244,6 @@ dbgPuts(const char *s)
 }
 
 
-/* This allows the printf function to be used to print to the debug console */
-void
-putchar_(char c)
-{
-    uartPutcBlocking(SERCOM_UART_DBG, c);
-}
-
-
 /*! @brief Configure the continuous energy monitoring system
  *  @param [in] pCfg : pointer to the configuration struct
  */
@@ -207,23 +295,6 @@ ecmConfigure(const Emon32Config_t *pCfg)
 }
 
 
-/*! @brief Set a pending event
- *  @brief [in] evt : event to be set
- */
-void
-emon32EventSet(const EVTSRC_t evt)
-{
-    /* Disable interrupts during RMW update of event status */
-    uint32_t evtDecode = (1u << evt);
-    __disable_irq();
-    evtPend |= evtDecode;
-    __enable_irq();
-}
-
-
-/*! @brief Clear a pending event
- *  @brief [in] evt : event to be cleared
- */
 void
 emon32EventClr(const EVTSRC_t evt)
 {
@@ -231,6 +302,17 @@ emon32EventClr(const EVTSRC_t evt)
     uint32_t evtDecode = ~(1u << evt);
     __disable_irq();
     evtPend &= evtDecode;
+    __enable_irq();
+}
+
+
+void
+emon32EventSet(const EVTSRC_t evt)
+{
+    /* Disable interrupts during RMW update of event status */
+    uint32_t evtDecode = (1u << evt);
+    __disable_irq();
+    evtPend |= evtDecode;
     __enable_irq();
 }
 
@@ -309,101 +391,6 @@ evtPending(EVTSRC_t evt)
 }
 
 
-/*! @brief Initialise the NVM packet with default values
- *  @param [out] : pPkt : pointer to the NVM packet
- */
-static void
-nvmCumulativeConfigure(eepromPktWL_t *pPkt)
-{
-    pPkt->dataSize      = sizeof(Emon32CumulativeSave_t);
-    pPkt->idxNextWrite  = -1;
-}
-
-
-/*! @brief Load cumulative energy and pulse values
- *  @param [in] pEEPROM : pointer to EEPROM configuration
- *  @param [in] pData : pointer to current dataset
- */
-static void
-nvmCumulativeLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
-{
-    Emon32CumulativeSave_t data;
-    pPkt->pData = &data;
-
-    memset      (&data, 0, sizeof(Emon32CumulativeSave_t));
-    eepromReadWL(pPkt);
-
-    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
-    {
-        pData->pECM->CT[idxCT].wattHour = data.report.wattHour[idxCT];
-    }
-
-    for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse ++)
-    {
-        pData->pulseCnt[idxPulse] = data.report.pulseCnt[idxPulse];
-    }
-}
-
-
-/*! @brief Store cumulative energy and pulse values
- *  @param [in] pRes : pointer to cumulative values
- */
-static void
-nvmCumulativeStore(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
-{
-    Emon32CumulativeSave_t data;
-    pPkt->pData = &data;
-
-    /* Copy data and calculate CRC */
-    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
-    {
-        data.report.wattHour[idxCT] = pData->pECM->CT[idxCT].wattHour;
-    }
-
-    for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++)
-    {
-        data.report.pulseCnt[0] = pData->pulseCnt[0];
-    }
-
-    data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Cumulative_t));
-
-    (void)eepromWriteWL(pPkt);
-    emon32EventSet(EVT_EEPROM_STORE);
-}
-
-
-/*! @brief Calculate the cumulative energy consumption and store if the delta
- *         since last storage is greater than a configurable threshold
- *  @param [in] : pPkt : pointer to an NVM packet
- *  @param [in] : pData : pointer to the current dataset
- */
-static void
-processCumulative(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore)
-{
-    int         energyOverflow;
-    uint32_t    latestWh;
-    uint32_t    deltaWh;
-
-    /* Store cumulative values if over threshold */
-    latestWh = totalEnergy(pData);
-
-    /* Catch overflow of energy. This corresponds to ~4 MWh(!), so unlikely to
-     * but handle safely.
-     */
-    energyOverflow = (latestWh < lastStoredWh);
-    if (energyOverflow)
-    {
-        dbgPuts("> Cumulative energy overflowed counter!\r\n");
-    }
-    deltaWh = latestWh - lastStoredWh;
-    if ((deltaWh > whDeltaStore) || energyOverflow)
-    {
-        nvmCumulativeStore(pPkt, pData);
-        lastStoredWh = latestWh;
-    }
-}
-
-
 /*! @brief Configure any pulse counter interfaces
  *  @param [in] pCfg : pointer to the configuration struct
  */
@@ -434,21 +421,11 @@ pulseConfigure(const Emon32Config_t *pCfg)
 }
 
 
-/*! @brief Setup the microcontoller. This function must be called first. An
- *         implementation must provide all the functions that are called.
- *         These can be empty if they are not used.
- */
-static void
-ucSetup(void)
+/*! @brief Allows the printf function to print to the debug console */
+void
+putchar_(char c)
 {
-    clkSetup    ();
-    timerSetup  ();
-    portSetup   ();
-    dmacSetup   ();
-    sercomSetup ();
-    adcSetup    ();
-    evsysSetup  ();
-    // wdtSetup    (WDT_PER_4K);
+    uartPutcBlocking(SERCOM_UART_DBG, c);
 }
 
 
@@ -502,6 +479,24 @@ totalEnergy(const Emon32Dataset_t *pData)
 }
 
 
+/*! @brief Setup the microcontoller. This function must be called first. An
+ *         implementation must provide all the functions that are called.
+ *         These can be empty if they are not used.
+ */
+static void
+ucSetup(void)
+{
+    clkSetup    ();
+    timerSetup  ();
+    portSetup   ();
+    dmacSetup   ();
+    sercomSetup ();
+    adcSetup    ();
+    evsysSetup  ();
+    // wdtSetup    (WDT_PER_4K);
+}
+
+
 int
 main(void)
 {
@@ -541,8 +536,8 @@ main(void)
                                                         e32Config.baseCfg.mainsFreq);
 
     datasetInit             (&dataset, &ecmDataset);
-    nvmCumulativeConfigure  (&nvmCumulative);
-    nvmCumulativeLoad       (&nvmCumulative, &dataset);
+    cumulativeNVMConfigure  (&nvmCumulative);
+    cumulativeNVMLoad       (&nvmCumulative, &dataset);
     NVIC_EnableIRQ          (SERCOM_UART_INTERACTIVE_IRQn);
 
     lastStoredWh = totalEnergy(&dataset);
@@ -707,7 +702,7 @@ main(void)
                  * configured energy delta (baseCfg.whDeltaStore), then save the
                  * accumulated energy in NVM.
                  */
-                processCumulative   (&nvmCumulative, &dataset,
+                cumulativeProcess   (&nvmCumulative, &dataset,
                                      e32Config.baseCfg.whDeltaStore);
 
                 /* Blink the STATUS LED, and clear the event. */
