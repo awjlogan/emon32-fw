@@ -22,6 +22,8 @@
 #define ZC_HYST         3u      /* Zero crossing hysteresis */
 #define EQUIL_CYCLES    5u      /* Number of cycles to discard at POR */
 
+const float twoPi = 6.2831853072f;
+
 /*************************************
  * Function prototypes
  *************************************/
@@ -70,12 +72,31 @@ ecmSwapPtr(void **pIn1, void **pIn2)
 static ECMCfg_t ecmCfg;
 static int      processTrigger = 0;
 static int      discardCycles = EQUIL_CYCLES;
+static int      initDone = 0;
+static int      samplePeriodus;
+static float    sampleIntervalRad;
 
 
 ECMCfg_t *
-ecmGetConfig(void)
+ecmConfigGet(void)
 {
     return &ecmCfg;
+}
+
+
+void
+ecmConfigInit(void)
+{
+    /* Calculate the angular sampling rate in degrees and radians. */
+    float sampleIntervalDeg = qfp_fmul(360.0f, qfp_int2float(ecmCfg.mainsFreq));
+    sampleIntervalDeg = qfp_fdiv(sampleIntervalDeg, qfp_int2float(ecmCfg.sampleRateHz));
+    samplePeriodus = 1000000 / (ecmCfg.sampleRateHz * (VCT_TOTAL));
+
+    /* This (should) be optimised at compile time */
+    sampleIntervalRad = twoPi / 360.0f;
+    sampleIntervalRad = qfp_fmul(sampleIntervalRad, sampleIntervalDeg);
+
+    initDone = 1;
 }
 
 /******************************************************************************
@@ -162,21 +183,24 @@ ecmCalibrationCalculate(float cal)
 
 
 PhaseXY_t
-ecmPhaseCalculate(float phase)
+ecmPhaseCalculate(float phase, int idxCT)
 {
     PhaseXY_t phaseXY;
 
-    float sampleRate = 2400.0f;
-    float phaseShift = phase;
+    /* REVISIT : parts of the correction can be made constant for each CT */
+    float phaseShift = qfp_fdiv(phase, 360.0f);
+    int phCorr_i = (idxCT + NUM_V) * ecmCfg.mainsFreq * samplePeriodus;
+    float phCorr_f = qfp_fdiv(qfp_int2float(phCorr_i),
+                              1000000.0f);
+    phaseShift = qfp_fadd(phaseShift, phCorr_f);
+    phaseShift = qfp_fmul(phaseShift, twoPi);
 
-    float phaseY = qfp_fdiv(qfp_fsin(phaseShift),
-                            qfp_fsin(sampleRate));
+    phaseXY.phaseY = qfp_fdiv(qfp_fsin(phaseShift),
+                              qfp_fsin(sampleIntervalRad));
 
-    phaseXY.phaseY = qfp_float2int(phaseY);
-    phaseXY.phaseX = qfp_float2int(qfp_fsub(qfp_fcos(phaseShift),
-                                  (qfp_fmul(phaseY,
-                                            qfp_fcos(sampleRate)))));
-
+    phaseXY.phaseX = qfp_fsub(qfp_fcos(phaseShift),
+                              (qfp_fmul(phaseXY.phaseY,
+                                        qfp_fcos(sampleIntervalRad))));
     return phaseXY;
 }
 
@@ -444,29 +468,34 @@ ecmProcessCycle(void)
     {
         if (0 != ecmCfg.ctCfg[idxCT].active)
         {
-            int32_t powerNow;
+            float   powerNow;
             int32_t ctCurrent;
             int32_t deltasScaled;
             int32_t sumI_deltas_sqr =   accumProcessing->processCT[idxCT].sumI_deltas
                                       * accumProcessing->processCT[idxCT].sumI_deltas;
 
             /* Apply phase calibration for CT interpolated between V samples */
-            int32_t sumRealPower =   accumProcessing->processCT[idxCT].sumPA * ecmCfg.ctCfg[idxCT].phaseX
-                                   + accumProcessing->processCT[idxCT].sumPB * ecmCfg.ctCfg[idxCT].phaseY;
+            float sumRealPower = qfp_fmul(qfp_int2float(accumProcessing->processCT[idxCT].sumPA),
+                                          ecmCfg.ctCfg[idxCT].phaseX);
+            sumRealPower = qfp_fadd(sumRealPower,
+                                    qfp_fmul(qfp_int2float(accumProcessing->processCT[idxCT].sumPB),
+                                             ecmCfg.ctCfg[idxCT].phaseY));
 
             deltasScaled = sumI_deltas_sqr / numSamplesSqr;
-            powerNow = (sumRealPower / numSamples) - deltasScaled;
+            powerNow = qfp_fdiv(sumRealPower, qfp_int2float(numSamples));
+            powerNow = qfp_fsub(powerNow, qfp_int2float(deltasScaled));
             ctCurrent = accumProcessing->processCT[idxCT].sumI_sqr / numSamples;
             ctCurrent -= deltasScaled;
 
-            ecmCycle.valCT[idxCT].powerNow += powerNow;
+            ecmCycle.valCT[idxCT].powerNow = qfp_fadd(ecmCycle.valCT[idxCT].powerNow,
+                                                      powerNow);
             ecmCycle.valCT[idxCT].rmsCT = qfp_fadd(ecmCycle.valCT[idxCT].rmsCT,
                                                    qfp_fsqrt(qfp_int2float(ctCurrent)));
         }
         else
         {
-            ecmCycle.valCT[idxCT].powerNow = 0;
-            ecmCycle.valCT[idxCT].rmsCT = 0;
+            ecmCycle.valCT[idxCT].powerNow = 0.0f;
+            ecmCycle.valCT[idxCT].rmsCT = 0.0f;
         }
     }
 

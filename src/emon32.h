@@ -43,7 +43,8 @@ typedef enum __attribute__ ((__packed__)) DataTx_ {
 typedef struct __attribute__((__packed__)) BaseCfg_ {
     uint8_t     nodeID;         /* ID for report*/
     uint8_t     mainsFreq;      /* Mains frequency */
-    float       reportTime;     /* Cycle count before reporting */
+    float       reportTime;     /* Time between reports */
+    int         reportCycles;   /* Cycles between reports */
     uint16_t    whDeltaStore;   /* Minimum energy delta to store */
     DataTx_t    dataTx;         /* Data transmission hardware type */
     uint8_t     dataGrp;        /* Transmission group - default 210 */

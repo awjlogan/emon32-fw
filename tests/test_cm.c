@@ -16,14 +16,16 @@
 #define REPORT_V        1       /* Number of V channels to report */
 #define REPORT_CT       3       /* Number of CT channels to report */
 
-typedef struct {
-    double omega;       /* Angular velocity */
-    double phi;         /* Offset (rad) */
-    double s;           /* Scale (0 < s <= 1.0) */
+typedef struct wave_ {
+    double  omega;  /* Angular velocity */
+    double  phi;    /* Phase (rad) */
+    double  s;      /* Scale (0 < s <= 1.0) */
+    int     offset; /* Constant offset, clamped if outside range */
 } wave_t;
 
 
-/*! @param [in] w       : pointer to wave information
+/*! @brief Generates a Q11 [-2048, 2047] wave with configurable parameters
+ *  @param [in] w       : pointer to wave information
  *  @param [in] tMicros : time in microseconds
  */
 q15_t generateWave(wave_t *w, int tMicros);
@@ -50,18 +52,21 @@ main(int argc, char *argv[])
     SampleSet_t                             smpProc;
     unsigned int                            smpIdx = 0;
 
-    /* Set all waves to 50 Hz, all CTs to 5 deg offset */
+    /* Set all waves to 50 Hz, all CTs to 5 deg offset. The maximum amplitude
+     * corresponds to 1.024 V at the emon32 input.
+     */
     for (int i = 0; i < VCT_TOTAL; i++)
     {
         wave[i].omega = 2 * M_PI * 50.0;
-        wave[i].s     = 1.0;
+        /* 230 V_rms ~(325 / 405) and 2.84 A_rms ~(4 / 5) */
+        wave[i].s     = 0.803f;
     }
     for (int i = NUM_V; i < VCT_TOTAL; i++)
     {
         wave[i].phi = 5.0/180.0;
     }
 
-    pEcmCfg = ecmGetConfig();
+    pEcmCfg = ecmConfigGet();
 
     /* ecmDataBuffer returns a pointer to the buffer which the DMA is putting
      * data into.
@@ -74,17 +79,20 @@ main(int argc, char *argv[])
 
     pEcmCfg->downsample = 1u;
     pEcmCfg->reportCycles = (unsigned int)(REPORT_TIME * MAINS_FREQ);
+    pEcmCfg->mainsFreq = 50;
+    pEcmCfg->sampleRateHz = (SAMPLE_RATE / 2);
+    ecmConfigInit();
 
     for (int i = 0; i < NUM_V; i++)
     {
-        pEcmCfg->voltageCal[i] = ecmCalibrationCalculate(268.97f);
+        pEcmCfg->voltageCal[i] = ecmCalibrationCalculate(405.0f);
     }
 
-    phase = ecmPhaseCalculate(5.0f);
     for (int i = 0; i < NUM_CT; i++)
     {
         pEcmCfg->ctCfg[i].active    = 1;
-        pEcmCfg->ctCfg[i].ctCal     = ecmCalibrationCalculate(90.91f);
+        pEcmCfg->ctCfg[i].ctCal     = ecmCalibrationCalculate(5.0f);
+        phase = ecmPhaseCalculate(5.0f, i);
         pEcmCfg->ctCfg[i].phaseX    = phase.phaseX;
         pEcmCfg->ctCfg[i].phaseY    = phase.phaseY;
         pEcmCfg->ctCfg[i].vChan     = 0;
@@ -111,7 +119,6 @@ main(int argc, char *argv[])
     printf("    - DSP enabled     : %s\n", pEcmCfg->downsample ? "Yes" : "No");
     printf("    - Report time     : %.2f\n", REPORT_TIME);
     printf("    - Sample tick (us): %d\n", SMP_TICK);
-    printf("    - Voltage cal     : %.2f\n", pEcmCfg->voltageCal[0]);
     printf("\n");
 
     /* ============ START : HALF BAND TEST ============ */
@@ -180,7 +187,6 @@ main(int argc, char *argv[])
             status = ecmProcessCycle();
         }
 
-
         if (ECM_REPORT_COMPLETE == status)
         {
             printf("    Report %d: ", reportNum++);
@@ -204,6 +210,19 @@ main(int argc, char *argv[])
 q15_t generateWave(wave_t *w, int tMicros)
 {
     assert((w->s > 0.0) && (w->s <= 1.0));
+    q15_t wave;
     double a = sin(((w->omega * tMicros)/1000000.0) + w->phi) * w->s;
-    return (q15_t)(a * 2048);
+    wave = (q15_t)(a * 2048);
+    wave += w->offset;
+
+    /* Clip if the offset exceeds the bounds */
+    if (wave < -2048)
+    {
+        wave = -2048;
+    }
+    else if (wave > 2047)
+    {
+        wave = 2047;
+    }
+    return wave;
 }

@@ -8,6 +8,12 @@
 #define RAMFUNC
 #endif
 
+/* Use empty RAMFUNC when running locally */
+#ifdef HOSTED
+#undef RAMFUNC
+#define RAMFUNC
+#endif
+
 /******************************************************************************
  * Type definitions
  *****************************************************************************/
@@ -68,6 +74,8 @@ typedef struct ECMCfg_ {
     uint32_t        (*timeMicros)(void);            /* Time in microseconds now */
     uint32_t        (*timeMicrosDelta)(uint32_t);   /* Time delta in microseconds */
     unsigned int    reportCycles;                   /* Number of cycles before reporting */
+    unsigned int    sampleRateHz;                   /* Sample rate in Hz (after any downsampling)*/
+    unsigned int    mainsFreq;                      /* Mains frequency */
     CTCfgUnpacked_t ctCfg[NUM_CT];                  /* CT Configuration */
     float           voltageCal[NUM_V];              /* Voltage calibration */
 } ECMCfg_t;
@@ -97,8 +105,8 @@ typedef struct Accumulator_ {
 
 /* This struct matches emonLibCM's calculations */
 typedef struct CycleCT_ {
-    int32_t powerNow;           /* Summed power in cycles */
-    float   rmsCT;              /* Accumulated I_RMS */
+    float powerNow;           /* Summed power in cycles */
+    float rmsCT;              /* Accumulated I_RMS */
 } CycleCT_t;
 
 typedef struct ECMCycle_ {
@@ -119,8 +127,8 @@ typedef struct ECMDataset_ {
 } ECMDataset_t;
 
 typedef struct PhaseXY_ {
-    q15_t phaseX;
-    q15_t phaseY;
+    float phaseX;
+    float phaseY;
 } PhaseXY_t;
 
 typedef struct ECMPerformance_ {
@@ -143,6 +151,16 @@ typedef struct ECMPerformance_ {
  */
 float ecmCalibrationCalculate(float cal);
 
+/*! @brief Get the pointer to the configuration struct
+ *  @return : pointer to Emon CM configuration struct
+ */
+ECMCfg_t *ecmConfigGet(void);
+
+/*! @brief Having set all configuration values, calculate all required constant
+ *         values
+ */
+void ecmConfigInit(void);
+
 /*! @brief Returns a pointer to the ADC data buffer
  *  @return : pointer to the active ADC data buffer.
  */
@@ -164,11 +182,6 @@ void ecmFilterSample(SampleSet_t *pDst) RAMFUNC;
 /*! @brief Flush all data and reset the equilibration cycle count */
 void ecmFlush(void);
 
-/*! @brief Get the pointer to the configuration struct
- *  @return : pointer to Emon CM configuration struct
- */
-ECMCfg_t *ecmGetConfig(void);
-
 /*! @brief Injects a raw sample from the ADC into the accumulators.
  */
 ECM_STATUS_t ecmInjectSample(void) RAMFUNC;
@@ -181,9 +194,10 @@ ECMPerformance_t *ecmPerformance(void);
 /*! @brief Decompose a floating point CT phase into an X/Y pair for
  *         interpolation.
  *  @param [in] phase : CT lead phase in degrees.
+ *  @param [in] idxCT : index (0-based) of the CT
  *  @return : structure with the X/Y fixed point coefficients.
  */
-PhaseXY_t ecmPhaseCalculate(float phase);
+PhaseXY_t ecmPhaseCalculate(float phase, int idxCT);
 
 /*! @brief Calibrate a CT sensor's lead against the input voltage
  *  @param [in] idx : CT index

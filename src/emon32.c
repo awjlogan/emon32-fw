@@ -41,7 +41,7 @@ static unsigned int         lastStoredWh;
 static void     datasetInit             (Emon32Dataset_t *pDst, ECMDataset_t *pECM);
 static void     datasetUpdate           (Emon32Dataset_t *pDst);
 static RFMPkt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
-static void     ecmConfigure            (const Emon32Config_t *pCfg, const unsigned int reportCycles);
+static void     ecmConfigure            (const Emon32Config_t *pCfg);
 static void     evtKiloHertz            (void);
 static uint32_t evtPending              (EVTSRC_t evt);
 static void     nvmCumulativeConfigure  (eepromPktWL_t *pPkt);
@@ -160,7 +160,7 @@ putchar_(char c)
  *  @param [in] pCfg : pointer to the configuration struct
  */
 void
-ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
+ecmConfigure(const Emon32Config_t *pCfg)
 {
     /* Makes the continuous monitoring setup agnostic to the data strcuture
      * used for storage, and avoids any awkward alignment from packing.
@@ -168,10 +168,12 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
     ECMCfg_t    *ecmCfg;
     PhaseXY_t   phaseXY;
 
-    ecmCfg = ecmGetConfig();
+    ecmCfg = ecmConfigGet();
 
     ecmCfg->downsample      = DOWNSAMPLE_DSP;
-    ecmCfg->reportCycles    = reportCycles;
+    ecmCfg->reportCycles    = pCfg->baseCfg.reportCycles;
+    ecmCfg->mainsFreq       = pCfg->baseCfg.mainsFreq;
+    ecmCfg->sampleRateHz    = (SAMPLE_RATE / OVERSAMPLING_RATIO);
     if (ZEROX_HW_SPT)
     {
         ecmCfg->zx_hw_stat  = &eicZeroXStat;
@@ -184,6 +186,8 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
         ecmCfg->timeMicrosDelta = &timerMicrosDelta;
     }
 
+    ecmConfigInit();
+
     for (unsigned int i = 0; i < NUM_V; i ++)
     {
         ecmCfg->voltageCal[i] = pCfg->voltageCfg[i].voltageCal;
@@ -192,7 +196,7 @@ ecmConfigure(const Emon32Config_t *pCfg, const unsigned int reportCycles)
     {
         uint32_t active = pCfg->ctActive & (1 << i);
 
-        phaseXY = ecmPhaseCalculate(pCfg->ctCfg[i].phase);
+        phaseXY = ecmPhaseCalculate(pCfg->ctCfg[i].phase, i);
 
         ecmCfg->ctCfg[i].phaseX = phaseXY.phaseX;
         ecmCfg->ctCfg[i].phaseY = phaseXY.phaseY;
@@ -264,7 +268,6 @@ evtKiloHertz(void)
     {
         sercomExtIntfEnable();
     }
-
 
     /* When there is a TX to the outside world, blink the STATUS LED for
      * time TX_INDICATE_T to show there is activity.
@@ -510,7 +513,6 @@ main(void)
     unsigned int    numTempSensors          = 0;
     eepromPktWL_t   nvmCumulative           = {0};
     PackedData_t    packedData              = {0};
-    unsigned int    reportCycles            = 0;
     RFMPkt_t        *rfmPkt                 = 0;
     unsigned int    tempCount               = 0;
     int16_t         tempValue               = 0;
@@ -535,8 +537,8 @@ main(void)
      */
     dbgPuts                 ("> Reading configuration and accumulators from NVM...\r\n");
     configLoadFromNVM       (&e32Config);
-    reportCycles = configTimeToCycles(e32Config.baseCfg.reportTime,
-                                      e32Config.baseCfg.mainsFreq);
+    e32Config.baseCfg.reportCycles = configTimeToCycles(e32Config.baseCfg.reportTime,
+                                                        e32Config.baseCfg.mainsFreq);
 
     datasetInit             (&dataset, &ecmDataset);
     nvmCumulativeConfigure  (&nvmCumulative);
@@ -554,7 +556,7 @@ main(void)
     dataset.numTempSensors = numTempSensors;
 
     /* Set up buffers for ADC data, configure energy processing, and start */
-    ecmConfigure    (&e32Config, reportCycles);
+    ecmConfigure    (&e32Config);
     ecmFlush        ();
     adcDMACStart    ();
     dbgPuts         ("> Start monitoring...\r\n");
@@ -582,7 +584,7 @@ main(void)
              */
             if (evtPending(EVT_PROCESS_DATASET))
             {
-                if ((reportCycles - cyclesProcessed) > e32Config.baseCfg.mainsFreq)
+                if ((e32Config.baseCfg.reportCycles - cyclesProcessed) > e32Config.baseCfg.mainsFreq)
                 {
                     timeSinceTrigger = timerMillis();
                     emon32EventSet(EVT_TEMP_SAMPLE);
@@ -614,7 +616,7 @@ main(void)
                  * due time, then start a sample as well.
                  */
                 cyclesProcessed++;
-                if (((reportCycles - cyclesProcessed) == e32Config.baseCfg.mainsFreq))
+                if (((e32Config.baseCfg.reportCycles - cyclesProcessed) == e32Config.baseCfg.mainsFreq))
                 {
                     emon32EventSet(EVT_TEMP_SAMPLE);
                 }
