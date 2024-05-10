@@ -20,13 +20,8 @@ static void
 adcCalibrate(void)
 {
     /* Expected ADC values for 1/4 and 3/4 scale */
-    /* REVISIT for 0.1 onwards, this is correct. The dev board is 1/3, 2/3
-     * REVISIT seem to have outstanding factor of 2
-     * const int32_t normalQuarter         = 0xC000;
-     * const int32_t normalThreeQuarter    = 0x3FFF;
-     */
-    const int32_t normalQuarter         = -10923 / 2;
-    const int32_t normalThreeQuarter    = 10922 / 2;
+    const int32_t normalQuarter         = 0xC000;
+    const int32_t normalThreeQuarter    = 0x3FFF;
 
     /* Real values from ADC conversion */
     int16_t actualQuarter;
@@ -88,10 +83,12 @@ adcCalibrate(void)
                                               gain_fp))) - actualQuarter;
     offset_inter[1] =  qfp_float2int(qfp_fadd(0.5f,
                                      qfp_fdiv(qfp_int2float(normalThreeQuarter),
-                                             gain_fp))) - actualThreeQuarter;
+                                              gain_fp))) - actualThreeQuarter;
     offset = (offset_inter[0] + offset_inter[1]) / 2;
 
-    /* Registers are 12 bit, shift 16 bit intermediate offset 4 */
+    /* Registers are 12 bit, shift 16 bit offet intermediate offset 4. The gain
+     * value is in Q1.11 format already.
+     */
     ADC->OFFSETCORR.reg = (int16_t)offset >> 4;
     ADC->GAINCORR.reg   = (int16_t)gain;
 }
