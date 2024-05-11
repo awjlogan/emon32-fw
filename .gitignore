@@ -13,5 +13,5 @@ compile_commands.json
 emon32_build_info.c
 EmonLibDB/
 hb*.png
-helpers/
 venv/
+scripts/*.h

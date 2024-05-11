@@ -18,8 +18,6 @@
  * Type definitions
  *****************************************************************************/
 
-#define DOWNSAMPLE_TAPS     19u
-
 typedef enum {
     ECM_INIT_SUCCESS,           /* Init was successful */
     ECM_INIT_FAIL_ENABLED,      /* Init failed as currently enabled */
@@ -34,6 +32,7 @@ typedef enum {
 /* Alias integer types for fixed point calculation */
 typedef int16_t     q15_t;
 typedef int32_t     q31_t;
+typedef int32_t     q22_t;
 typedef int64_t     q63_t;
 
 /* SingleSampleSet_t contains a single set of V + CT ADC samples */
@@ -60,8 +59,8 @@ typedef struct SampleSet_ {
 } SampleSet_t;
 
 typedef struct CTCfgUnpacked_ {
-    q15_t           phaseX;
-    q15_t           phaseY;
+    float           phaseX;
+    float           phaseY;
     float           ctCal;
     unsigned int    active;
     unsigned int    vChan;
@@ -116,7 +115,7 @@ typedef struct ECMCycle_ {
 } ECMCycle_t;
 
 typedef struct DataCT_ {
-    float       realPower;
+    int32_t     realPower;
     uint32_t    wattHour;
     float       residualEnergy; /* Energy held over to next set */
 } DataCT_t;

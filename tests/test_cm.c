@@ -5,8 +5,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "emon_CM.h"
 #include "emon32.h"
+#include "emon_CM.h"
+#include "emon_CM_coeffs.h"
 
 #define SAMPLE_RATE     4800u
 #define MAINS_FREQ      50u
@@ -44,9 +45,14 @@ main(int argc, char *argv[])
     ECM_STATUS_t    status;
     wave_t          wave[VCT_TOTAL];
 
-    const int16_t coeffLut[10] = {
-        92, -279, 957, -2670, 10113, 10113, -2670, 957, -279, 92
-    };
+    /* Copy and fold the half band coefficients */
+    const int lutDepth = (numCoeffUnique - 1) * 2;
+    int16_t coeffLut[lutDepth];
+    for (int i = 0; i < (lutDepth / 2); i++)
+    {
+        coeffLut[i] = firCoeffs[i];
+        coeffLut[(lutDepth - 1 - i)] = firCoeffs[i];
+    }
 
     volatile RawSampleSetPacked_t *volatile smpRaw[2];
     SampleSet_t                             smpProc;
@@ -197,7 +203,7 @@ main(int argc, char *argv[])
             }
             for (int i = 0; i < REPORT_CT; i++)
             {
-                printf("P%d:%.2f,E%d:%d",
+                printf("P%d:%d,E%d:%d",
                        i, dataset.CT[i].realPower,
                        i, dataset.CT[i].wattHour);
                 printf("%c", ((i != (REPORT_CT - 1)) ? ',' : '\n'));

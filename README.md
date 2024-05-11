@@ -172,7 +172,12 @@ Below is a list of the compile time options, grouped by location. The value for 
 
 ### Digital filter
 
-The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter. Filter coefficients can be generated using the **filter.py** script (_./scripts/filter.py_). It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner. You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matplotlib.org/) to use the filter designer,
+The base configuration has an oversampling factor of 2X to ease the anti-aliasing requirments. Samples are then low pass filtered and reduced to _f/2_ with a half band filter. Filter coefficients can be generated using the **filter.py** script (_./scripts/filter.py_). This generates a header file (`emon_CM_coeffs.h`) which can be copied to the `<emon32-fw>/src/` folder for use.
+
+> [!NOTE]
+> It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner.
+
+You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matplotlib.org/) to use the filter designer,
 
 > [!NOTE]
 > A Python virtual environment can be setup by running `python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt` in `./scripts/`.

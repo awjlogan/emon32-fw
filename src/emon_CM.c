@@ -16,6 +16,7 @@
 #endif /* HOSTED */
 
 #include "emon_CM.h"
+#include "emon_CM_coeffs.h"
 
 /* Number of samples available for power calculation. must be power of 2 */
 #define PROC_DEPTH      32u     /* REVISIT only need  to store V values */
@@ -256,9 +257,6 @@ ecmFilterSample(SampleSet_t *pDst)
          */
         static unsigned int idxInj = 0;
         int32_t             intRes[VCT_TOTAL]   = {0};
-        const unsigned int  numCoeffUnique      = 6u;
-        const int16_t       firCoeffs[6]        = {   92,  -279,   957,
-                                                   -2670, 10113, 16339};
 
         const unsigned int downsample_taps = DOWNSAMPLE_TAPS;
         const unsigned int idxInjPrev =   (0 == idxInj)
@@ -290,7 +288,7 @@ ecmFilterSample(SampleSet_t *pDst)
          * is folded so the symmetric FIR coefficients are used for both samples.
          */
         unsigned int idxSmpStart = idxInj;
-        unsigned int idxSmpEnd = ((downsample_taps - 1u) == idxInj) ? 0 : idxInj + 1u;
+        unsigned int idxSmpEnd = ((downsample_taps - 1u) == idxInj) ? 0 : (idxInj + 1u);
         if (idxSmpEnd >= downsample_taps) idxSmpEnd -= downsample_taps;
 
         for (unsigned int idxCoeff = 0; idxCoeff < (numCoeffUnique - 1u); idxCoeff++)
@@ -364,17 +362,17 @@ ecmInjectSample(void)
     const q15_t lastV = sampleRingBuffer[idxLast].smpV[0];
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
-        accumCollecting->processV[idxV].sumV_sqr += (q31_t) thisV * thisV;
-        accumCollecting->processV[idxV].sumV_deltas += (q31_t) thisV;
+        accumCollecting->processV[idxV].sumV_sqr    += (q22_t) thisV * thisV;
+        accumCollecting->processV[idxV].sumV_deltas += (int32_t) thisV;
     }
 
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
         const q15_t lastCT = sampleRingBuffer[idxLast].smpCT[idxCT];
-        accumCollecting->processCT[idxCT].sumPA += (q31_t) lastCT * lastV;
-        accumCollecting->processCT[idxCT].sumPB += (q31_t) lastCT * thisV;
-        accumCollecting->processCT[idxCT].sumI_sqr += (q31_t) lastCT * lastCT;
-        accumCollecting->processCT[idxCT].sumI_deltas += (q31_t) lastCT;
+        accumCollecting->processCT[idxCT].sumPA         += (q22_t) lastCT * lastV;
+        accumCollecting->processCT[idxCT].sumPB         += (q22_t) lastCT * thisV;
+        accumCollecting->processCT[idxCT].sumI_sqr      += (q22_t) lastCT * lastCT;
+        accumCollecting->processCT[idxCT].sumI_deltas   += (int32_t) lastCT;
     }
 
     /* Flag if there has been a (-) -> (+) crossing */
@@ -484,6 +482,7 @@ ecmProcessCycle(void)
             deltasScaled = sumI_deltas_sqr / numSamplesSqr;
             powerNow = qfp_fdiv(sumRealPower, qfp_int2float(numSamples));
             powerNow = qfp_fsub(powerNow, qfp_int2float(deltasScaled));
+
             ctCurrent = accumProcessing->processCT[idxCT].sumI_sqr / numSamples;
             ctCurrent -= deltasScaled;
 
@@ -538,21 +537,20 @@ ecmProcessSet(ECMDataset_t *pData)
     vCal = ecmCfg.voltageCal[0];
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        float   wattHoursRecent;
         float   energyNow;
-        float   scaledPower;
         float   powerNow;
+        float   wattHoursRecent;
 
         if (0 != ecmCfg.ctCfg[idxCT].active)
         {
-            powerNow                    = qfp_int2float(ecmCycle.valCT[idxCT].powerNow);
-            scaledPower                 =   qfp_fmul(qfp_fmul(powerNow,
-                                                              vCal),
-                                                     ecmCfg.ctCfg[idxCT].ctCal);
-            pData->CT[idxCT].realPower  = qfp_fadd(scaledPower, 0.5f);
-
+            powerNow = ecmCycle.valCT[idxCT].powerNow;
+            powerNow = qfp_fmul(powerNow, qfp_fmul(ecmCfg.voltageCal[0],
+                                                   ecmCfg.ctCfg->ctCal));
+            pData->CT[idxCT].realPower  = qfp_float2int(qfp_fadd(qfp_fdiv(powerNow,
+                                                                          ecmCycle.cycleCount),
+                                                        0.5f));
             /* TODO add frequency deviation scaling */
-            energyNow                       = qfp_fadd(scaledPower,
+            energyNow                       = qfp_fadd(powerNow,
                                                        pData->CT[idxCT].residualEnergy);
             wattHoursRecent                 = qfp_fdiv(energyNow, 3600.0f);
             pData->CT[idxCT].wattHour       += qfp_float2int(wattHoursRecent);

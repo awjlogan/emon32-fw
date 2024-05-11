@@ -169,7 +169,7 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
         catId(&strn, (i + 1), STR_P);
-        (void)strnFtoa(&strConv, pData->pECM->CT[i].realPower);
+        (void)strnItoa(&strConv, pData->pECM->CT[i].realPower);
         strn.n += strnCat(&strn, &strConv);
     }
 
