@@ -111,9 +111,9 @@ rfmInit(RFM_Freq_t freq)
         {REG_BITRATELSB,    0x8A}, /* BitRate LSB */
         {REG_FDEVMSB,       0x05}, /* FdevMsb: ~90 kHz */
         {REG_FDEVLSB,       0xC3}, /* FdevLsb */
-        {REG_FRFMSB, (  RF12_868MHz == freq)
+        {REG_FRFMSB, (  RFM_FREQ_868MHz == freq)
                       ? 0xD9
-                      : (   (RF12_915MHz == freq)
+                      : (   (RFM_FREQ_915MHz == freq)
                          ? 0xE4
                          : 0x6C)}, /* FrfMsb */
         {REG_FRFMID,        0x00}, /* FrfMid */

@@ -72,9 +72,11 @@ configDefault(void)
     pCfg->baseCfg.mainsFreq     = 50u;  /* Mains frequency */
     pCfg->baseCfg.reportTime    = 9.8f;
     pCfg->baseCfg.whDeltaStore  = DELTA_WH_STORE; /* 200 */
-    pCfg->baseCfg.dataTx        = DATATX_UART;
     pCfg->baseCfg.dataGrp       = 210u;
     pCfg->baseCfg.logToSerial   = 1u;
+    pCfg->dataTxCfg.txType      = DATATX_UART;
+    pCfg->dataTxCfg.rfmPwr      = 0x19;
+    pCfg->dataTxCfg.rfmFreq     = 0;
 
     for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
     {
@@ -338,12 +340,23 @@ printSettings(void)
     printf_("Minimum accumulation (Wh): %d\r\n",
             pCfg->baseCfg.whDeltaStore);
     printf_("Data transmission:         ");
-    if (DATATX_RFM69 == pCfg->baseCfg.dataTx)
+    if (DATATX_RFM69 == pCfg->dataTxCfg.txType)
     {
         dbgPuts("RFM69\r\n");
-        printf_("Frequency: 868 MHz\r\n");
-        printf_("Power:     REVISIT\r\n");
-        printf_("Group ID:  %d\r\n", pCfg->baseCfg.dataGrp);
+        switch (pCfg->dataTxCfg.rfmFreq)
+        {
+            case 0:
+                dbgPuts("868");
+                break;
+            case 1:
+                dbgPuts("915");
+                break;
+            case 2:
+                dbgPuts("433");
+                break;
+        }
+        dbgPuts(" MHz\r\n");
+        printf_("Power:     %d\r\n", pCfg->dataTxCfg.rfmPwr);
     }
     else
     {

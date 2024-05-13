@@ -35,21 +35,27 @@
 /* Configurable options. All the structs are packed to allow simple write to
  * EEPROM as a contiguous set.
  */
-typedef enum __attribute__ ((__packed__)) DataTx_ {
-    DATATX_RFM69    = 0,
-    DATATX_UART     = 1
-} DataTx_t;
 
 typedef struct __attribute__((__packed__)) BaseCfg_ {
     uint8_t     nodeID;         /* ID for report*/
     uint8_t     mainsFreq;      /* Mains frequency */
     float       reportTime;     /* Time between reports */
-    int         reportCycles;   /* Cycles between reports */
+    uint16_t    reportCycles;   /* Cycles between reports */
     uint16_t    whDeltaStore;   /* Minimum energy delta to store */
-    DataTx_t    dataTx;         /* Data transmission hardware type */
     uint8_t     dataGrp;        /* Transmission group - default 210 */
     uint8_t     logToSerial;    /* Log data to serial output */
 } BaseCfg_t;
+
+typedef enum __attribute__ ((__packed__)) DataTx_ {
+    DATATX_RFM69    = 0,
+    DATATX_UART     = 1
+} TxType_t;
+
+typedef struct __attribute__((__packed__)) DataTxCfg_ {
+    TxType_t    txType;     /* UART or RFM on SPI */
+    uint8_t     rfmFreq;    /* 0: 868 MHz, 1: 915 MHz, 2: 433 MHz. */
+    uint8_t     rfmPwr;
+} DataTxCfg_t;
 
 typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
     uint8_t     period;
@@ -69,6 +75,7 @@ typedef struct __attribute__((__packed__)) CTCfg_ {
 typedef struct __attribute__((__packed__)) Emon32Config_ {
     uint32_t            key;
     BaseCfg_t           baseCfg;
+    DataTxCfg_t         dataTxCfg;
     VoltageCfg_t        voltageCfg[NUM_V];
     CTCfg_t             ctCfg[NUM_CT];
     uint32_t            ctActive;       /* Bitmap of active inputs */

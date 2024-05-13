@@ -199,20 +199,21 @@ static RFMPkt_t *
 dataTxConfigure(const Emon32Config_t *pCfg)
 {
     RFMPkt_t *rfmPkt = 0;
-    if (DATATX_RFM69 == pCfg->baseCfg.dataTx)
+    if (DATATX_RFM69 == pCfg->dataTxCfg.txType)
     {
         rfmPkt              = rfmGetHandle();
         rfmPkt->node        = pCfg->baseCfg.nodeID;
-        rfmPkt->grp         = 210u;             /* Fixed for OpenEnergyMonitor */
-        rfmPkt->rf_pwr      = RFM_PALEVEL_DEF;  /* 7 dBm transmit power */
+        rfmPkt->grp         = pCfg->baseCfg.dataGrp;    /* Fixed for OpenEnergyMonitor */
+        rfmPkt->rf_pwr      = pCfg->dataTxCfg.rfmPwr;
         rfmPkt->threshold   = 0u;
         rfmPkt->timeout     = 1000u;
         rfmPkt->n           = 23u;
         if (sercomExtIntfEnabled())
         {
-            rfmInit(RF12_433MHz);
+            rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq);
         }
     }
+    /* REVISIT : dedicated UARTs for debug and data. */
     else
     {
         UART_Cfg_t uart_data_cfg;
@@ -227,8 +228,7 @@ dataTxConfigure(const Emon32Config_t *pCfg)
         uart_data_cfg.pin_tx    = PIN_UART_DATA_TX;
         uart_data_cfg.pin_rx    = PIN_UART_DATA_RX;
         uart_data_cfg.pmux      = PMUX_UART_DATA;
-        /* REVISIT : for emon32-Pi2 v0.1, configure the data UART. Not present in
-         * 0.1dev
+        /*
          * sercomSetupUART(&uart_data_cfg);
          */
         (void)uart_data_cfg;
@@ -684,7 +684,7 @@ main(void)
                         RFMSend_t res = rfmSendReady(5u);
                         if (RFM_NO_INIT == res)
                         {
-                            rfmInit(RF12_433MHz);
+                            rfmInit((RFM_Freq_t)e32Config.dataTxCfg.rfmFreq);
                         }
                         else if (RFM_SUCCESS == res)
                         {

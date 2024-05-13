@@ -6,9 +6,9 @@
                                  */
 
 typedef enum RFM_Freq_ {
-    RF12_868MHz,
-    RF12_915MHz,
-    RF12_433MHz
+    RFM_FREQ_868MHz,
+    RFM_FREQ_915MHz,
+    RFM_FREQ_433MHz
 } RFM_Freq_t;
 
 typedef enum RFMSend_ {
