@@ -135,7 +135,7 @@ strnLen(StrN_t *str)
  * here as the conversions, particularly floats, are too slow.
  */
 unsigned int
-dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
+dataPackKV(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
 {
     StrN_t  strn;       /* Fat string for processed data */
 
@@ -205,11 +205,13 @@ dataPackageESP_n(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
 
 
 void
-dataPackagePacked(const Emon32Dataset_t *pData, PackedData_t *pPacked)
+dataPackPacked(const Emon32Dataset_t *pData, PackedData_t *pPacked)
 {
     pPacked->msg = pData->msgNum;
+    /* Vrms is sent as 0.01 scaling */
     for (unsigned int v = 0; v < NUM_V; v++)
     {
-        pPacked->V[v] = qfp_float2int(pData->pECM->rmsV[v]);
+        pPacked->V[v] = qfp_float2int(qfp_fmul(pData->pECM->rmsV[v], 100.0f));
     }
+
 }

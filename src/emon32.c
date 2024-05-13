@@ -667,7 +667,7 @@ main(void)
                 ecmProcessSet(&ecmDataset);
                 datasetUpdate(&dataset);
 
-                pktLength = dataPackageESP_n(&dataset, txBuffer, TX_BUFFER_W);
+                pktLength = dataPackKV(&dataset, txBuffer, TX_BUFFER_W);
 
                 if (0 == rfmPkt)
                 {
@@ -675,7 +675,7 @@ main(void)
                 }
                 else
                 {
-                    dataPackagePacked(&dataset, &packedData);
+                    dataPackPacked(&dataset, &packedData);
                     if (sercomExtIntfEnabled())
                     {
                         /* Try to send in "clean" air. If failed, retry on

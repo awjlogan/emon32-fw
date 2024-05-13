@@ -87,7 +87,7 @@ configDefault(void)
     /* 4.2 degree shift @ 50 Hz */
     for (unsigned int idxCT = 0u; idxCT < NUM_CT; idxCT++)
     {
-        pCfg->ctCfg[idxCT].ctCal    = 90.91;
+        pCfg->ctCfg[idxCT].ctCal    = 20.0f;
         pCfg->ctCfg[idxCT].phase    = 4.2f;
         pCfg->ctCfg[idxCT].vChan    = 0;
     }
