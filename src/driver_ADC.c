@@ -20,8 +20,9 @@ static void
 adcCalibrate(void)
 {
     /* Expected ADC values for 1/4 and 3/4 scale */
-    const int32_t normalQuarter         = 0xC000;
-    const int32_t normalThreeQuarter    = 0x3FFF;
+    /* REVISIT why is the extra /2 required? */
+    const int32_t normalQuarter         = -16383 / 2;
+    const int32_t normalThreeQuarter    = 16382 / 2;
 
     /* Real values from ADC conversion */
     int16_t actualQuarter;
