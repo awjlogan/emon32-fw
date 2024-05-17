@@ -21,12 +21,12 @@ adcCalibrate(void)
 {
     /* Expected ADC values for 1/4 and 3/4 scale */
     /* REVISIT why is the extra /2 required? */
-    const int32_t normalQuarter         = -16383 / 2;
-    const int32_t normalThreeQuarter    = 16382 / 2;
+    const int32_t refScale14    = -16383 / 2;
+    const int32_t refScale34    = 16382 / 2;
 
     /* Real values from ADC conversion */
-    int16_t actualQuarter;
-    int16_t actualThreeQuarter;
+    int16_t expScale14;
+    int16_t expScale34;
 
     /* Calibration values */
     int32_t offset_inter[2];
@@ -54,14 +54,14 @@ adcCalibrate(void)
     ADC->INTFLAG.reg   |= ADC_INTFLAG_RESRDY;
     ADC->SWTRIG.reg    = ADC_SWTRIG_START;
     while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY));
-    actualQuarter = ADC->RESULT.reg;
+    expScale14 = ADC->RESULT.reg;
 
     ADC->INPUTCTRL.reg =   ADC_INPUTCTRL_MUXNEG_PIN0
                          | ADC_INPUTCTRL_MUXPOS_PIN17;
     ADC->INTFLAG.reg   |= ADC_INTFLAG_RESRDY;
     ADC->SWTRIG.reg    = ADC_SWTRIG_START;
     while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY));
-    actualThreeQuarter = ADC->RESULT.reg;
+    expScale34 = ADC->RESULT.reg;
 
     ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
@@ -75,16 +75,16 @@ adcCalibrate(void)
      * GAINCORR is 1 unsigned bit + 11 fractional bits (33.8.17 Gain Correction)
      *  : 1/2 < GAINCORR < 2.
      */
-    gain_fp = qfp_fdiv  (qfp_int2float((normalQuarter - normalThreeQuarter)),
-                         qfp_int2float((actualQuarter - actualThreeQuarter)));
+    gain_fp = qfp_fdiv  (qfp_int2float((refScale14 - refScale34)),
+                         qfp_int2float((expScale14 - expScale34)));
     gain = qfp_float2fix(gain_fp, 11);
 
     offset_inter[0] =  qfp_float2int(qfp_fadd(0.5f,
-                                     qfp_fdiv(qfp_int2float(normalQuarter),
-                                              gain_fp))) - actualQuarter;
+                                     qfp_fdiv(qfp_int2float(refScale14),
+                                              gain_fp))) - expScale14;
     offset_inter[1] =  qfp_float2int(qfp_fadd(0.5f,
-                                     qfp_fdiv(qfp_int2float(normalThreeQuarter),
-                                              gain_fp))) - actualThreeQuarter;
+                                     qfp_fdiv(qfp_int2float(refScale34),
+                                              gain_fp))) - expScale34;
     offset = (offset_inter[0] + offset_inter[1]) / 2;
 
     /* Registers are 12 bit, shift 16 bit offet intermediate offset 4. The gain
