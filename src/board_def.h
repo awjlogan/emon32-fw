@@ -1,7 +1,7 @@
 #pragma once
 
 /* SAMD uses Arm Cortex-M0+ or Cortex-M4 - can place fast functions into RAM
- * to avoid the penalty of laoding from flash with wait states.
+ * to avoid the penalty of loading from flash with wait states.
  */
 #define RAMFUNC __attribute__((section(".ramfunc")))
 
@@ -24,9 +24,9 @@
 #define F_TIMER2            F_PERIPH / 8
 
 #define NUM_V               3u
-#define NUM_CT              11u
+#define NUM_CT              12u
 #define VCT_TOTAL           (NUM_V + NUM_CT)
-#define NUM_CT_ACTIVE_DEF   6u          /* Onboard CTs only*/
+#define NUM_CT_ACTIVE_DEF   6u          /* Onboard CTs only */
 #define SAMPLE_RATE         4800u
 #define SAMPLES_IN_SET      2u
 #define SAMPLE_BUF_DEPTH    2u

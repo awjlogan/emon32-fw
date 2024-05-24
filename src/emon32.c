@@ -15,6 +15,7 @@
 #include "configuration.h"
 #include "dataPack.h"
 #include "emon32.h"
+#include "emon32_assert.h"
 #include "emon_CM.h"
 #include "eeprom.h"
 #include "periph_DS18B20.h"
@@ -33,12 +34,12 @@
 
 static volatile uint32_t    evtPend;
 static unsigned int         lastStoredWh;
+AssertInfo_t                g_assert_info;
 
 /*************************************
  * Static function prototypes
  *************************************/
 
-static void     cumulativeNVMConfigure  (eepromPktWL_t *pPkt);
 static void     cumulativeNVMLoad       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
 static void     cumulativeNVMStore      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     cumulativeProcess       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
@@ -59,18 +60,6 @@ static void     ucSetup                 (void);
  * Functions
  *************************************/
 
-
-/*! @brief Initialise the NVM packet with default values
- *  @param [out] : pPkt : pointer to the NVM packet
- */
-static void
-cumulativeNVMConfigure(eepromPktWL_t *pPkt)
-{
-    pPkt->dataSize      = sizeof(Emon32CumulativeSave_t);
-    pPkt->idxNextWrite  = -1;
-}
-
-
 /*! @brief Load cumulative energy and pulse values
  *  @param [in] pEEPROM : pointer to EEPROM configuration
  *  @param [in] pData : pointer to current dataset
@@ -79,8 +68,10 @@ static void
 cumulativeNVMLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
 {
     Emon32CumulativeSave_t data;
-    pPkt->pData = &data;
 
+    pPkt->pData         = &data;
+    pPkt->dataSize      = sizeof(Emon32CumulativeSave_t);
+    pPkt->idxNextWrite  = -1;
     memset      (&data, 0, sizeof(Emon32CumulativeSave_t));
     eepromReadWL(pPkt);
 
@@ -280,6 +271,11 @@ ecmConfigure(const Emon32Config_t *pCfg)
     {
         ecmCfg->voltageCal[i] = pCfg->voltageCfg[i].voltageCal;
     }
+    /* REVISIT : currently only doing single phase measurement */
+    ecmCfg->vActive[0] = true;
+    ecmCfg->vActive[1] = false;
+    ecmCfg->vActive[2] = false;
+
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
         uint32_t active = pCfg->ctActive & (1 << i);
@@ -522,6 +518,7 @@ main(void)
     uartConfigureDMA    ();
     uartInterruptEnable (SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
     uartInterruptEnable (SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
+    NVIC_EnableIRQ      (SERCOM_UART_INTERACTIVE_IRQn);
 
     configFirmwareBoardInfo();
 
@@ -536,9 +533,7 @@ main(void)
                                                         e32Config.baseCfg.mainsFreq);
 
     datasetInit             (&dataset, &ecmDataset);
-    cumulativeNVMConfigure  (&nvmCumulative);
     cumulativeNVMLoad       (&nvmCumulative, &dataset);
-    NVIC_EnableIRQ          (SERCOM_UART_INTERACTIVE_IRQn);
 
     lastStoredWh = totalEnergy(&dataset);
 

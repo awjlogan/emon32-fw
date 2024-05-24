@@ -9,13 +9,13 @@
 #include "emon_CM.h"
 #include "emon_CM_coeffs.h"
 
-#define SAMPLE_RATE     4800u
-#define MAINS_FREQ      50u
+#define MAINS_FREQ      50.0
+#define REPORT_CT       3       /* Number of CT channels to report */
 #define REPORT_TIME     9.8f
+#define REPORT_V        1       /* Number of V channels to report */
+#define SAMPLE_RATE     4800u
 #define SMP_TICK        1000000u / SAMPLE_RATE / (VCT_TOTAL)
 #define TEST_TIME       50E6    /* Time to run in microseconds */
-#define REPORT_V        1       /* Number of V channels to report */
-#define REPORT_CT       3       /* Number of CT channels to report */
 
 typedef struct wave_ {
     double  omega;  /* Angular velocity */
@@ -24,12 +24,25 @@ typedef struct wave_ {
     int     offset; /* Constant offset, clamped if outside range */
 } wave_t;
 
+/*! @brief Convert a current in CT to a wave description
+ *  @param [in] IRMS : RMS current
+ *  @param [in] scaleCT : current to produce 333 mV RMS output
+ *  @param [in] phase : CT phase
+ *  @param [out] pW  : pointer to the wave struct
+ */
+void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w);
 
 /*! @brief Generates a Q11 [-2048, 2047] wave with configurable parameters
  *  @param [in] w       : pointer to wave information
  *  @param [in] tMicros : time in microseconds
  */
 q15_t generateWave(wave_t *w, int tMicros);
+
+/*! @brief Convert a voltage into a wave description
+ *  @param [in] vRMS : RMS voltage
+ *  @param [out] pW  : pointer to the wave struct
+ */
+void voltageToWave(double vRMS, wave_t *w);
 
 
 int
@@ -61,15 +74,14 @@ main(int argc, char *argv[])
     /* Set all waves to 50 Hz, all CTs to 5 deg offset. The maximum amplitude
      * corresponds to 1.024 V at the emon32 input.
      */
-    for (int i = 0; i < VCT_TOTAL; i++)
+    for (int i = 0; i < NUM_V; i++)
     {
-        wave[i].omega = 2 * M_PI * 50.0;
-        /* 230 V_rms ~(325 / 405) and 2.84 A_rms ~(4 / 5) */
-        wave[i].s     = 0.803f;
+        voltageToWave(230.0, &wave[i]);
     }
+
     for (int i = NUM_V; i < VCT_TOTAL; i++)
     {
-        wave[i].phi = 5.0/180.0;
+        currentToWave(3.5, 5, 5.0, &wave[i]);
     }
 
     pEcmCfg = ecmConfigGet();
@@ -93,6 +105,7 @@ main(int argc, char *argv[])
     {
         pEcmCfg->voltageCal[i] = ecmCalibrationCalculate(405.0f);
     }
+    pEcmCfg->vActive[0] = 1;
 
     for (int i = 0; i < NUM_CT; i++)
     {
@@ -121,10 +134,10 @@ main(int argc, char *argv[])
     printf("  Test configuration:\n");
     printf("    - Number of V     : %d\n", NUM_V),
     printf("    - Number of CT    : %d\n", NUM_CT);
-    printf("    - Mains frequency : %d\n", MAINS_FREQ);
+    printf("    - Mains frequency : %.0f Hz\n", MAINS_FREQ);
     printf("    - DSP enabled     : %s\n", pEcmCfg->downsample ? "Yes" : "No");
-    printf("    - Report time     : %.2f\n", REPORT_TIME);
-    printf("    - Sample tick (us): %d\n", SMP_TICK);
+    printf("    - Report time     : %.2f s\n", REPORT_TIME);
+    printf("    - Sample tick     : %d us\n", SMP_TICK);
     printf("\n");
 
     /* ============ START : HALF BAND TEST ============ */
@@ -213,7 +226,18 @@ main(int argc, char *argv[])
     printf("Done!\n\n");
 }
 
-q15_t generateWave(wave_t *w, int tMicros)
+void
+currentToWave(double IRMS, int scaleCT, double phase, wave_t *w)
+{
+    double iPk  = IRMS * sqrt(2);
+    w->offset   = 0;
+    w->omega    = 2 * M_PI * MAINS_FREQ;
+    w->phi      = phase / 180;
+    w->s        = iPk / scaleCT;
+}
+
+q15_t
+generateWave(wave_t *w, int tMicros)
 {
     assert((w->s > 0.0) && (w->s <= 1.0));
     q15_t wave;
@@ -231,4 +255,14 @@ q15_t generateWave(wave_t *w, int tMicros)
         wave = 2047;
     }
     return wave;
+}
+
+void
+voltageToWave(double vRMS, wave_t *w)
+{
+    double vPk = vRMS * sqrt(2);
+    w->offset   = 0;
+    w->omega    = 2 * M_PI * MAINS_FREQ;
+    w->phi      = 0;
+    w->s        = vPk / 405.0;
 }

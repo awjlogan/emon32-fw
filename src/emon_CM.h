@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "board_def.h"
@@ -62,7 +63,7 @@ typedef struct CTCfgUnpacked_ {
     float           phaseX;
     float           phaseY;
     float           ctCal;
-    unsigned int    active;
+    bool            active;
     unsigned int    vChan;
 } CTCfgUnpacked_t;
 
@@ -77,6 +78,7 @@ typedef struct ECMCfg_ {
     unsigned int    mainsFreq;                      /* Mains frequency */
     CTCfgUnpacked_t ctCfg[NUM_CT];                  /* CT Configuration */
     float           voltageCal[NUM_V];              /* Voltage calibration */
+    bool            vActive[NUM_V];                 /* Voltage channel active */
 } ECMCfg_t;
 
 typedef enum Polarity_ {

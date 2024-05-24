@@ -347,11 +347,10 @@ ecmInjectSample(void)
     }
 
     SampleSet_t smpProc;
-    SampleSet_t *pSmpProc = &smpProc;
 
     /* Copy the pre-processed sample data into the ring buffer */
-    ecmFilterSample(pSmpProc);
-    memcpy((void *)(sampleRingBuffer + idxInject), (const void *)pSmpProc, sizeof(SampleSet_t));
+    ecmFilterSample(&smpProc);
+    memcpy((void *)(sampleRingBuffer + idxInject), (const void *)&smpProc, sizeof(SampleSet_t));
 
     /* Do power calculations */
     accumCollecting->numSamples++;
@@ -362,17 +361,24 @@ ecmInjectSample(void)
     const q15_t lastV = sampleRingBuffer[idxLast].smpV[0];
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
-        accumCollecting->processV[idxV].sumV_sqr    += (q22_t) thisV * thisV;
-        accumCollecting->processV[idxV].sumV_deltas += (int32_t) thisV;
+        if (ecmCfg.vActive[idxV])
+        {
+            const q15_t V = sampleRingBuffer[idxInject].smpV[idxV];
+            accumCollecting->processV[idxV].sumV_sqr    += (q22_t) V * V;
+            accumCollecting->processV[idxV].sumV_deltas += (int32_t) V;
+        }
     }
 
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        const q15_t lastCT = sampleRingBuffer[idxLast].smpCT[idxCT];
-        accumCollecting->processCT[idxCT].sumPA         += (q22_t) lastCT * lastV;
-        accumCollecting->processCT[idxCT].sumPB         += (q22_t) lastCT * thisV;
-        accumCollecting->processCT[idxCT].sumI_sqr      += (q22_t) lastCT * lastCT;
-        accumCollecting->processCT[idxCT].sumI_deltas   += (int32_t) lastCT;
+        if (ecmCfg.ctCfg[idxCT].active)
+        {
+            const q15_t lastCT = sampleRingBuffer[idxLast].smpCT[idxCT];
+            accumCollecting->processCT[idxCT].sumPA         += (q22_t) lastCT * lastV;
+            accumCollecting->processCT[idxCT].sumPB         += (q22_t) lastCT * thisV;
+            accumCollecting->processCT[idxCT].sumI_sqr      += (q22_t) lastCT * lastCT;
+            accumCollecting->processCT[idxCT].sumI_deltas   += (int32_t) lastCT;
+        }
     }
 
     /* Flag if there has been a (-) -> (+) crossing */
@@ -447,18 +453,20 @@ ecmProcessCycle(void)
     const uint32_t numSamples       = accumProcessing->numSamples;
     const uint32_t numSamplesSqr    = numSamples * numSamples;
 
-    /* RMS for V channels */
+    /* RMS for V channels, substracting off fine offset */
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
-        /* Calculate RMS, subtracting off fine offset */
-        accumProcessing->processV[idxV].sumV_deltas *= accumProcessing->processV[idxV].sumV_deltas;
+        if (ecmCfg.vActive[idxV])
+        {
+            accumProcessing->processV[idxV].sumV_deltas *= accumProcessing->processV[idxV].sumV_deltas;
 
-        int meanSqr = accumProcessing->processV[idxV].sumV_sqr / numSamples;
-        int dcCorr  = accumProcessing->processV[idxV].sumV_deltas / numSamplesSqr;
-        meanSqr -= dcCorr;
+            int meanSqr = accumProcessing->processV[idxV].sumV_sqr / numSamples;
+            int dcCorr  = accumProcessing->processV[idxV].sumV_deltas / numSamplesSqr;
+            meanSqr -= dcCorr;
 
-        ecmCycle.rmsV[idxV] = qfp_fadd(ecmCycle.rmsV[idxV],
-                                       qfp_fsqrt(qfp_int2float(meanSqr)));
+            ecmCycle.rmsV[idxV] = qfp_fadd(ecmCycle.rmsV[idxV],
+                                           qfp_fsqrt(qfp_int2float(meanSqr)));
+        }
     }
 
     /* CT channels */

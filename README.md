@@ -234,10 +234,11 @@ You will also need to ensure that the vendor's headers are included and visible 
 - [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M0.
 - [RFM69](https://github.com/LowPowerLab/RFM69) - RFM69 driver from Low Power Labs used as reference.
 - [SSD1306 library](https://github.com/Matiasus/SSD1306/tree/master) - used as a reference for this implementation.
+- [Using Asserts in Embedded Systems](https://interrupt.memfault.com/blog/asserts-in-embedded-systems) - custom assertions from _Interrupt by Memfault_.
 - [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build and linker scripts from Winterbloom.
 
 ### Others
 
-- Glyn Hudson @ OpenEnergyMonitor
-- Rob Wall @ OpenEnergyMonitor forums for discussions around all aspects of energy monitoring.
-- Trystan Lea @ OpenEnergyMonitor
+- Glyn Hudson @ [OpenEnergyMonitor](https://openenergymonitor.org/)
+- Rob Wall @ [OpenEnergyMonitor forums](https://community.openenergymonitor.org/) for discussions around all aspects of energy monitoring.
+- Trystan Lea @ [OpenEnergyMonitor](https://openenergymonitor.org/)
