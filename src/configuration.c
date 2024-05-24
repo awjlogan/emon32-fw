@@ -1,7 +1,8 @@
 #include <inttypes.h>
 #include <string.h>
 
-#include "emon32_samd.h"
+
+#include "emon32_assert.h"
 
 #include "driver_ADC.h"
 #include "driver_PORT.h"
@@ -74,13 +75,14 @@ configDefault(void)
     pCfg->baseCfg.whDeltaStore  = DELTA_WH_STORE; /* 200 */
     pCfg->baseCfg.dataGrp       = 210u;
     pCfg->baseCfg.logToSerial   = 1u;
+    pCfg->baseCfg.useJson       = 0u;
     pCfg->dataTxCfg.txType      = DATATX_UART;
     pCfg->dataTxCfg.rfmPwr      = 0x19;
     pCfg->dataTxCfg.rfmFreq     = 0;
 
     for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
     {
-        /* This is the peak-to-peak mains voltage producing 1.024 V at the input
+        /* This is the peak mains voltage producing 1.024 V at the input
          * to the emon32 system.
          */
         pCfg->voltageCfg[idxV].voltageCal = 405.0f;
@@ -491,7 +493,9 @@ configFirmwareBoardInfo(void)
 void
 configLoadFromNVM(Emon32Config_t *pConfig)
 {
-    const uint32_t  cfgSize     = sizeof(Emon32Config_t);
+    EMON32_ASSERT(pConfig);
+
+    const uint32_t  cfgSize     = sizeof(*pConfig);
     uint16_t        crc16_ccitt = 0;
     char            c           = 0;
 
@@ -546,6 +550,7 @@ configProcessCmd(void)
     " - d<x.x>      : data log period (s)\r\n"
     " - f<n>        : line frequency (Hz)\r\n"
     " - g<n>        : set network group (default = 210)\r\n"
+    " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
     " - k<x> <y.y> <z.z>\r\n"
     "   - Calibrate an analogue input\r\n"
     "   - x:        : channel (0-2 -> V; 3... -> CT)\r\n"
@@ -628,6 +633,15 @@ configProcessCmd(void)
                 emon32EventSet(EVT_CONFIG_CHANGED);
             }
             break;
+        case 'j':
+            if (2u == arglen)
+            {
+                pCfg->baseCfg.useJson = utilAtoi(inBuffer + 1, ITOA_BASE10);
+                printf_("> Use JSON: %c\r\n",
+                        pCfg->baseCfg.useJson ? 'Y' : 'N');
+                emon32EventSet(EVT_CONFIG_CHANGED);
+            }
+            break;
         case 'k':
             /* Configure analog channel */
             configureAnalog();
@@ -664,7 +678,7 @@ configProcessCmd(void)
             break;
         case 's':
             /* Save to EEPROM config space, reset if required */
-            eepromInitConfig(pCfg, sizeof(Emon32Config_t));
+            eepromInitConfig(pCfg, sizeof(*pCfg));
             if (0 == resetReq)
             {
                 emon32EventSet(EVT_CONFIG_SAVED);

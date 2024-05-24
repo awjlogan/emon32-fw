@@ -44,6 +44,7 @@ typedef struct __attribute__((__packed__)) BaseCfg_ {
     uint16_t    whDeltaStore;   /* Minimum energy delta to store */
     uint8_t     dataGrp;        /* Transmission group - default 210 */
     uint8_t     logToSerial;    /* Log data to serial output */
+    uint8_t     useJson;        /* JSON format for serial output */
 } BaseCfg_t;
 
 typedef enum __attribute__ ((__packed__)) DataTx_ {

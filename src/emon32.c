@@ -657,12 +657,13 @@ main(void)
              */
             if (evtPending(EVT_ECM_SET_CMPL))
             {
-                unsigned int pktLength;
+                int pktLength;
 
                 ecmProcessSet(&ecmDataset);
                 datasetUpdate(&dataset);
 
-                pktLength = dataPackKV(&dataset, txBuffer, TX_BUFFER_W);
+                pktLength = dataPackSerial(&dataset, txBuffer, TX_BUFFER_W,
+                                           e32Config.baseCfg.useJson);
 
                 if (0 == rfmPkt)
                 {

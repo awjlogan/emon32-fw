@@ -23,13 +23,13 @@
 #define F_TIMER_ADC         F_PERIPH / 8
 #define F_TIMER2            F_PERIPH / 8
 
-#define NUM_V               3u
-#define NUM_CT              12u
+#define NUM_V               3
+#define NUM_CT              12
 #define VCT_TOTAL           (NUM_V + NUM_CT)
-#define NUM_CT_ACTIVE_DEF   6u          /* Onboard CTs only */
-#define SAMPLE_RATE         4800u
-#define SAMPLES_IN_SET      2u
-#define SAMPLE_BUF_DEPTH    2u
+#define NUM_CT_ACTIVE_DEF   6           /* Onboard CTs only */
+#define SAMPLE_RATE         4800
+#define SAMPLES_IN_SET      2
+#define SAMPLE_BUF_DEPTH    2
 
 /* If there is hardware support of zero-crossing detection, set 1*/
 #define ZEROX_HW_SPT        0

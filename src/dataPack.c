@@ -1,11 +1,13 @@
-#include <string.h>
 #include <inttypes.h>
+#include <stdbool.h>
+#include <string.h>
+
+#include "dataPack.h"
+#include "emon32_assert.h"
+#include "util.h"
 
 #include "qfplib-m0-full.h"
 #include "qfpio.h"
-
-#include "dataPack.h"
-#include "util.h"
 
 
 #define CONV_STR_W  16
@@ -17,6 +19,10 @@
 #define STR_TEMP    5
 #define STR_COLON   6
 #define STR_CRLF    7
+#define STR_DQUOTE  8
+#define STR_LCURL   9
+#define STR_RCURL   10
+#define STR_COMMA   11
 
 
 /* "Fat" string with current length and buffer size. */
@@ -27,7 +33,9 @@ typedef struct StrN {
 } StrN_t;
 
 
-static void catId(StrN_t *strD, unsigned int id, unsigned int field);
+static void catId(StrN_t *strD, int id, int field, bool json);
+static void catMsg(StrN_t *strD, int msg, bool json);
+static void initFields(StrN_t *pD, char *pS, const int m);
 static int  strnFtoa(StrN_t *strD, const float v);
 static int  strnItoa(StrN_t *strD, const uint32_t v);
 static int  strnCat(StrN_t *strD, const StrN_t *strS);
@@ -38,14 +46,18 @@ static char     tmpStr[CONV_STR_W] = {0};
 static StrN_t   strConv;    /* Fat string for conversions */
 
 /* Strings that are inserted in the transmitted message */
-const StrN_t baseStr[8] = { {.str = "MSG:",     .n = 4, .m = 5},
-                            {.str = ",V",       .n = 2, .m = 3},
-                            {.str = ",P",       .n = 2, .m = 3},
-                            {.str = ",E",       .n = 2, .m = 3},
-                            {.str = ",pulse",   .n = 6, .m = 7},
-                            {.str = ",t",       .n = 2, .m = 3},
+const StrN_t baseStr[12] = { {.str = "MSG:",    .n = 4, .m = 5},
+                            {.str = "V",        .n = 1, .m = 2},
+                            {.str = "P",        .n = 1, .m = 2},
+                            {.str = "E",        .n = 1, .m = 2},
+                            {.str = "pulse",    .n = 5, .m = 6},
+                            {.str = "t",        .n = 1, .m = 2},
                             {.str = ":",        .n = 1, .m = 2},
-                            {.str = "\r\n",     .n = 2, .m = 3}};
+                            {.str = "\r\n",     .n = 2, .m = 3},
+                            {.str = "\"",       .n = 1, .m = 2},
+                            {.str = "{",        .n = 1, .m = 2},
+                            {.str = "}",        .n = 1, .m = 2},
+                            {.str = ",",        .n = 1, .m = 2}};
 
 
 /*! @brief "Append <field><id>:" to the string
@@ -54,20 +66,63 @@ const StrN_t baseStr[8] = { {.str = "MSG:",     .n = 4, .m = 5},
  *  @param [in] field : field name index, e.g. "STR_V"
  */
 static void
-catId(StrN_t *strD, unsigned int id, unsigned int field)
+catId(StrN_t *strD, int id, int field, bool json)
 {
+    strD->n += strnCat(strD, &baseStr[STR_COMMA]);
+    if (json)
+    {
+        strD->n += strnCat(strD, &baseStr[STR_DQUOTE]);
+    }
     strD->n += strnCat(strD, &baseStr[field]);
-
     (void)strnItoa(&strConv, id);
     strD->n += strnCat(strD, &strConv);
+    if (json)
+    {
+        strD->n += strnCat(strD, &baseStr[STR_DQUOTE]);
+    }
     strD->n += strnCat(strD, &baseStr[STR_COLON]);
 }
 
 
+static void
+catMsg(StrN_t *strD, int msg, bool json)
+{
+    /* <{">MSG<">:<"><#><"> */
+
+    if (json)
+    {
+        strD->n += strnCat(strD, &baseStr[STR_LCURL]);
+        strD->n += strnCat(strD, &baseStr[STR_DQUOTE]);
+    }
+    strD->n += strnCat(strD, &baseStr[STR_MSG]);
+    if (json)
+    {
+        strD->n += strnCat(strD, &baseStr[STR_DQUOTE]);
+    }
+    strD->n += strnCat(strD, &baseStr[STR_COLON]);
+    (void)strnItoa(&strConv, msg);
+    strD->n += strnCat(strD, &strConv);
+}
+
+
+static void
+initFields(StrN_t *pD, char *pS, const int m)
+{
+    /* Setup destination string */
+    pD->str = pS;
+    pD->n   = 0;
+    pD->m   = m;
+    memset(pD->str, 0, m);
+
+    /* Setup conversion string */
+    strConv.str = tmpStr;
+    strConv.n   = 0;
+    strConv.m   = CONV_STR_W;
+}
+
 static int
 strnFtoa(StrN_t *strD, const float v)
 {
-    /* REVISIT : check formatting parameter */
     const uint32_t fmt = 0;
 
     /* Zero the destination buffer then convert */
@@ -131,75 +186,48 @@ strnLen(StrN_t *str)
 }
 
 
-/* Pack the data into a format to send out. Do not use the printf functions
- * here as the conversions, particularly floats, are too slow.
- */
-unsigned int
-dataPackKV(const Emon32Dataset_t *pData, char *pDst, const unsigned int m)
+int
+dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json)
 {
-    StrN_t  strn;       /* Fat string for processed data */
+    EMON32_ASSERT(pData);
+    EMON32_ASSERT(pDst);
 
-    /* Setup destination string */
-    strn.str    = pDst;
-    strn.n      = 0;
-    strn.m      = m;
+    StrN_t strn;
+    initFields(&strn, pDst, m);
 
-    /* Setup conversion string */
-    strConv.str = tmpStr;
-    strConv.n   = 0;
-    strConv.m   = CONV_STR_W;
+    catMsg(&strn, pData->msgNum, json);
 
-    /* Clear destination buffer */
-    memset(strn.str, 0, m);
-
-    /* "MSG:<xx>"*/
-    strn.n += strnCat(&strn, &baseStr[STR_MSG]);
-    (void)strnItoa(&strConv, pData->msgNum);
-    strn.n += strnCat(&strn, &strConv);
-
-    /* V channels: "[..],V<x>:<yy.y>" */
-    for (unsigned int i = 0; i < NUM_V; i++)
+    /* V channels */
+    for (int i = 0; i < NUM_V; i++)
     {
-        catId(&strn, (i + 1), STR_V);
-        (void)strnFtoa(&strConv, pData->pECM->rmsV[i]);
+        catId(&strn, (i + 1), STR_V, json);
+        /* Voltages are scaled 0.01 for transmission */
+        (void)strnFtoa(&strConv, qfp_fmul(pData->pECM->rmsV[i], 0.01f));
         strn.n += strnCat(&strn, &strConv);
     }
 
-    /* CT channels "[..],P<x>:<yy.y>" */
-    for (unsigned int i = 0; i < NUM_CT; i++)
+    /* CT channels (power and energy) */
+    for (int i = 0; i < NUM_CT; i++)
     {
-        catId(&strn, (i + 1), STR_P);
+        catId(&strn, (i + 1), STR_P, json);
         (void)strnItoa(&strConv, pData->pECM->CT[i].realPower);
         strn.n += strnCat(&strn, &strConv);
     }
-
-    /* "[..],E<x>:<yy>" */
-    for (unsigned int i = 0; i < NUM_CT; i++)
+    for (int i = 0; i < NUM_CT; i++)
     {
-        catId(&strn, (i + 1), STR_E);
+        catId(&strn, (i + 1), STR_E, json);
         (void)strnItoa(&strConv, pData->pECM->CT[i].wattHour);
         strn.n += strnCat(&strn, &strConv);
     }
 
-    /* Pulse channels: "[..],pulse<x>:<yy>" */
-    for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
-    {
-        catId(&strn, (i + 1), STR_PULSE);
-        (void)strnItoa(&strConv, pData->pulseCnt[i]);
-        strn.n += strnCat(&strn, &strConv);
-    }
+    /* REVIST : pulse and temperature */
 
-    /* Temperature sensors: "[..],t<x>:<yy.y>" */
-    for (unsigned int i = 0; i < pData->numTempSensors; i++)
+    /* Terminate with } for JSON and \r\n */
+    if (json)
     {
-        catId(&strn, (i + 1), STR_TEMP);
-        (void)strnFtoa(&strConv, pData->temp[i]);
-        strn.n += strnCat(&strn, &strConv);
+        strnCat(&strn, &baseStr[STR_RCURL]);
     }
-
-    /* CR-LF */
     strn.n += strnCat(&strn, &baseStr[STR_CRLF]);
-
     return strn.n;
 }
 
