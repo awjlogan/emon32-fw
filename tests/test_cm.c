@@ -13,7 +13,7 @@
 #define REPORT_CT       3       /* Number of CT channels to report */
 #define REPORT_TIME     9.8f
 #define REPORT_V        1       /* Number of V channels to report */
-#define SAMPLE_RATE     4800u
+// #define SAMPLE_RATE     4800u
 #define SMP_TICK        1000000u / SAMPLE_RATE / (VCT_TOTAL)
 #define TEST_TIME       50E6    /* Time to run in microseconds */
 
@@ -212,7 +212,7 @@ main(int argc, char *argv[])
             ecmProcessSet(&dataset);
             for (int i = 0; i < REPORT_V; i++)
             {
-                printf("v%d:%.2f,", i, dataset.rmsV[i]);
+                printf("V%d:%.2f,", i, dataset.rmsV[i]);
             }
             for (int i = 0; i < REPORT_CT; i++)
             {

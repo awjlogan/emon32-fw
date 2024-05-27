@@ -220,9 +220,9 @@ ecmFlush(void)
 {
     discardCycles = EQUIL_CYCLES;
 
-    memset(accumBuffer,         0, (2 * sizeof(Accumulator_t)));
-    memset(sampleRingBuffer,    0, (PROC_DEPTH * sizeof(SampleSet_t)));
-    memset(dspBuffer,           0, (DOWNSAMPLE_TAPS * sizeof(RawSampleSetUnpacked_t)));
+    memset(accumBuffer,         0, (2 * sizeof(*accumBuffer)));
+    memset(sampleRingBuffer,    0, (PROC_DEPTH * sizeof(*sampleRingBuffer)));
+    memset(dspBuffer,           0, (DOWNSAMPLE_TAPS * sizeof(*dspBuffer)));
 }
 
 
@@ -350,7 +350,8 @@ ecmInjectSample(void)
 
     /* Copy the pre-processed sample data into the ring buffer */
     ecmFilterSample(&smpProc);
-    memcpy((void *)(sampleRingBuffer + idxInject), (const void *)&smpProc, sizeof(SampleSet_t));
+    memcpy((void *)(sampleRingBuffer + idxInject), (const void *)&smpProc,
+           sizeof(*sampleRingBuffer));
 
     /* Do power calculations */
     accumCollecting->numSamples++;
@@ -395,7 +396,7 @@ ecmInjectSample(void)
     if (1 == zerox_flag)
     {
         ecmSwapPtr((void **)&accumCollecting, (void **)&accumProcessing);
-        memset((void *)accumCollecting, 0, sizeof(Accumulator_t));
+        memset((void *)accumCollecting, 0, sizeof(*accumCollecting));
 
         /* Clear the hardware zero crossing, if in use. */
         if (0 != ecmCfg.zx_hw_clr)
@@ -431,7 +432,7 @@ ECMPerformance_t *
 ecmPerformance(void)
 {
     ecmSwapPtr((void **)&perfActive, (void **)&perfIdle);
-    memset(perfActive, 0, sizeof(ECMPerformance_t));
+    memset(perfActive, 0, sizeof(*perfActive));
 
     return perfIdle;
 }
@@ -574,7 +575,7 @@ ecmProcessSet(ECMDataset_t *pData)
     }
 
     /* Zero out cycle accummulator */
-    memset((void *)&ecmCycle, 0, sizeof(ECMCycle_t));
+    memset((void *)&ecmCycle, 0, sizeof(ecmCycle));
 
     if (0 != ecmCfg.timeMicrosDelta)
     {

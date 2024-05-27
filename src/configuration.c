@@ -109,7 +109,7 @@ configDefault(void)
         pCfg->pulseCfg[i].edge   = 0u;
     }
 
-    pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(Emon32Config_t) - 2u));
+    pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(*pCfg) - 2u));
 }
 
 
@@ -125,7 +125,7 @@ configInitialiseNVM(void)
 
     configDefault           ();
     (void)eepromInitBlock   (0, 0, 256);
-    eepromInitConfig        (pCfg, sizeof(Emon32Config_t));
+    eepromInitConfig        (pCfg, sizeof(*pCfg));
 
     // eepromSize = eepromDiscoverSize();
     eepromSize = 1024;

@@ -70,9 +70,9 @@ cumulativeNVMLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
     Emon32CumulativeSave_t data;
 
     pPkt->pData         = &data;
-    pPkt->dataSize      = sizeof(Emon32CumulativeSave_t);
+    pPkt->dataSize      = sizeof(data);
     pPkt->idxNextWrite  = -1;
-    memset      (&data, 0, sizeof(Emon32CumulativeSave_t));
+    memset      (&data, 0, sizeof(data));
     eepromReadWL(pPkt);
 
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
