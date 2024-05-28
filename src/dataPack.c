@@ -201,8 +201,7 @@ dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json)
     for (int i = 0; i < NUM_V; i++)
     {
         catId(&strn, (i + 1), STR_V, json);
-        /* Voltages are scaled 0.01 for transmission */
-        (void)strnFtoa(&strConv, qfp_fmul(pData->pECM->rmsV[i], 0.01f));
+        (void)strnFtoa(&strConv, pData->pECM->rmsV[i]);
         strn.n += strnCat(&strn, &strConv);
     }
 

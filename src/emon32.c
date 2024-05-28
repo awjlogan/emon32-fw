@@ -43,7 +43,6 @@ AssertInfo_t                g_assert_info;
 static void     cumulativeNVMLoad       (eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
 static void     cumulativeNVMStore      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     cumulativeProcess       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
-static void     datasetInit             (Emon32Dataset_t *pDst, ECMDataset_t *pECM);
 static void     datasetUpdate           (Emon32Dataset_t *pDst);
 static RFMPkt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
 static void     ecmConfigure            (const Emon32Config_t *pCfg);
@@ -139,27 +138,6 @@ cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsig
         cumulativeNVMStore(pPkt, pData);
         lastStoredWh = latestWh;
     }
-}
-
-
-/*! @brief Initialise the data set
- *  @param [out] pDst : pointer to the data struct
- *  @param [in] pECM : pointer to the emon Continuous Monitoring struct
- */
-static void
-datasetInit(Emon32Dataset_t *pDst, ECMDataset_t *pECM)
-{
-    pDst->msgNum = 0;
-    pDst->pECM = pECM;
-    for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
-    {
-        pDst->pulseCnt[i] = 0;
-    }
-    for (unsigned int i = 0; i < TEMP_MAX_ONEWIRE; i++)
-    {
-        pDst->temp[i] = 0;
-    }
-    pDst->numTempSensors = 0;
 }
 
 
@@ -265,7 +243,7 @@ ecmConfigure(const Emon32Config_t *pCfg)
 
     for (unsigned int i = 0; i < NUM_V; i ++)
     {
-        ecmCfg->voltageCal[i] = pCfg->voltageCfg[i].voltageCal;
+        ecmCfg->voltageCal[i] = ecmCalibrationCalculate(pCfg->voltageCfg[i].voltageCal);
     }
     /* REVISIT : currently only doing single phase measurement */
     ecmCfg->vActive[0] = true;
@@ -280,7 +258,7 @@ ecmConfigure(const Emon32Config_t *pCfg)
 
         ecmCfg->ctCfg[i].phaseX = phaseXY.phaseX;
         ecmCfg->ctCfg[i].phaseY = phaseXY.phaseY;
-        ecmCfg->ctCfg[i].ctCal  = pCfg->ctCfg[i].ctCal;
+        ecmCfg->ctCfg[i].ctCal  = ecmCalibrationCalculate(pCfg->ctCfg[i].ctCal);
         ecmCfg->ctCfg[i].active = active ? 1u : 0u;
         ecmCfg->ctCfg[i].vChan  = pCfg->ctCfg[i].vChan;
     }
@@ -528,7 +506,7 @@ main(void)
     e32Config.baseCfg.reportCycles = configTimeToCycles(e32Config.baseCfg.reportTime,
                                                         e32Config.baseCfg.mainsFreq);
 
-    datasetInit             (&dataset, &ecmDataset);
+    dataset.pECM = &ecmDataset;
     cumulativeNVMLoad       (&nvmCumulative, &dataset);
 
     lastStoredWh = totalEnergy(&dataset);

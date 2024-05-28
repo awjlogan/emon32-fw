@@ -20,7 +20,7 @@ static void
 adcCalibrate(void)
 {
     /* Expected ADC values for 1/4 and 3/4 scale */
-    /* REVISIT why is the extra /2 required? */
+    /* REVISIT : why is the extra /2 required? */
     const int32_t refScale14    = -16383 / 2;
     const int32_t refScale34    = 16382 / 2;
 
@@ -187,9 +187,7 @@ adcSetup(void)
     ADC->CALIB.reg =   (samdCalibration(CAL_ADC_BIAS) << 8u)
                      | samdCalibration(CAL_ADC_LINEARITY);
 
-    /* Enable reference buffer and set to external VREF
-     * REVISIT Unclear if the buffer is for external ref, or only internal
-     */
+    /* Enable reference buffer and set to external VREF */
     ADC->REFCTRL.reg =   ADC_REFCTRL_REFCOMP
                        | ADC_REFCTRL_REFSEL_AREFA;
 
@@ -198,8 +196,7 @@ adcSetup(void)
     /* Differential mode, /4 prescale of F_PERIPH, right aligned, enable
      * averaging. Requires synchronisation after write (33.6.15)
      */
-    ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV4
-                     | ADC_CTRLB_DIFFMODE
+    ADC->CTRLB.reg =   ADC_CTRLB_DIFFMODE
                      | ADC_CTRLB_CORREN
                      | ADC_CTRLB_RESSEL_12BIT;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);

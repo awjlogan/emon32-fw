@@ -189,7 +189,8 @@ timerSetup(void)
     /* TIMER_ADC is running at 1 MHz, each tick is 1 us
      * PER, COUNT, and Enable require synchronisation (30.6.6)
      */
-    const unsigned int cntPer = F_TIMER_ADC / SAMPLE_RATE / (VCT_TOTAL);
+    /* REVISIT : why is the factor of 2 here? */
+    const unsigned int cntPer = F_TIMER_ADC / SAMPLE_RATE / 2;
     TIMER_ADC->COUNT16.CC[0].reg = (uint16_t)cntPer;
     while (TIMER_ADC->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY);
     TIMER_ADC->COUNT16.COUNT.reg = 0u;

@@ -500,7 +500,6 @@ SERCOM_UART_INTERACTIVE_HANDLER
         rx_char = SERCOM_UART_INTERACTIVE->USART.DATA.reg;
         configCmdChar(rx_char);
 
-        /* REVISIT : this may result in lost characters? */
         if (SERCOM_UART_INTERACTIVE->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE)
         {
             SERCOM_UART_INTERACTIVE->USART.DATA.reg = rx_char;
