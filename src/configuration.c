@@ -121,16 +121,16 @@ configInitialiseNVM(void)
 {
     unsigned int eepromSize = 0;
 
-    dbgPuts                 ("  - Initialising NVM... ");
+    dbgPuts             ("  - Initialising NVM... ");
 
-    configDefault           ();
-    (void)eepromInitBlock   (0, 0, 256);
-    eepromInitConfig        (pCfg, sizeof(*pCfg));
+    configDefault       ();
+    eepromInitBlock     (0, 0, 256);
+    eepromInitConfig    (pCfg, sizeof(*pCfg));
 
     // eepromSize = eepromDiscoverSize();
     eepromSize = 1024;
-    (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
-                          (eepromSize - EEPROM_WL_OFFSET));
+    eepromInitBlock(EEPROM_WL_OFFSET, 0,
+                    (eepromSize - EEPROM_WL_OFFSET));
     dbgPuts("Done!\r\n");
 }
 
@@ -442,8 +442,8 @@ zeroAccumulators(void)
     c = waitForChar();
     if ('y' == c)
     {
-        (void)eepromInitBlock(EEPROM_WL_OFFSET, 0,
-                              (1024 - EEPROM_WL_OFFSET));
+        eepromInitBlock(EEPROM_WL_OFFSET, 0,
+                        (1024 - EEPROM_WL_OFFSET));
         dbgPuts("    - Accumulators cleared.\r\n");
     }
     else

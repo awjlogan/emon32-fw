@@ -1,7 +1,5 @@
 #pragma once
 
-#include <stdint.h>
-
 typedef struct eepromPktWL_ {
     int             idxNextWrite;   /* Index of next write to EEPROM */
     unsigned int    dataSize;       /* Size (bytes) of the data */
@@ -12,7 +10,8 @@ typedef enum eepromWrStatus_ {
     EEPROM_WR_PEND,
     EEPROM_WR_BUSY,
     EEPROM_WR_COMPLETE,
-    EEPROM_WR_FAIL
+    EEPROM_WR_FAIL,
+    EEPROM_WR_WL_COMPLETE
 } eepromWrStatus_t;
 
 
@@ -29,10 +28,8 @@ void eepromDump(void);
  *  @param [in] startAddr : start address, must be on 16 byte boundary
  *  @param [in] val : value to write
  *  @param [in] n : number of bytes to write
- *  @return : 0 for success, -1 if startAddress is unaligned, n is not a
- *            multiple of 16, or if n is too large.
  */
-int eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n);
+void eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n);
 
 /*! @brief Store values at address 0
  *  @param [in] pCfg : pointer to the data source
@@ -75,5 +72,6 @@ eepromWrStatus_t eepromWriteContinue(void);
 
 /*! @brief Save data to EEPROM with wear leveling.
  *  @param [in] pPktWr : pointer to write packet
+ *  @return : status of the EEPROM write process
  */
-void eepromWriteWL(eepromPktWL_t *pPktWr);
+eepromWrStatus_t eepromWriteWL(eepromPktWL_t *pPktWr);

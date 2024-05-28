@@ -2,10 +2,9 @@
 
 #ifndef HOSTED
 
-#include "emon32_samd.h"
+#include "emon32_assert.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
-#include "emon32.h"
 
 #include "printf.h"
 
@@ -16,6 +15,20 @@
 #endif /* HOSTED */
 
 #include "eeprom.h"
+#include "emon32.h"
+
+/* Use WL_PKT_SIZE bytes for the wear limiting packet. This wastes some EEPROM
+ * cells, but keeps everything page aligned for simplicity.
+ */
+#define WL_PKT_SIZE     64
+_Static_assert(sizeof(Emon32CumulativeSave_t) <= WL_PKT_SIZE,
+               "EEPROM wear level packet >WL_PKT_SIZE bytes.");
+_Static_assert((WL_PKT_SIZE % 16 == 0),
+               "EEPROM wear level packet is not 16 byte page aligned");
+
+/* Check the configuration struct will fit within the "static" area */
+_Static_assert((sizeof(Emon32Config_t) <= EEPROM_WL_OFFSET),
+               "Emon32Config_t greater than EEPROM_WL_OFFSET");
 
 typedef struct Address_ {
     unsigned int    msb;
@@ -42,10 +55,9 @@ static I2CM_Status_t    writeBytes      (wrLocal_t *wr, unsigned int n);
  */
 static unsigned int eepromSizeBytes = 1024;
 
-/* Precalculate wear limiting addresses */
-const unsigned int   blkCnt  = 14;
-const unsigned int   blkSize = sizeof(Emon32CumulativeSave_t);
-
+/* Precalculate wear limiting addresses. */
+const unsigned int   blkCnt  = (1024 - EEPROM_WL_OFFSET) / WL_PKT_SIZE;
+const unsigned int   blkSize = WL_PKT_SIZE;
 
 /*! @brief Calculates the LSB and MSB address bytes
  *  @param [in] addrFull : full address of the EEPROM
@@ -120,9 +132,10 @@ wlFindLast(eepromPktWL_t *pPkt)
 
     for (unsigned int idxBlk = 1u; idxBlk < blkCnt; idxBlk++)
     {
+        unsigned int addr = EEPROM_WL_OFFSET + (idxBlk * blkSize);
         unsigned int validByte;
 
-        eepromRead((EEPROM_WL_OFFSET + (idxBlk * blkSize)), &validByte, 1u);
+        eepromRead(addr, &validByte, 1u);
         if (firstByte != validByte)
         {
             pPkt->idxNextWrite = idxBlk;
@@ -227,32 +240,20 @@ eepromDump(void)
 }
 
 
-int
+void
 eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n)
 {
-    I2CM_Status_t   i2cm_s;
-    Address_t       address;
+    /* 16 byte aligned start, divisible by 16 bytes, and <= EEPROM size */
+    EMON32_ASSERT((startAddr % 16) == 0);
+    EMON32_ASSERT((n % 16) == 0);
+    EMON32_ASSERT((startAddr + n) <= eepromSizeBytes);
 
-    /* Return a fault if:
-     *  - the start address is not on a 16byte boundary
-     *  - n is not divisble by 16
-     *  - the write is larger than the NVM size
-     */
-    if (   (0 != (startAddr & 0xF))
-        || (0 != (n & 0xF))
-        || ((startAddr + n) > eepromSizeBytes))
-    {
-        return -1;
-    }
+    Address_t       address;
 
     while (n)
     {
         address = calcAddress(startAddr);
-        i2cm_s = i2cActivate (SERCOM_I2CM, address.msb);
-        if (I2CM_SUCCESS != i2cm_s)
-        {
-            return -1;
-        }
+        (void)i2cActivate (SERCOM_I2CM, address.msb);
 
         i2cDataWrite(SERCOM_I2CM, address.lsb);
         for (unsigned int i = 0; i < 16; i++)
@@ -265,7 +266,6 @@ eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n)
         startAddr += 16;
         n -= 16;
     }
-    return 0;
 }
 
 
@@ -348,10 +348,11 @@ eepromReadWL(eepromPktWL_t *pPktRd)
 eepromWrStatus_t
 eepromWrite(unsigned int addr, const void *pSrc, unsigned int n)
 {
+    EMON32_ASSERT((addr % 16 == 0));
+
     /* Make byte count and address static to allow re-entrant writes */
     static wrLocal_t    wrLocal;
-    unsigned int        alignBytes;
-    int                 wr_stat;
+    I2CM_Status_t       wr_stat;
 
     /* If all parameters are 0, then this is a continuation from ISR */
     const unsigned int  continueBlock = (0 == addr) && (0 == pSrc) && (0 == n);
@@ -381,31 +382,11 @@ eepromWrite(unsigned int addr, const void *pSrc, unsigned int n)
         }
     }
 
-    /* Writes can not go over EEPROM_PAGE_SIZE byte pages. Align the first
-     * transfer to end of EEPROM_PAGE_SIZE byte page.
-     */
-    alignBytes = (EEPROM_PAGE_SIZE - (wrLocal.addr & (EEPROM_PAGE_SIZE - 1u))) % EEPROM_PAGE_SIZE;
-    if (0 != alignBytes)
-    {
-        if (alignBytes > wrLocal.n_residual)
-        {
-            alignBytes = wrLocal.n_residual;
-        }
-
-        /* Copy data into the write packet's data section */
-        wr_stat = writeBytes(&wrLocal, alignBytes);
-        if (-1 == wr_stat)
-        {
-            return EEPROM_WR_FAIL;
-        }
-        return EEPROM_WR_PEND;
-    }
-
     /* Write any whole pages */
     while (wrLocal.n_residual > EEPROM_PAGE_SIZE)
     {
         wr_stat = writeBytes(&wrLocal, EEPROM_PAGE_SIZE);
-        if (-1 == wr_stat)
+        if (I2CM_SUCCESS != wr_stat)
         {
             return EEPROM_WR_FAIL;
         }
@@ -414,7 +395,7 @@ eepromWrite(unsigned int addr, const void *pSrc, unsigned int n)
 
     /* Mop up residual data */
     wr_stat = writeBytes(&wrLocal, wrLocal.n_residual);
-    if (-1 == wr_stat)
+    if (I2CM_SUCCESS != wr_stat)
     {
         return EEPROM_WR_FAIL;
     }
@@ -429,28 +410,24 @@ eepromWriteContinue(void)
 }
 
 
-void
+eepromWrStatus_t
 eepromWriteWL(eepromPktWL_t *pPktWr)
 {
     /* Check for correct indexing, find if not yet set; this is indicated by
      * idxNextWrite == -1. Write output to new levelled position.
      */
-    unsigned int        validByte;
     int                 idxWr;
     unsigned int        addrWr;
     eepromWrStatus_t    wrStatus;
 
     if (-1 == pPktWr->idxNextWrite) wlFindLast(pPktWr);
 
-    /* Calculate the next valid byte, and store packet */
     addrWr = EEPROM_WL_OFFSET + (pPktWr->idxNextWrite * blkSize);
-    /* TODO : this is not correct, unsafe wrap! */
-    eepromRead((addrWr - pPktWr->dataSize), &validByte, 1u);
 
     wrStatus = eepromWrite(addrWr, pPktWr->pData, pPktWr->dataSize);
-    if (wrStatus != (EEPROM_WR_PEND || EEPROM_WR_COMPLETE))
+    if ((wrStatus != EEPROM_WR_PEND) && (wrStatus != EEPROM_WR_COMPLETE))
     {
-        dbgPuts(">  EEPROM write failed!\r\n");
+        return wrStatus;
     }
 
     /* Once all blocks with the same "valid" byte have been written out,
@@ -459,8 +436,17 @@ eepromWriteWL(eepromPktWL_t *pPktWr)
     idxWr = pPktWr->idxNextWrite + 1u;
     if (idxWr == blkCnt)
     {
-        idxWr = 0;
+        unsigned int addrRd;
+        unsigned int validByte;
+        addrRd = addrWr - pPktWr->dataSize;
+        if (addrRd < EEPROM_WL_OFFSET)
+        {
+            addrRd += EEPROM_WL_OFFSET;
+        }
+        eepromRead(addrRd, &validByte, 1u);
         *(uint8_t *)pPktWr->pData = nextValidByte(validByte);
+        idxWr = 0;
     }
     pPktWr->idxNextWrite = idxWr;
+    return EEPROM_WR_WL_COMPLETE;
 }
