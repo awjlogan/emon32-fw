@@ -133,10 +133,6 @@ cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsig
      * but handle safely.
      */
     energyOverflow = (latestWh < lastStoredWh);
-    if (energyOverflow)
-    {
-        dbgPuts("> Cumulative energy overflowed counter!\r\n");
-    }
     deltaWh = latestWh - lastStoredWh;
     if ((deltaWh > whDeltaStore) || energyOverflow)
     {

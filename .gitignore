@@ -15,3 +15,4 @@ EmonLibDB/
 hb*.png
 venv/
 scripts/*.h
+avrdb_firmware/

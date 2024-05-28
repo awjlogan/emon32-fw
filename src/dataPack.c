@@ -46,7 +46,7 @@ static char     tmpStr[CONV_STR_W] = {0};
 static StrN_t   strConv;    /* Fat string for conversions */
 
 /* Strings that are inserted in the transmitted message */
-const StrN_t baseStr[12] = { {.str = "MSG:",    .n = 4, .m = 5},
+const StrN_t baseStr[12] = { {.str = "MSG",     .n = 3, .m = 4},
                             {.str = "V",        .n = 1, .m = 2},
                             {.str = "P",        .n = 1, .m = 2},
                             {.str = "E",        .n = 1, .m = 2},
@@ -225,7 +225,7 @@ dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json)
     /* Terminate with } for JSON and \r\n */
     if (json)
     {
-        strnCat(&strn, &baseStr[STR_RCURL]);
+        strn.n += strnCat(&strn, &baseStr[STR_RCURL]);
     }
     strn.n += strnCat(&strn, &baseStr[STR_CRLF]);
     return strn.n;

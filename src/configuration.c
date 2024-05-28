@@ -70,12 +70,12 @@ configDefault(void)
 
     /* Single phase, 50 Hz, 240 VAC, 10 s report period */
     pCfg->baseCfg.nodeID        = NODE_ID;  /* Node ID to transmit */
-    pCfg->baseCfg.mainsFreq     = 50u;  /* Mains frequency */
+    pCfg->baseCfg.mainsFreq     = 50u;      /* Mains frequency */
     pCfg->baseCfg.reportTime    = 9.8f;
     pCfg->baseCfg.whDeltaStore  = DELTA_WH_STORE; /* 200 */
     pCfg->baseCfg.dataGrp       = 210u;
-    pCfg->baseCfg.logToSerial   = 1u;
-    pCfg->baseCfg.useJson       = 0u;
+    pCfg->baseCfg.logToSerial   = true;
+    pCfg->baseCfg.useJson       = false;
     pCfg->dataTxCfg.txType      = DATATX_UART;
     pCfg->dataTxCfg.rfmPwr      = 0x19;
     pCfg->dataTxCfg.rfmFreq     = 0;
@@ -363,6 +363,8 @@ printSettings(void)
     else
     {
         dbgPuts("Serial\r\n");
+        printf_("Data transmission:         %s\r\n",
+                pCfg->baseCfg.useJson ? "JSON" : "K:V");
     }
     dbgPuts("\r\n");
 
@@ -677,8 +679,13 @@ configProcessCmd(void)
             emon32EventSet(EVT_CONFIG_CHANGED);
             break;
         case 's':
-            /* Save to EEPROM config space, reset if required */
+            /* Save to EEPROM config space after recalculating CRC and
+             * indicate if a reset is required.
+             */
+            pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(*pCfg) - 2));
+            dbgPuts("> Saving configuration to NVM... ");
             eepromInitConfig(pCfg, sizeof(*pCfg));
+            dbgPuts("Done!\r\n");
             if (0 == resetReq)
             {
                 emon32EventSet(EVT_CONFIG_SAVED);

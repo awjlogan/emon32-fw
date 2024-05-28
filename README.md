@@ -182,6 +182,10 @@ You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matpl
 > [!NOTE]
 > A Python virtual environment can be setup by running `python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt` in `./scripts/`.
 
+### Assertions
+
+Assertions are [implemented](https://interrupt.memfault.com/blog/asserts-in-embedded-systems) by the **EMON32_ASSERT(_condition_)** macro. The microcontroller will enter a breakpoint when an assertion fails and the PC is stored in the `g_assert_info` variable. The PC is used to find the file and line where the assertion failed using `arm-none-eabi-addr2line`.
+
 ### Tests
 
 A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware. In _./tests_, run `make cm` to build the tests (tested on macOS and Linux).

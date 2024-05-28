@@ -1,7 +1,11 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
+
 #include "emon_CM.h"
+
+_Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 
 /*********************************
  * Common configurable options
@@ -43,8 +47,8 @@ typedef struct __attribute__((__packed__)) BaseCfg_ {
     uint16_t    reportCycles;   /* Cycles between reports */
     uint16_t    whDeltaStore;   /* Minimum energy delta to store */
     uint8_t     dataGrp;        /* Transmission group - default 210 */
-    uint8_t     logToSerial;    /* Log data to serial output */
-    uint8_t     useJson;        /* JSON format for serial output */
+    bool        logToSerial;    /* Log data to serial output */
+    bool        useJson;        /* JSON format for serial output */
 } BaseCfg_t;
 
 typedef enum __attribute__ ((__packed__)) DataTx_ {
