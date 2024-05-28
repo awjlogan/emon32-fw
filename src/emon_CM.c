@@ -1,8 +1,10 @@
+#include <stdbool.h>
 #include <string.h>
 
 #ifndef HOSTED
 
 #include "qfplib-m0-full.h"
+#include "printf.h"
 
 #else
 
@@ -45,10 +47,10 @@ static int              zeroCrossingSW  (q15_t smpV)    RAMFUNC;
 static RAMFUNC inline q15_t
 __STRUNCATE(int32_t val)
 {
-    unsigned int roundUp = 0;
+    int roundUp = 0;
     if (0 != (val & (1u << 14)))
     {
-        roundUp = 1u;
+        roundUp = 1;
     }
     return (q15_t) ((val >> 15) + roundUp);
 }
@@ -71,12 +73,11 @@ ecmSwapPtr(void **pIn1, void **pIn2)
  *****************************************************************************/
 
 static ECMCfg_t ecmCfg;
-static int      processTrigger = 0;
+static bool     processTrigger = false;
 static int      discardCycles = EQUIL_CYCLES;
 static int      initDone = 0;
 static int      samplePeriodus;
 static float    sampleIntervalRad;
-
 
 ECMCfg_t *
 ecmConfigGet(void)
@@ -229,7 +230,7 @@ ecmFlush(void)
 RAMFUNC void
 ecmFilterSample(SampleSet_t *pDst)
 {
-    if (0 == ecmCfg.downsample)
+    if (!ecmCfg.downsample)
     {
         /* No filtering, discard the second sample in the set */
         for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
@@ -353,7 +354,6 @@ ecmInjectSample(void)
     memcpy((void *)(sampleRingBuffer + idxInject), (const void *)&smpProc,
            sizeof(*sampleRingBuffer));
 
-    /* Do power calculations */
     accumCollecting->numSamples++;
 
     /* TODO this is only for single phase currently, loop is there for later */
@@ -451,8 +451,8 @@ ecmProcessCycle(void)
     ecmCycle.cycleCount++;
 
     /* Reused constants */
-    const uint32_t numSamples       = accumProcessing->numSamples;
-    const uint32_t numSamplesSqr    = numSamples * numSamples;
+    const int numSamples       = accumProcessing->numSamples;
+    const int numSamplesSqr    = numSamples * numSamples;
 
     /* RMS for V channels, substracting off fine offset */
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
@@ -460,13 +460,12 @@ ecmProcessCycle(void)
         if (ecmCfg.vActive[idxV])
         {
             accumProcessing->processV[idxV].sumV_deltas *= accumProcessing->processV[idxV].sumV_deltas;
-
             int meanSqr = accumProcessing->processV[idxV].sumV_sqr / numSamples;
             int dcCorr  = accumProcessing->processV[idxV].sumV_deltas / numSamplesSqr;
             meanSqr -= dcCorr;
 
-            ecmCycle.rmsV[idxV] = qfp_fadd(ecmCycle.rmsV[idxV],
-                                           qfp_fsqrt(qfp_int2float(meanSqr)));
+            float rms = qfp_fsqrt(qfp_int2float(meanSqr));
+            ecmCycle.rmsV[idxV] = qfp_fadd(ecmCycle.rmsV[idxV], rms);
         }
     }
 
@@ -515,7 +514,7 @@ ecmProcessCycle(void)
 
     if ((ecmCycle.cycleCount >= ecmCfg.reportCycles) || processTrigger)
     {
-        processTrigger = 0;
+        processTrigger = false;
         return ECM_REPORT_COMPLETE;
     }
     return ECM_REPORT_ONGOING;
@@ -527,6 +526,7 @@ ecmProcessSet(ECMDataset_t *pData)
 {
     uint32_t    t_start = 0;
     float       vCal;
+    float       cycleCount = qfp_uint2float(ecmCycle.cycleCount);
 
     if (0 != ecmCfg.timeMicros)
     {
@@ -536,41 +536,73 @@ ecmProcessSet(ECMDataset_t *pData)
     /* Mean value for each RMS voltage */
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
-        vCal = ecmCfg.voltageCal[idxV];
-        pData->rmsV[idxV] = qfp_fdiv(ecmCycle.rmsV[idxV],
-                                     qfp_uint2float(ecmCycle.cycleCount));
-        pData->rmsV[idxV] = qfp_fmul(pData->rmsV[idxV], vCal);
+        if (ecmCfg.vActive[idxV])
+        {
+            vCal = ecmCfg.voltageCal[idxV];
+            pData->rmsV[idxV] = qfp_fdiv(ecmCycle.rmsV[idxV],
+                                         cycleCount);
+            pData->rmsV[idxV] = qfp_fmul(pData->rmsV[idxV], vCal);
+        }
+        else
+        {
+            pData->rmsV[idxV] = 0.0f;
+        }
     }
 
     /* CT channels */
     vCal = ecmCfg.voltageCal[0];
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
+        float   VA;
+        float   pf;
+        float   rmsI;
         float   energyNow;
         float   powerNow;
+        int     wattHoursNow;
         float   wattHoursRecent;
 
-        if (0 != ecmCfg.ctCfg[idxCT].active)
+        if (ecmCfg.ctCfg[idxCT].active)
         {
+            /* RMS Current */
+            rmsI = qfp_fdiv(ecmCycle.valCT[idxCT].rmsCT,
+                            cycleCount);
+            rmsI = qfp_fmul(rmsI,
+                            ecmCfg.ctCfg[idxCT].ctCal);
+
+            VA = qfp_fmul(rmsI, pData->rmsV[0]);
+
             powerNow = ecmCycle.valCT[idxCT].powerNow;
             powerNow = qfp_fmul(powerNow, qfp_fmul(ecmCfg.voltageCal[0],
                                                    ecmCfg.ctCfg->ctCal));
+
+
+            /* Power factor [pf != pf] checks for NaN */
+            pf = qfp_fdiv(powerNow, VA);
+            if ((pf > 1.05) || (pf < 1.05) ||  (pf != pf))
+            {
+                pf = 0.0f;
+            }
+            pData->CT[idxCT].pf = pf;
+
+            /* Real power */
             pData->CT[idxCT].realPower  = qfp_float2int(qfp_fadd(qfp_fdiv(powerNow,
-                                                                          ecmCycle.cycleCount),
+                                                                          cycleCount),
                                                         0.5f));
-            /* TODO add frequency deviation scaling */
+
+            /* REVISIT : add frequency deviation scaling */
             energyNow                       = qfp_fadd(powerNow,
                                                        pData->CT[idxCT].residualEnergy);
+            wattHoursNow                    = qfp_float2int(energyNow) / 3600;
+            pData->CT[idxCT].wattHour       += wattHoursNow;
             wattHoursRecent                 = qfp_fdiv(energyNow, 3600.0f);
-            pData->CT[idxCT].wattHour       += qfp_float2int(wattHoursRecent);
             pData->CT[idxCT].residualEnergy = qfp_fsub(energyNow,
                                                        qfp_fmul(wattHoursRecent,
                                                                 3600.0f));
         }
         else
         {
-            pData->CT[idxCT].wattHour = 0;
-            pData->CT[idxCT].residualEnergy = 0.0f;
+            /* Zero all values if CT is inactive */
+            memset(&pData->CT[idxCT], 0, sizeof(*pData->CT));
         }
     }
 
@@ -587,5 +619,5 @@ ecmProcessSet(ECMDataset_t *pData)
 void
 ecmProcessSetTrigger(void)
 {
-    processTrigger = 1;
+    processTrigger = true;
 }

@@ -68,7 +68,7 @@ typedef struct CTCfgUnpacked_ {
 } CTCfgUnpacked_t;
 
 typedef struct ECMCfg_ {
-    unsigned int    downsample;                     /* DSP enabled */
+    bool            downsample;                     /* DSP enabled */
     int             (*zx_hw_stat)(void);            /* HW zero crossing status function */
     void            (*zx_hw_clr)(void);             /* HW zero crossing clear function */
     uint32_t        (*timeMicros)(void);            /* Time in microseconds now */
@@ -87,14 +87,14 @@ typedef enum Polarity_ {
 } Polarity_t;
 
 typedef struct VAccumulator_ {
-    uint32_t    sumV_sqr;
+    int32_t     sumV_sqr;
     int32_t     sumV_deltas;
 } VAccumulator_t;
 
 typedef struct CTAccumulator_ {
-    uint32_t    sumPA;
-    uint32_t    sumPB;
-    uint32_t    sumI_sqr;
+    int32_t     sumPA;
+    int32_t     sumPB;
+    int32_t     sumI_sqr;
     int32_t     sumI_deltas;
 } CTAccumulator_t;
 
@@ -117,6 +117,8 @@ typedef struct ECMCycle_ {
 } ECMCycle_t;
 
 typedef struct DataCT_ {
+    float       rmsI;
+    float       pf;
     int32_t     realPower;
     uint32_t    wattHour;
     float       residualEnergy; /* Energy held over to next set */
