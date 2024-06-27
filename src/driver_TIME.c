@@ -113,7 +113,7 @@ timerMicros(void)
     /* Resynchronise COUNT32.COUNT, and then return the result */
     TIMER_TICK->COUNT32.READREQ.reg =   TC_READREQ_RREQ
                                       | TC_READREQ_ADDR(0x10);
-    while (TIMER_ADC->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+    while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
     return TIMER_TICK->COUNT32.COUNT.reg;
 }
 
@@ -178,7 +178,7 @@ timerSetup(void)
      * In MFRQ mode, the CC0 register is used as the period.
      */
     TIMER_ADC->COUNT16.CTRLA.reg =   TC_CTRLA_MODE_COUNT16
-                                   | TC_CTRLA_PRESCALER_DIV1
+                                   | TC_CTRLA_PRESCALER_DIV8
                                    | TC_CTRLA_WAVEGEN_MFRQ
                                    | TC_CTRLA_RUNSTDBY
                                    | TC_CTRLA_PRESCSYNC_RESYNC;
@@ -189,8 +189,7 @@ timerSetup(void)
     /* TIMER_ADC is running at 1 MHz, each tick is 1 us
      * PER, COUNT, and Enable require synchronisation (30.6.6)
      */
-    /* REVISIT : why is the factor of 2 here? */
-    const unsigned int cntPer = F_TIMER_ADC / SAMPLE_RATE / 2;
+    const unsigned int cntPer = F_TIMER_ADC / SAMPLE_RATE / VCT_TOTAL;
     TIMER_ADC->COUNT16.CC[0].reg = (uint16_t)cntPer;
     while (TIMER_ADC->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY);
     TIMER_ADC->COUNT16.COUNT.reg = 0u;
@@ -232,11 +231,11 @@ timerSetup(void)
     /* Setup match interrupt for 1 ms  */
     TIMER_TICK->COUNT32.INTENSET.reg |= TC_INTENSET_MC0;
     TIMER_TICK->COUNT32.CC[0].reg = 1000u;
-    while (TIMER_ADC->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+    while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
 
     NVIC_EnableIRQ(TIMER_TICK_IRQn);
     TIMER_TICK->COUNT32.CTRLA.reg |= TC_CTRLA_ENABLE;
-    while (TIMER_ADC->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
+    while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY);
 }
 
 
