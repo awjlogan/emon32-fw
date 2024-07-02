@@ -8,6 +8,7 @@
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
+#include "driver_USB.h"
 
 #include "configuration.h"
 #include "eeprom.h"
@@ -412,7 +413,9 @@ printSettings(void)
 }
 
 
-/*! @brief Blocking wait for a key from the serial link. */
+/*! @brief Blocking wait for a key from the serial link. If the USB CDC is
+ *         connected the key will come from here.
+ */
 static char
 waitForChar(void)
 {
@@ -420,14 +423,22 @@ waitForChar(void)
      * character otherwise it is handled by the configuration buffer.
      */
     char c;
+    if (usbCDCIsConnected())
+    {
+        while (!usbCDCRxAvailable());
+        c = usbCDCRxGetChar();
+    }
+    else
+    {
+        int irqEnabled = (NVIC->ISER[0] & (1 << ((uint32_t)(SERCOM_UART_INTERACTIVE_IRQn) & 0x1F))) ? 1 : 0;
+        if (irqEnabled) NVIC_DisableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
 
-    unsigned int irqEnabled = (NVIC->ISER[0] & (1 << ((uint32_t)(SERCOM_UART_INTERACTIVE_IRQn) & 0x1F))) ? 1 : 0;
-    if (irqEnabled) NVIC_DisableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+        while (0 == (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC));
+        c = uartGetc(SERCOM_UART_DBG);
 
-    while (0 == (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC));
-    c = uartGetc(SERCOM_UART_DBG);
+        if (irqEnabled) NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+    }
 
-    if (irqEnabled) NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
     return c;
 }
 

@@ -36,10 +36,17 @@ INCLUDES += \
   -I./third_party/printf \
   -I./third_party/qfplib \
   -I./third_party/RFM69 \
+  -I./third_party/tinyusb/src \
+  -I./third_party/tinyusb/src/device \
   -I./src/
 
 SRCS += $(wildcard ./src/*.c) \
-  $(wildcard ./third_party/printf/*.c)
+  $(wildcard ./third_party/printf/*.c) \
+  $(wildcard ./third_party/tinyusb/src/*.c) \
+  $(wildcard ./third_party/tinyusb/src/class/cdc/*.c) \
+  $(wildcard ./third_party/tinyusb/src/common/*.c) \
+  $(wildcard ./third_party/tinyusb/src/device/*.c) \
+  $(wildcard ./third_party/tinyusb/src/portable/microchip/samd/*.c)
 
 DEFINES += \
   -D__SAMD21J17A__ \

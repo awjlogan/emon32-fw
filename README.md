@@ -235,9 +235,11 @@ You will also need to ensure that the vendor's headers are included and visible 
 
 - [mcu-starter-projects](https://github.com/ataradov/mcu-starter-projects) - good starting point for build chains for microcontrollers.
 - [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation. Note that floating point operations have been replaced with Qfplib functions.
+- [pid.codes](https://pid.codes) - reuse of a retired USB VID for open source projects.
 - [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M0.
 - [RFM69](https://github.com/LowPowerLab/RFM69) - RFM69 driver from Low Power Labs used as reference.
 - [SSD1306 library](https://github.com/Matiasus/SSD1306/tree/master) - used as a reference for this implementation.
+- [tinyUSB](https://github.com/hathach/tinyusb) - USB library (derived from [_236aa9622_](https://github.com/hathach/tinyusb/commit/236aa9622a31b8c4727c98c6d683cee011fb8f9b)).
 - [Using Asserts in Embedded Systems](https://interrupt.memfault.com/blog/asserts-in-embedded-systems) - custom assertions from _Interrupt by Memfault_.
 - [Wintertools](https://github.com/https://github.com/wntrblm/wintertools) - various build and linker scripts from Winterbloom.
 

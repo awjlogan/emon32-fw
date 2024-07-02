@@ -10,6 +10,7 @@
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
+#include "driver_USB.h"
 #include "driver_WDT.h"
 
 #include "configuration.h"
@@ -27,6 +28,7 @@
 #include "util.h"
 
 #include "printf.h"
+#include "tusb.h"
 
 /*************************************
  * Persistent state variables
@@ -205,7 +207,14 @@ dataTxConfigure(const Emon32Config_t *pCfg)
 void
 dbgPuts(const char *s)
 {
-    uartPutsBlocking(SERCOM_UART_DBG, s);
+    if (usbCDCIsConnected())
+    {
+        usbCDCPutsBlocking(s);
+    }
+    else
+    {
+        uartPutsBlocking(SERCOM_UART_DBG, s);
+    }
 }
 
 
@@ -309,7 +318,7 @@ evtKiloHertz(void)
     pulseUpdate();
 
     /* Check for nDISABLE_EXT_INTF */
-    /* REVISIT in board 0.2, this will be handled by EIC*/
+    /* REVISIT in board 0.2, this will be handled by EIC */
     extEnabled      = sercomExtIntfEnabled();
     ndisable_ext    = portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT);
     if (extEnabled && !ndisable_ext)
@@ -320,6 +329,9 @@ evtKiloHertz(void)
     {
         sercomExtIntfEnable();
     }
+
+    /* Handle any USB transactions */
+    usbCDCTask();
 
     /* When there is a TX to the outside world, blink the STATUS LED for
      * time TX_INDICATE_T to show there is activity.
@@ -391,11 +403,27 @@ pulseConfigure(const Emon32Config_t *pCfg)
 }
 
 
-/*! @brief Allows the printf function to print to the debug console */
+/*! @brief Allows the printf function to print to the debug console. If the USB
+ *         CDC is connected, characters should be routed there.
+ */
 void
 putchar_(char c)
 {
-    uartPutcBlocking(SERCOM_UART_DBG, c);
+    if (usbCDCIsConnected())
+    {
+        /* Flush if the buffer is full, and then write character. This will be
+         * written on the CDC task @ 1 kHz or when the Tx buffer is full again.
+         */
+        if (tud_cdc_write_available() > 63)
+        {
+            tud_cdc_write_flush();
+        }
+        tud_cdc_write_char(c);
+    }
+    else
+    {
+        uartPutcBlocking(SERCOM_UART_DBG, c);
+    }
 }
 
 
@@ -463,6 +491,7 @@ ucSetup(void)
     sercomSetup ();
     adcSetup    ();
     evsysSetup  ();
+    usbSetup    ();
     // wdtSetup    (WDT_PER_4K);
 }
 
@@ -495,6 +524,7 @@ main(void)
     NVIC_EnableIRQ      (SERCOM_UART_INTERACTIVE_IRQn);
 
     configFirmwareBoardInfo();
+    tusb_init();
 
     /* Load stored values (configuration and accumulated energy) from
      * non-volatile memory (NVM). If the NVM has not been used before then
@@ -720,6 +750,10 @@ main(void)
                 NVIC_SystemReset();
             }
         }
+
+        /* A blocking event is taking longer than 1 ms */
+        EMON32_ASSERT(timerMicrosDelta(TIMER_TICK->COUNT32.CC[0].reg) <= 1000);
+
         /* Enter WFI until woken by an interrupt */
         __WFI();
     };

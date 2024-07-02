@@ -162,8 +162,9 @@ typedef enum EVTSRC_ {
 } EVTSRC_t;
 
 
-/*! @brief Output a string to the debug destination
- *  @param [in] s: pointer to null terminated string s
+/*! @brief Output a string to the debug destination. If the USB CDC is connected
+ *         this is the destination, otherwise through hardware UART.
+ *  @param [in] s: pointer to null terminated string
  */
 void dbgPuts(const char *s);
 

@@ -204,6 +204,13 @@
 #define GRP_ZEROX           GRP_PINA
 #define PIN_ZEROX           27u
 
+/* USB */
+#define GRP_USB_DM          0
+#define PIN_USB_DM          24
+#define GRP_USB_DP          1
+#define PIN_USB_DP          25
+#define PMUX_USB            PORT_PMUX_PMUXE_G
+
 /* Debug UART related defines */
 #define PMUX_UART_DBG0      PORT_PMUX_PMUXE_C   /* SERCOM */
 #define PMUX_UART_DBG1      PORT_PMUX_PMUXE_D   /* SERCOM-ALT */
