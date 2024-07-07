@@ -35,12 +35,12 @@ adcCalibrate(void)
     float   gain_fp;
     int     gain;
 
-    /* Set up ADC for maximum sampling length and averaging.
-     * This results in a 16 bit unsigned value in RESULT.
+    /* Set up ADC for maximum sampling length and averaging. This results in a
+     * 16 bit signed value in RESULT.
      */
     ADC->SAMPCTRL.reg   = 0x1Fu;
     ADC->AVGCTRL.reg    = ADC_AVGCTRL_SAMPLENUM_1024;
-    ADC->CTRLB.reg      =   ADC_CTRLB_PRESCALER_DIV8
+    ADC->CTRLB.reg      =   ADC_CTRLB_PRESCALER_DIV4
                           | ADC_CTRLB_DIFFMODE
                           | ADC_CTRLB_RESSEL_16BIT;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
@@ -196,7 +196,8 @@ adcSetup(void)
     /* Differential mode, /4 prescale of F_PERIPH, right aligned, enable
      * averaging. Requires synchronisation after write (33.6.15)
      */
-    ADC->CTRLB.reg =   ADC_CTRLB_DIFFMODE
+    ADC->CTRLB.reg =   ADC_CTRLB_PRESCALER_DIV4
+                     | ADC_CTRLB_DIFFMODE
                      | ADC_CTRLB_CORREN
                      | ADC_CTRLB_RESSEL_12BIT;
     while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY);
