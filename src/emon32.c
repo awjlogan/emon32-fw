@@ -28,7 +28,6 @@
 #include "util.h"
 
 #include "printf.h"
-#include "tusb.h"
 
 /*************************************
  * Persistent state variables
@@ -68,6 +67,9 @@ static void     ucSetup                 (void);
 static void
 cumulativeNVMLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
 {
+    EMON32_ASSERT(pPkt);
+    EMON32_ASSERT(pData);
+
     Emon32CumulativeSave_t data;
 
     pPkt->pData         = &data;
@@ -94,6 +96,9 @@ cumulativeNVMLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData)
 static void
 cumulativeNVMStore(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
 {
+    EMON32_ASSERT(pPkt);
+    EMON32_ASSERT(pData);
+
     Emon32CumulativeSave_t data;
     pPkt->pData = &data;
 
@@ -123,6 +128,9 @@ cumulativeNVMStore(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData)
 static void
 cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore)
 {
+    EMON32_ASSERT(pPkt);
+    EMON32_ASSERT(pData);
+
     int         energyOverflow;
     uint32_t    latestWh;
     uint32_t    deltaWh;
@@ -149,6 +157,8 @@ cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsig
 static void
 datasetUpdate(Emon32Dataset_t *pDst)
 {
+    EMON32_ASSERT(pDst);
+
     pDst->msgNum++;
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
@@ -165,6 +175,8 @@ datasetUpdate(Emon32Dataset_t *pDst)
 static RFMPkt_t *
 dataTxConfigure(const Emon32Config_t *pCfg)
 {
+    EMON32_ASSERT(pCfg);
+
     RFMPkt_t *rfmPkt = 0;
     if (DATATX_RFM69 == (TxType_t)pCfg->dataTxCfg.txType)
     {
@@ -207,6 +219,8 @@ dataTxConfigure(const Emon32Config_t *pCfg)
 void
 dbgPuts(const char *s)
 {
+    EMON32_ASSERT(s);
+
     if (usbCDCIsConnected())
     {
         usbCDCPutsBlocking(s);
@@ -227,6 +241,8 @@ ecmConfigure(const Emon32Config_t *pCfg)
     /* Makes the continuous monitoring setup agnostic to the data strcuture
      * used for storage, and avoids any awkward alignment from packing.
      */
+    EMON32_ASSERT(pCfg);
+
     ECMCfg_t    *ecmCfg;
     PhaseXY_t   phaseXY;
 
@@ -379,6 +395,8 @@ evtPending(EVTSRC_t evt)
 static void
 pulseConfigure(const Emon32Config_t *pCfg)
 {
+    EMON32_ASSERT(pCfg);
+
     uint8_t pinsPulse[][2] = {
         {GRP_PULSE, PIN_PULSE1},
         {GRP_PULSE, PIN_PULSE2}
@@ -414,11 +432,11 @@ putchar_(char c)
         /* Flush if the buffer is full, and then write character. This will be
          * written on the CDC task @ 1 kHz or when the Tx buffer is full again.
          */
-        if (tud_cdc_write_available() > 63)
+        if (usbCDCTxAvailable())
         {
-            tud_cdc_write_flush();
+            usbCDCTxFlush();
         }
-        tud_cdc_write_char(c);
+        usbCDCTxChar(c);
     }
     else
     {
@@ -468,6 +486,8 @@ tempSetup(void)
 static uint32_t
 totalEnergy(const Emon32Dataset_t *pData)
 {
+    EMON32_ASSERT(pData);
+
     uint32_t totalEnergy = 0;
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
@@ -524,7 +544,6 @@ main(void)
     NVIC_EnableIRQ      (SERCOM_UART_INTERACTIVE_IRQn);
 
     configFirmwareBoardInfo();
-    tusb_init();
 
     /* Load stored values (configuration and accumulated energy) from
      * non-volatile memory (NVM). If the NVM has not been used before then

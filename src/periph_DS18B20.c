@@ -3,6 +3,7 @@
 #include "board_def.h"
 #include "driver_PORT.h"
 #include "driver_TIME.h"
+#include "emon32_assert.h"
 #include "periph_DS18B20.h"
 #include "qfplib-m0-full.h"
 
@@ -109,6 +110,8 @@ oneWireReadBit(void)
 static void
 oneWireReadBytes(void *pDst, const uint8_t n)
 {
+    EMON32_ASSERT(pDst);
+
     uint8_t *pData = (uint8_t *)pDst;
 
     for (uint8_t i = 0; i < n; i++)
@@ -304,6 +307,8 @@ oneWireWriteBytes(const void *pSrc, const uint8_t n)
 unsigned int
 ds18b20InitSensors(const DS18B20_conf_t *pCfg)
 {
+    EMON32_ASSERT(pCfg);
+
     unsigned int deviceCount    = 0;
     int          searchResult   = 0;
 

@@ -1,3 +1,4 @@
+#include "emon32_assert.h"
 #include "periph_DS18B20.h"
 #include "temperature.h"
 
@@ -16,6 +17,7 @@ tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed)
 unsigned int
 tempInitSensors(const TEMP_INTF_t intf, const void *pParams)
 {
+    EMON32_ASSERT(pParams);
 
     if (TEMP_INTF_ONEWIRE == intf)
     {

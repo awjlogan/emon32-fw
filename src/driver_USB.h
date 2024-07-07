@@ -27,5 +27,18 @@ uint8_t usbCDCRxGetChar(void);
 /*! @brief The USB device task that must be called regularly */
 void usbCDCTask(void);
 
-/*! @brief Set up USB hardware. This does not setup tinyUSB.*/
+/*! @brief Check if anything is in the Tx buffer
+ *  @return : true if >0, false otherwise
+ */
+bool usbCDCTxAvailable(void);
+
+/*! @brief Write a character to the CDC Tx buffer
+ *  @param [in] c : character to write
+ */
+void usbCDCTxChar(uint8_t c);
+
+/*! @brief Flush the CDC Tx buffer */
+void usbCDCTxFlush(void);
+
+/*! @brief Set up USB hardware and tinyUSB stack */
 void usbSetup(void);

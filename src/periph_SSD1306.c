@@ -2,6 +2,7 @@
 
 #include "emon32_samd.h"
 #include "driver_SERCOM.h"
+#include "emon32_assert.h"
 #include "periph_SSD1306.h"
 
 
@@ -251,6 +252,8 @@ ssd1306DisplayUpdate(void)
 SSD1306_Status_t
 ssd1306DrawString(const char *s)
 {
+    EMON32_ASSERT(s);
+
     SSD1306_Status_t ret;
 
     while(*s)
@@ -269,6 +272,8 @@ ssd1306DrawString(const char *s)
 SSD1306_Status_t
 ssd1306Init(Sercom *pSercomI2C)
 {
+    EMON32_ASSERT(pSercomI2C);
+
     const uint8_t initCmds[SSD1306_NUM_INIT_CMDS] = {
         SSD1306_DISPLAY_OFF,
         SSD1306_SET_OSC_FREQ, 0x80u,        /* 0x80 -> D */

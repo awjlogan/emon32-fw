@@ -84,6 +84,27 @@ usbCDCTask(void)
 }
 
 
+bool
+usbCDCTxAvailable(void)
+{
+    return tud_cdc_write_available() > 0;
+}
+
+
+void
+usbCDCTxChar(uint8_t c)
+{
+    tud_cdc_write_char(c);
+}
+
+
+void
+usbCDCTxFlush(void)
+{
+    tud_cdc_write_flush();
+}
+
+
 void
 usbSetup(void)
 {
@@ -99,4 +120,6 @@ usbSetup(void)
     /* Configure ports (Table 7-1) */
     portPinMux(GRP_USB_DM, PIN_USB_DM, PMUX_USB);
     portPinMux(GRP_USB_DP, PIN_USB_DP, PMUX_USB);
+
+    tusb_init();
 }
