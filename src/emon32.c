@@ -164,7 +164,7 @@ static RFMPkt_t *
 dataTxConfigure(const Emon32Config_t *pCfg)
 {
     RFMPkt_t *rfmPkt = 0;
-    if (DATATX_RFM69 == pCfg->dataTxCfg.txType)
+    if (DATATX_RFM69 == (TxType_t)pCfg->dataTxCfg.txType)
     {
         rfmPkt              = rfmGetHandle();
         rfmPkt->node        = pCfg->baseCfg.nodeID;

@@ -27,8 +27,8 @@ _Static_assert((WL_PKT_SIZE % 16 == 0),
                "EEPROM wear level packet is not 16 byte page aligned");
 
 /* Check the configuration struct will fit within the "static" area */
-_Static_assert((sizeof(Emon32Config_t) <= EEPROM_WL_OFFSET),
-               "Emon32Config_t greater than EEPROM_WL_OFFSET");
+_Static_assert((sizeof(Emon32Config_t) < EEPROM_WL_OFFSET),
+               "Emon32Config_t >= EEPROM_WL_OFFSET");
 
 typedef struct Address_ {
     unsigned int    msb;

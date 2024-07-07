@@ -76,7 +76,7 @@ configDefault(void)
     pCfg->baseCfg.dataGrp       = 210u;
     pCfg->baseCfg.logToSerial   = true;
     pCfg->baseCfg.useJson       = false;
-    pCfg->dataTxCfg.txType      = DATATX_UART;
+    pCfg->dataTxCfg.txType      = (uint8_t)DATATX_UART;
     pCfg->dataTxCfg.rfmPwr      = 0x19;
     pCfg->dataTxCfg.rfmFreq     = 0;
 
@@ -342,7 +342,7 @@ printSettings(void)
     printf_("Minimum accumulation (Wh): %d\r\n",
             pCfg->baseCfg.whDeltaStore);
     printf_("Data transmission:         ");
-    if (DATATX_RFM69 == pCfg->dataTxCfg.txType)
+    if (DATATX_RFM69 == (TxType_t)pCfg->dataTxCfg.txType)
     {
         dbgPuts("RFM69\r\n");
         switch (pCfg->dataTxCfg.rfmFreq)

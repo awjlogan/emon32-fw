@@ -43,38 +43,43 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 typedef struct __attribute__((__packed__)) BaseCfg_ {
     uint8_t     nodeID;         /* ID for report*/
     uint8_t     mainsFreq;      /* Mains frequency */
-    float       reportTime;     /* Time between reports */
     uint16_t    reportCycles;   /* Cycles between reports */
     uint16_t    whDeltaStore;   /* Minimum energy delta to store */
     uint8_t     dataGrp;        /* Transmission group - default 210 */
     bool        logToSerial;    /* Log data to serial output */
     bool        useJson;        /* JSON format for serial output */
+    uint8_t     res0[11];
+    float       reportTime;     /* Time between reports */
 } BaseCfg_t;
 
-typedef enum __attribute__ ((__packed__)) DataTx_ {
+typedef enum DataTx_ {
     DATATX_RFM69    = 0,
     DATATX_UART     = 1
 } TxType_t;
 
 typedef struct __attribute__((__packed__)) DataTxCfg_ {
-    TxType_t    txType;     /* UART or RFM on SPI */
+    uint8_t     txType;     /* UART or RFM on SPI */
     uint8_t     rfmFreq;    /* 0: 868 MHz, 1: 915 MHz, 2: 433 MHz. */
     uint8_t     rfmPwr;
+    uint8_t     res0;
 } DataTxCfg_t;
 
 typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
     uint8_t     period;
     uint8_t     edge;
+    uint8_t     res0[2];
 } PulseCfgPacked_t;
 
 typedef struct __attribute__((__packed__)) VoltageCfg_ {
    float        voltageCal;      /* Conversion to real V value */
+   uint8_t      res0[4];
 } VoltageCfg_t;
 
 typedef struct __attribute__((__packed__)) CTCfg_ {
     float   ctCal;          /* Conversion to real I value */
     float   phase;          /* Phase angle, recalculated to fixed point */
     uint8_t vChan;
+    uint8_t res0[3];
 } CTCfg_t;
 
 typedef struct __attribute__((__packed__)) Emon32Config_ {
@@ -86,8 +91,15 @@ typedef struct __attribute__((__packed__)) Emon32Config_ {
     uint32_t            ctActive;       /* Bitmap of active inputs */
     PulseCfgPacked_t    pulseCfg[NUM_PULSECOUNT];
     uint8_t             pulseActive;
+    uint8_t             res0[17];
     uint16_t            crc16_ccitt;
 } Emon32Config_t;
+
+_Static_assert((sizeof(BaseCfg_t) == 24), "BaseCfg_t is not 24 bytes wide.");
+_Static_assert((sizeof(DataTxCfg_t) == 4), "DataTxCfg_t is not 4 bytes wide.");
+_Static_assert((sizeof(PulseCfgPacked_t) == 4), "PulseCfgPacked_t is not 4 bytes wide.");
+_Static_assert((sizeof(VoltageCfg_t) == 8), "VoltageCfg_t is not 8 bytes wide.");
+_Static_assert((sizeof(CTCfg_t) == 12), "CTCfg_t is not 12 bytes wide.");
 
 typedef struct Emon32Dataset_ {
     uint32_t        msgNum;
