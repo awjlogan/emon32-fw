@@ -37,22 +37,12 @@
  * THE SOFTWARE.
  */
 
-// Define this globally (e.g. gcc -DPRINTF_INCLUDE_CONFIG_H=1 ...) to include the
-// printf_config.h header file
-#if PRINTF_INCLUDE_CONFIG_H
-#include "printf_config.h"
-#endif
 
 #include "printf.h"
 
-#ifdef __cplusplus
-#include <cstdint>
-#include <climits>
-#else
 #include <stdint.h>
 #include <limits.h>
 #include <stdbool.h>
-#endif // __cplusplus
 
 #if PRINTF_ALIAS_STANDARD_FUNCTION_NAMES
 # define printf_    printf

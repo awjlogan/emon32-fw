@@ -259,9 +259,9 @@ ecmFilterSample(SampleSet_t *pDst)
         static unsigned int idxInj = 0;
         int32_t             intRes[VCT_TOTAL]   = {0};
 
-        const unsigned int downsample_taps = DOWNSAMPLE_TAPS;
+        const unsigned int downsampleTaps = DOWNSAMPLE_TAPS;
         const unsigned int idxInjPrev =   (0 == idxInj)
-                                        ? (downsample_taps - 1u)
+                                        ? (downsampleTaps - 1u)
                                         : (idxInj - 1u);
 
         /* Copy the packed raw ADC value into the unpacked buffer; index 1 is the
@@ -276,21 +276,21 @@ ecmFilterSample(SampleSet_t *pDst)
         /* For an ODD number of taps, take the unique middle value to start. As
          * the filter is symmetric, this is the final element in the array.
          */
-        const q15_t     coeff = firCoeffs[numCoeffUnique - 1u];
-        unsigned int    idxMid = idxInj + (downsample_taps / 2) + 1u;
-        if (idxMid >= downsample_taps) idxMid -= downsample_taps;
+        const q15_t     coeffMid = firCoeffs[numCoeffUnique - 1u];
+        unsigned int    idxMid = idxInj + (downsampleTaps / 2) + 1u;
+        if (idxMid >= downsampleTaps) idxMid -= downsampleTaps;
 
         for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
         {
-            intRes[idxChannel] += coeff * dspBuffer[idxMid].smp[idxChannel];
+            intRes[idxChannel] += coeffMid * dspBuffer[idxMid].smp[idxChannel];
         }
 
         /* Loop over the FIR coefficients, sub loop through channels. The filter
          * is folded so the symmetric FIR coefficients are used for both samples.
          */
         unsigned int idxSmpStart = idxInj;
-        unsigned int idxSmpEnd = ((downsample_taps - 1u) == idxInj) ? 0 : (idxInj + 1u);
-        if (idxSmpEnd >= downsample_taps) idxSmpEnd -= downsample_taps;
+        unsigned int idxSmpEnd = ((downsampleTaps - 1u) == idxInj) ? 0 : (idxInj + 1u);
+        if (idxSmpEnd >= downsampleTaps) idxSmpEnd -= downsampleTaps;
 
         for (unsigned int idxCoeff = 0; idxCoeff < (numCoeffUnique - 1u); idxCoeff++)
         {
@@ -304,10 +304,10 @@ ecmFilterSample(SampleSet_t *pDst)
 
             /* Converge toward the middle, check for over/underflow */
             idxSmpStart -= 2u;
-            if (idxSmpStart > downsample_taps) idxSmpStart += downsample_taps;
+            if (idxSmpStart > downsampleTaps) idxSmpStart += downsampleTaps;
 
             idxSmpEnd += 2u;
-            if (idxSmpEnd >= downsample_taps) idxSmpEnd -= downsample_taps;
+            if (idxSmpEnd >= downsampleTaps) idxSmpEnd -= downsampleTaps;
         }
 
         /* Truncate with rounding to nearest LSB and place into field */
@@ -327,9 +327,9 @@ ecmFilterSample(SampleSet_t *pDst)
 
         /* Each injection is 2 samples */
         idxInj += 2u;
-        if (idxInj > (downsample_taps - 1))
+        if (idxInj > (downsampleTaps - 1))
         {
-            idxInj -= (downsample_taps);
+            idxInj -= (downsampleTaps);
         }
     }
 }
@@ -578,7 +578,7 @@ ecmProcessSet(ECMDataset_t *pData)
 
             /* Power factor [pf != pf] checks for NaN */
             pf = qfp_fdiv(powerNow, VA);
-            if ((pf > 1.05) || (pf < 1.05) ||  (pf != pf))
+            if ((pf > 1.05f) || (pf < 1.05f) ||  (pf != pf))
             {
                 pf = 0.0f;
             }

@@ -17,11 +17,12 @@ else
   MKDIR = mkdir
 endif
 
-CFLAGS += -W -Wall -Wpedantic --std=c17 -Os
-CFLAGS += -fno-diagnostics-show-caret
+CFLAGS += -W -Wall -Wextra -Wpedantic --std=c17 -Os
+CFLAGS += -fno-diagnostics-show-caret -fno-common
 CFLAGS += -fdata-sections -ffunction-sections
 CFLAGS += -funsigned-char -funsigned-bitfields
 CFLAGS += -Wuninitialized
+CFLAGS += -Wshadow -Wdouble-promotion -Wundef
 CFLAGS += -mcpu=cortex-m0plus -mthumb
 CFLAGS += -MD -MP -MT $(BUILD)/$(*F).o -MF $(BUILD)/$(@F).d
 

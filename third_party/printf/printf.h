@@ -36,17 +36,10 @@
  * THE SOFTWARE.
  */
 
-#ifndef PRINTF_H_
-#define PRINTF_H_
+#pragma once
 
-#ifdef __cplusplus
-# include <cstdarg>
-# include <cstddef>
-extern "C" {
-#else
 # include <stdarg.h>
 # include <stddef.h>
-#endif
 
 #ifdef __GNUC__
 # if ((__GNUC__ == 4 && __GNUC_MINOR__>= 4) || __GNUC__ > 4)
@@ -64,6 +57,8 @@ __attribute__((format(printf, (one_based_format_index), (first_arg))))
 
 #ifndef PRINTF_ALIAS_STANDARD_FUNCTION_NAMES
 #define PRINTF_ALIAS_STANDARD_FUNCTION_NAMES 0
+#define PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_HARD 0
+#define PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_SOFT 0
 #endif
 
 #if PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_HARD
@@ -190,10 +185,6 @@ int fctprintf(void (*out)(char c, void* extra_arg), void* extra_arg, const char*
 PRINTF_VISIBILITY
 int vfctprintf(void (*out)(char c, void* extra_arg), void* extra_arg, const char* format, va_list arg) ATTR_VPRINTF(3);
 
-#ifdef __cplusplus
-} // extern "C"
-#endif
-
 #if PRINTF_ALIAS_STANDARD_FUNCTION_NAMES_HARD
 # undef printf_
 # undef sprintf_
@@ -211,5 +202,3 @@ int vfctprintf(void (*out)(char c, void* extra_arg), void* extra_arg, const char
 # define vprintf    vprintf_
 #endif
 #endif
-
-#endif  // PRINTF_H_

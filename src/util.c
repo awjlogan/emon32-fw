@@ -151,7 +151,7 @@ utilFtoa(char *pBuf, float val)
     uint16_t    decimals;
     int         units;
 
-    if (val < 0.0)
+    if (val < 0.0f)
     {
         isNegative = 1u;
         val = qfp_fmul(val, -1.0f);
