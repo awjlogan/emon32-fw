@@ -207,7 +207,7 @@
 /* USB */
 #define GRP_USB_DM          0
 #define PIN_USB_DM          24
-#define GRP_USB_DP          1
+#define GRP_USB_DP          0
 #define PIN_USB_DP          25
 #define PMUX_USB            PORT_PMUX_PMUXE_G
 

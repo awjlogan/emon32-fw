@@ -330,6 +330,10 @@ evtKiloHertz(void)
      */
     wdtFeed();
 
+    /* Do any required TUSB tasks and handle transactions */
+    tud_task();
+    usbCDCTask();
+
     /* Update the pulse counters, looking on different edges */
     pulseUpdate();
 
@@ -345,9 +349,6 @@ evtKiloHertz(void)
     {
         sercomExtIntfEnable();
     }
-
-    /* Handle any USB transactions */
-    usbCDCTask();
 
     /* When there is a TX to the outside world, blink the STATUS LED for
      * time TX_INDICATE_T to show there is activity.
@@ -550,8 +551,8 @@ main(void)
      * store default configuration and 0 energy accumulator area.
      * REVISIT add check that firmware version matches stored config.
      */
-    dbgPuts                 ("> Reading configuration and accumulators from NVM...\r\n");
-    configLoadFromNVM       (&e32Config);
+    dbgPuts             ("> Reading configuration and accumulators from NVM...\r\n");
+    configLoadFromNVM   (&e32Config);
     e32Config.baseCfg.reportCycles = configTimeToCycles(e32Config.baseCfg.reportTime,
                                                         e32Config.baseCfg.mainsFreq);
 

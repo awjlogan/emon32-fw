@@ -1,11 +1,9 @@
 #include "emon32_samd.h"
 #include "board_def.h"
+
 #include "driver_PORT.h"
 #include "driver_USB.h"
-
 #include "configuration.h"
-#include "tusb.h"
-
 
 bool
 usbCDCIsConnected(void)
@@ -13,97 +11,65 @@ usbCDCIsConnected(void)
     return tud_cdc_connected();
 }
 
-
-bool
+void
 usbCDCPutsBlocking(const char *s)
 {
-    /* REVISIT does this need timeout protection? */
-    int count_c = 0;
-    while (*s)
+    if (tud_cdc_write_available())
     {
-        tud_cdc_write_char(*s++);
-
-        /* Flush every 64 characters */
-        if (63 == (count_c % 64))
-        {
-            tud_cdc_write_flush();
-        }
-        count_c++;
+        tud_cdc_write_str(s);
     }
-    tud_cdc_write_flush();
-
-    /* REVISIT more informative exit status */
-    return true;
 }
 
-
-bool usbCDCRxAvailable(void)
+bool
+usbCDCRxAvailable(void)
 {
-    return (tud_cdc_available() > 0);
+    return tud_cdc_available();
 }
 
-
-uint8_t usbCDCRxGetChar(void)
+uint8_t
+usbCDCRxGetChar(void)
 {
-    uint8_t c = 0;
-    int ch = tud_cdc_read_char();
-    if (-1 != ch)
+    if (tud_cdc_available())
     {
-        c = (uint8_t)ch;
+        return tud_cdc_read_char();
     }
 
-    return c;
+    return 0;
 }
-
 
 void
 usbCDCTask(void)
 {
-    tud_task();
-    if (tud_cdc_available())
+    int nrx = tud_cdc_available();
+    if (nrx)
     {
-        uint8_t buf[64];
-        int     count = tud_cdc_read(buf, sizeof(buf));
-        for (int i = 0; i < count; i++)
+        for (int i = 0; i < nrx; i++)
         {
-            configCmdChar(buf[i]);
-
-            /* Exit early if reached a line break as this indicates a command */
-            if ('\n' == buf[i])
-            {
-                break;
-            }
+            configCmdChar(tud_cdc_read_char());
         }
     }
-
-    /* Flush any outstanding writes */
-    if (tud_cdc_write_available())
-    {
-        tud_cdc_write_flush();
-    }
 }
-
 
 bool
 usbCDCTxAvailable(void)
 {
-    return tud_cdc_write_available() > 0;
+    return tud_cdc_write_available();
 }
-
 
 void
 usbCDCTxChar(uint8_t c)
 {
-    tud_cdc_write_char(c);
+    if (tud_cdc_write_available())
+    {
+        tud_cdc_write_char(c);
+    }
 }
-
 
 void
 usbCDCTxFlush(void)
 {
     tud_cdc_write_flush();
 }
-
 
 void
 usbSetup(void)
@@ -113,13 +79,26 @@ usbSetup(void)
      *  - APB is enabled by default (16.8.9)
      *  - Use the 48 MHz PLL for required accuracy
      */
+    PM->APBBMASK.reg |= PM_APBBMASK_USB;
+    PM->AHBMASK.reg |= PM_AHBMASK_USB;
+
     GCLK->CLKCTRL.reg =   GCLK_CLKCTRL_ID_USB
                         | GCLK_CLKCTRL_GEN_GCLK0
                         | GCLK_CLKCTRL_CLKEN;
 
     /* Configure ports (Table 7-1) */
+    portPinDir(GRP_USB_DM, PIN_USB_DM, PIN_DIR_OUT);
+    portPinDir(GRP_USB_DP, PIN_USB_DP, PIN_DIR_OUT);
     portPinMux(GRP_USB_DM, PIN_USB_DM, PMUX_USB);
     portPinMux(GRP_USB_DP, PIN_USB_DP, PMUX_USB);
 
-    tusb_init();
+    NVIC_SetPriority(USB_IRQn, 1);
+    NVIC_EnableIRQ(USB_IRQn);
+
+    tud_init(0);
+}
+
+void irq_handler_usb(void)
+{
+    tud_int_handler(0);
 }

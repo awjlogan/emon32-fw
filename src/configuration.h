@@ -25,3 +25,9 @@ void configProcessCmd(void);
  *  @return : number of cycles between reports
  */
 unsigned int configTimeToCycles(const float time, const unsigned int mainsFreq);
+
+/*! @brief Return one word from the SAMD's unique ID
+ *  @param[in] idx : index of the word to fetch
+ *  @return word idx from the unique ID
+ */
+uint32_t getUniqueID (unsigned int idx);

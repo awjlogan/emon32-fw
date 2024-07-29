@@ -45,7 +45,6 @@ static void     configureAnalog     (void);
 static void     configurePulse      (void);
 static uint32_t getBoardRevision    (void);
 static char*    getLastReset        (void);
-static uint32_t getUniqueID         (unsigned int idx);
 static void     phaseAutoCalibrate  (void);
 static void     printSettings       (void);
 static char     waitForChar         (void);
@@ -298,7 +297,7 @@ getLastReset(void)
  *  @param [in] idx : index of 32bit word
  *  @return : 32bit word from index
  */
-static uint32_t
+uint32_t
 getUniqueID(unsigned int idx)
 {
     /* Section 10.3.3 Serial Number */

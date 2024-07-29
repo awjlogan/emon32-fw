@@ -37,10 +37,14 @@ The firmware version numbering follows [semantic versioning](https://semver.org/
 - `Y` : minor version where any added functionality has backward compatibility
 - `Z` : improvements and bug fixes
 
-Any firmware with `X == 0` is considered unstable and subject to change.
+Any firmware with `X == 0` is considered unstable and subject to change without notice.
 
 > [!NOTE]
 > Build information, including compiler version and commit, is generated during the build process and included in the binary.
+
+### USB Serial Connection
+
+The emonPi3 will enumerate as a normal serial device and show as **emonPi3**.
 
 ### Hardware serial connection
 
@@ -112,7 +116,7 @@ When a full report is ready, the following actions take place:
 
 ### Compiling
 
-Compiling the firmware requires the the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution). The Makefile is for a Cortex-M0+ based microcontrollers, specifically the [Microchip ATSAMD21J17](https://www.microchip.com/en-us/product/ATSAMD21J17).
+Compiling the firmware requires the the [Arm gcc toolchain](https://developer.arm.com/Tools%20and%20Software/GNU%20Toolchain) (may be available as a package in your distribution). The Makefile is for a Cortex-M0+ based microcontrollers, specifically the Microchip ATSAMD21J17 ([datasheet](https://www.microchip.com/en-us/product/ATSAMD21J17), [errata](https://ww1.microchip.com/downloads/en/DeviceDoc/SAMD21-%20Family-Silicon-%20Errata-and-DataSheet-Clarification-DS80000760C.pdf)).
 
 > [!NOTE]
 > To find which version, if any, of the toolchain is on your path, enter `arm-none-eabi-gcc --version`. You can set the path to a compiler off your path by setting the `TC_PATH` variable in `Makefile`.
@@ -222,12 +226,6 @@ Within the top level loop, there are no direct calls to low level hardware. You 
 All peripheral drivers are in header/source pairs named **driver_\<PERIPHERAL\>**. For example, the ADC driver is in **driver_ADC.\***. If you are porting to a new microcontroller, you will need to provide implementations of all the functions exposed in **driver_\<PERIPHERAL\>.h** and any internal functions within **driver_\<PERIPHERAL\>.c**. If your microcontroller does not support a particular function (for example, it doesn't have a DMA), then either no operation or an alternative must be provided.
 
 You will also need to ensure that the vendor's headers are included and visible to the compiler.
-
-## Datasheets
-
-- [HopeRF RFM69CW](https://www.hoperf.com/modules/rf_transceiver/RFM69CW.html)
-- [Microchip 24FC08](https://www.microchip.com/en-us/product/24FC08)
-- [Microchip ATSAMD21J17](https://www.microchip.com/en-us/product/ATSAMD21J17)
 
 ## Acknowledgements
 

@@ -1,43 +1,38 @@
 #pragma once
 
 #include <stdbool.h>
+#include "tusb.h"
 
-
-/*! @brief Get the connection status of the USB CDC
- *  @return : true if USB is connected, false otherwise.
+/*! @brief Check if the CDC serial is connected
+ *  @return true if connected
  */
 bool usbCDCIsConnected(void);
 
-/*! @brief Send a null-terminated string to the USB CDC channel.
- *  @param [in] s: pointer to the null-terminated string.
- *  @return : true if successful, false otherwise.
- */
-bool usbCDCPutsBlocking(const char *s);
+/*! @brief Write a string out to the CDC serial */
+void usbCDCPutsBlocking(const char *s);
 
-/*! @brief Check if anything is in the Rx buffer
- *  @return : true if >0, false otherwise.
+/*! @brief Indicate if any characters are in the CDC buffer
+ *  @return true if any characters
  */
 bool usbCDCRxAvailable(void);
 
-/*! @brief Get a character from the Rx buffer
- *  @return : a single character. 0 for failure.
+/*! @brief Get a character from the CDC buffer
+ *  @return the first character in the FIFO
  */
 uint8_t usbCDCRxGetChar(void);
 
-/*! @brief The USB device task that must be called regularly */
+/*! @brief Do any required CDC serial tasks */
 void usbCDCTask(void);
 
-/*! @brief Check if anything is in the Tx buffer
- *  @return : true if >0, false otherwise
+/*! @brief Indicate if there is space in the Tx buffer
+ *  @return true if there is space in the buffer.
  */
 bool usbCDCTxAvailable(void);
 
-/*! @brief Write a character to the CDC Tx buffer
- *  @param [in] c : character to write
- */
+/*! @brief Flush the Tx buffer */
 void usbCDCTxChar(uint8_t c);
 
-/*! @brief Flush the CDC Tx buffer */
+/*! @brief Flush the Tx buffer */
 void usbCDCTxFlush(void);
 
 /*! @brief Set up USB hardware and tinyUSB stack */
