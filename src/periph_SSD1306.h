@@ -2,17 +2,12 @@
 
 #include "emon32_samd.h"
 
-
-typedef enum SSD1306_Status_ {
-    SSD1306_SUCCESS,
-    SSD1306_FAIL
-} SSD1306_Status_t;
+typedef enum SSD1306_Status_ { SSD1306_SUCCESS, SSD1306_FAIL } SSD1306_Status_t;
 
 typedef struct PosXY_ {
-    unsigned int x;
-    unsigned int y;
+  unsigned int x;
+  unsigned int y;
 } PosXY_t;
-
 
 /*! @brief Clear the SSD1306 buffer */
 void ssd1306ClearBuffer(void);

@@ -20,25 +20,25 @@
  *****************************************************************************/
 
 typedef enum {
-    ECM_INIT_SUCCESS,           /* Init was successful */
-    ECM_INIT_FAIL_ENABLED,      /* Init failed as currently enabled */
-    ECM_ENABLE_SUCCESS,
-    ECM_ENABLE_FAIL_ENABLED,
-    ECM_CYCLE_ONGOING,          /* A mains cycle is being accumulated */
-    ECM_CYCLE_COMPLETE,         /* A full mains cycle has completed */
-    ECM_REPORT_ONGOING,         /* A full set is accumulating */
-    ECM_REPORT_COMPLETE         /* A full set to report is complete */
+  ECM_INIT_SUCCESS,      /* Init was successful */
+  ECM_INIT_FAIL_ENABLED, /* Init failed as currently enabled */
+  ECM_ENABLE_SUCCESS,
+  ECM_ENABLE_FAIL_ENABLED,
+  ECM_CYCLE_ONGOING,  /* A mains cycle is being accumulated */
+  ECM_CYCLE_COMPLETE, /* A full mains cycle has completed */
+  ECM_REPORT_ONGOING, /* A full set is accumulating */
+  ECM_REPORT_COMPLETE /* A full set to report is complete */
 } ECM_STATUS_t;
 
 /* Alias integer types for fixed point calculation */
-typedef int16_t     q15_t;
-typedef int32_t     q31_t;
-typedef int32_t     q22_t;
-typedef int64_t     q63_t;
+typedef int16_t q15_t;
+typedef int32_t q31_t;
+typedef int32_t q22_t;
+typedef int64_t q63_t;
 
 /* SingleSampleSet_t contains a single set of V + CT ADC samples */
 typedef struct __attribute__((__packed__)) SingleSampleSet_ {
-    q15_t smp[VCT_TOTAL];
+  q15_t smp[VCT_TOTAL];
 } SingleRawSampleSet_t;
 
 /* RawSampleSetPacked_t contains a set of single sample sets. This allows the
@@ -46,65 +46,65 @@ typedef struct __attribute__((__packed__)) SingleSampleSet_ {
  * needs.
  */
 typedef struct __attribute__((__packed__)) SampleSetPacked_ {
-    SingleRawSampleSet_t samples[SAMPLES_IN_SET];
+  SingleRawSampleSet_t samples[SAMPLES_IN_SET];
 } RawSampleSetPacked_t;
 
 /* SampleSet_t contains an unpacked set of single sample sets */
 typedef struct SampleSet_ {
-    q15_t   smpV[NUM_V];
-    q15_t   smpCT[NUM_CT];
+  q15_t smpV[NUM_V];
+  q15_t smpCT[NUM_CT];
 } SampleSet_t;
 
 typedef struct VCfg_ {
-    float   voltageCal;
-    float   voltageCalRaw;
-    bool    vActive;
+  float voltageCal;
+  float voltageCalRaw;
+  bool  vActive;
 } VCfg_t;
 
 typedef struct CTCfgUnpacked_ {
-    float   phaseX;
-    float   phaseY;
-    float   phCal;
-    float   ctCal;
-    float   ctCalRaw;
-    bool    active;
-    int     vChan;
+  float phaseX;
+  float phaseY;
+  float phCal;
+  float ctCal;
+  float ctCalRaw;
+  bool  active;
+  int   vChan;
 } CTCfg_t;
 
 typedef struct ECMCfg_ {
-    bool        downsample;                     /* DSP enabled */
-    int         (*zx_hw_stat)(void);            /* HW zero crossing status function */
-    void        (*zx_hw_clr)(void);             /* HW zero crossing clear function */
-    uint32_t    (*timeMicros)(void);            /* Time in microseconds now */
-    uint32_t    (*timeMicrosDelta)(uint32_t);   /* Time delta in microseconds */
-    int         reportCycles;                   /* Number of cycles before reporting */
-    int         sampleRateHz;                   /* Sample rate in Hz (after any downsampling)*/
-    int         mainsFreq;                      /* Mains frequency */
-    CTCfg_t     ctCfg[NUM_CT];                          /* CT Configuration */
-    VCfg_t      vCfg[NUM_V];                    /* Voltage configuration */
+  bool downsample;                       /* DSP enabled */
+  int (*zx_hw_stat)(void);               /* HW zero crossing status function */
+  void (*zx_hw_clr)(void);               /* HW zero crossing clear function */
+  uint32_t (*timeMicros)(void);          /* Time in microseconds now */
+  uint32_t (*timeMicrosDelta)(uint32_t); /* Time delta in microseconds */
+  int     reportCycles;                  /* Number of cycles before reporting */
+  int     sampleRateHz;  /* Sample rate in Hz (after any downsampling)*/
+  int     mainsFreq;     /* Mains frequency */
+  CTCfg_t ctCfg[NUM_CT]; /* CT Configuration */
+  VCfg_t  vCfg[NUM_V];   /* Voltage configuration */
 } ECMCfg_t;
 
 typedef struct DataCT_ {
-    float       rmsI;
-    float       pf;
-    int         realPower;
-    int         apparentPower;
-    int         wattHour;
-    float       residualEnergy; /* Energy held over to next set */
+  float rmsI;
+  float pf;
+  int   realPower;
+  int   apparentPower;
+  int   wattHour;
+  float residualEnergy; /* Energy held over to next set */
 } DataCT_t;
 
 typedef struct ECMDataset_ {
-    float       rmsV[NUM_V];
-    DataCT_t    CT[NUM_CT];
+  float    rmsV[NUM_V];
+  DataCT_t CT[NUM_CT];
 } ECMDataset_t;
 
 typedef struct ECMPerformance_ {
-    int numSlices;
-    int microsSlices;
-    int numCycles;
-    int microsCycles;
-    int numDatasets;
-    int microsDatasets;
+  int numSlices;
+  int microsSlices;
+  int numCycles;
+  int microsCycles;
+  int numDatasets;
+  int microsDatasets;
 } ECMPerformance_t;
 
 /******************************************************************************

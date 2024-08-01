@@ -12,8 +12,8 @@
 #include <stdint.h>
 
 /*
-    Struct mapping for the User Row, since it's not included in the normal CMSIS headers for the SAMD21.
-    See datasheet section 10.3.1 for full details.
+  Struct mapping for the User Row, since it's not included in the normal CMSIS
+  headers for the SAMD21. See datasheet section 10.3.1 for full details.
 */
 // clang-format off
 typedef union {
@@ -42,14 +42,14 @@ typedef union {
 // clang-format on
 
 typedef struct {
-    __IO USER_FUSES_Type FUSES;
+  __IO USER_FUSES_Type FUSES;
 } NVM_USER_ROW_Type;
 
-#define NVM_USER_ROW ((NVM_USER_ROW_Type*)NVMCTRL_USER)
+#define NVM_USER_ROW ((NVM_USER_ROW_Type *)NVMCTRL_USER)
 
 /*
-    Struct mapping for the OTP4 software calibration fuses, See datasheet
-    section 10.3.2 for full details.
+  Struct mapping for the OTP4 software calibration fuses, See datasheet
+  section 10.3.2 for full details.
 */
 // clang-format off
 typedef union {
@@ -78,9 +78,9 @@ typedef union {
 // clang-format on
 
 typedef struct {
-    // RoReg8 Reserved1[0x4];
-    __IO OTP4_FUSES0_Type FUSES0;
-    __IO OTP4_FUSES1_Type FUSES1;
+  // RoReg8 Reserved1[0x4];
+  __IO OTP4_FUSES0_Type FUSES0;
+  __IO OTP4_FUSES1_Type FUSES1;
 } NVM_OTP4_Type;
 
-#define OTP4_FUSES ((NVM_OTP4_Type*)NVMCTRL_OTP4)
+#define OTP4_FUSES ((NVM_OTP4_Type *)NVMCTRL_OTP4)

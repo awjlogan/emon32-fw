@@ -3,7 +3,7 @@
 #include "emon32_samd.h"
 
 typedef struct DMACCfgCh {
-    uint32_t    ctrlb;
+  uint32_t ctrlb;
 } DMACCfgCh_t;
 
 /*! @brief Setup the DMAC peripheral */

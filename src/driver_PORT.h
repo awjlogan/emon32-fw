@@ -4,25 +4,15 @@
 
 /* Types */
 typedef struct Pin_ {
-    uint16_t grp;
-    uint16_t pin;
+  uint16_t grp;
+  uint16_t pin;
 } Pin_t;
 
-typedef enum PINDIR_ {
-    PIN_DIR_IN,
-    PIN_DIR_OUT
-} PINDIR_t;
+typedef enum PINDIR_ { PIN_DIR_IN, PIN_DIR_OUT } PINDIR_t;
 
-typedef enum PINCFG_ {
-    PIN_CFG_SET,
-    PIN_CFG_CLR
-} PINCFG_t;
+typedef enum PINCFG_ { PIN_CFG_SET, PIN_CFG_CLR } PINCFG_t;
 
-typedef enum PINDRV_ {
-    PIN_DRV_CLR,
-    PIN_DRV_SET,
-    PIN_DRV_TGL
-} PINDRV_t;
+typedef enum PINDRV_ { PIN_DRV_CLR, PIN_DRV_SET, PIN_DRV_TGL } PINDRV_t;
 
 /*! @note Group corresponds to the A, B, .. mapping. A -> 0, B -> 1, .. */
 
@@ -32,7 +22,8 @@ typedef enum PINDRV_ {
  *  @param [in] cfg : configuration option
  *  @param [in] cs  : clear or set configuration
  */
-void portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg, PINCFG_t cs);
+void portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg,
+                PINCFG_t cs);
 
 /*! @brief Sets a pin as input or output
  *  @param [in] grp : Group number

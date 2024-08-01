@@ -17,7 +17,6 @@
  */
 int dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json);
 
-
 /*! @brief Pack the voltage, power, energy, temperature, and pulse data into a
  *         packed structure for transmission over RFM link.
  *  @param [in] pData : pointer to the raw data

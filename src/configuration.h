@@ -30,4 +30,4 @@ unsigned int configTimeToCycles(const float time, const unsigned int mainsFreq);
  *  @param[in] idx : index of the word to fetch
  *  @return word idx from the unique ID
  */
-uint32_t getUniqueID (unsigned int idx);
+uint32_t getUniqueID(unsigned int idx);

@@ -1,19 +1,18 @@
 #pragma once
 
 typedef struct eepromPktWL_ {
-    int             idxNextWrite;   /* Index of next write to EEPROM */
-    unsigned int    dataSize;       /* Size (bytes) of the data */
-    void *          pData;          /* Pointer to the packed data */
+  int          idxNextWrite; /* Index of next write to EEPROM */
+  unsigned int dataSize;     /* Size (bytes) of the data */
+  void        *pData;        /* Pointer to the packed data */
 } eepromPktWL_t;
 
 typedef enum eepromWrStatus_ {
-    EEPROM_WR_PEND,
-    EEPROM_WR_BUSY,
-    EEPROM_WR_COMPLETE,
-    EEPROM_WR_FAIL,
-    EEPROM_WR_WL_COMPLETE
+  EEPROM_WR_PEND,
+  EEPROM_WR_BUSY,
+  EEPROM_WR_COMPLETE,
+  EEPROM_WR_FAIL,
+  EEPROM_WR_WL_COMPLETE
 } eepromWrStatus_t;
-
 
 /*! @brief Discover the size of the EEPROM
  *  @return : size (in bytes) of the EEPROM. This should be a power-of-2.
@@ -29,7 +28,8 @@ void eepromDump(void);
  *  @param [in] val : value to write
  *  @param [in] n : number of bytes to write
  */
-void eepromInitBlock(unsigned int startAddr, const unsigned int val, unsigned int n);
+void eepromInitBlock(unsigned int startAddr, const unsigned int val,
+                     unsigned int n);
 
 /*! @brief Store values at address 0
  *  @param [in] pCfg : pointer to the data source
@@ -64,7 +64,8 @@ void eepromSetup(const unsigned int wlOffset);
  *            EEPROM_WR_BUSY -> tried to send data while previous pending
  *            EEPROM_WR_COMPLETE -> tried to continue, but all data sent
  */
-eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc, unsigned int n);
+eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc,
+                             unsigned int n);
 
 /*! @brief Continue a multi page write to EEPROM
  */

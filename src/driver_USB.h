@@ -1,7 +1,7 @@
 #pragma once
 
-#include <stdbool.h>
 #include "tusb.h"
+#include <stdbool.h>
 
 /*! @brief Check if the CDC serial is connected
  *  @return true if connected

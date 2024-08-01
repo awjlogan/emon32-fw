@@ -1,17 +1,20 @@
 #pragma once
 
+#include <stdbool.h>
+#include <stdint.h>
+
 typedef enum PulseEdge_ {
-    PULSE_EDGE_RISING   = 0,
-    PULSE_EDGE_FALLING  = 1,
-    PULSE_EDGE_BOTH     = 2
+  PULSE_EDGE_RISING  = 0,
+  PULSE_EDGE_FALLING = 1,
+  PULSE_EDGE_BOTH    = 2
 } PulseEdge_t;
 
 typedef struct PulseCfg_ {
-    PulseEdge_t     edge;
-    unsigned int    grp;
-    unsigned int    pin;
-    unsigned int    periods;
-    bool            active;
+  PulseEdge_t  edge;
+  unsigned int grp;
+  unsigned int pin;
+  unsigned int periods;
+  bool         active;
 } PulseCfg_t;
 
 /*! @brief Returns a pointer to the pulse counter configuration

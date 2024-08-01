@@ -2,7 +2,6 @@
 
 #include <stdint.h>
 
-
 /*! @brief  Blocking delay. Use with caution. Returns -1 if the timer is
  *          already in use.
  *  @param [in] delay : period in ms

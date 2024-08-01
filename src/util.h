@@ -2,11 +2,7 @@
 
 #include <stdint.h>
 
-typedef enum ITOA_BASE_ {
-    ITOA_BASE10,
-    ITOA_BASE16
-} ITOA_BASE_t;
-
+typedef enum ITOA_BASE_ { ITOA_BASE10, ITOA_BASE16 } ITOA_BASE_t;
 
 /*! @brief Convert null terminated string to float, returns the value.
  *  @param [in] pBuf : pointer to string buffer
