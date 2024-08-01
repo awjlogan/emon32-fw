@@ -29,6 +29,12 @@
 
 #include "printf.h"
 
+typedef struct TransmitOpt_ {
+    bool json;
+    bool useRFM;
+    bool logSerial;
+} TransmitOpt_t;
+
 /*************************************
  * Persistent state variables
  *************************************/
@@ -45,7 +51,7 @@ static void     cumulativeNVMLoad       (eepromPktWL_t *pPkt, Emon32Dataset_t *p
 static void     cumulativeNVMStore      (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData);
 static void     cumulativeProcess       (eepromPktWL_t *pPkt, const Emon32Dataset_t *pData, const unsigned int whDeltaStore);
 static void     datasetUpdate           (Emon32Dataset_t *pDst);
-static RFMPkt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
+static RFMOpt_t *dataTxConfigure        (const Emon32Config_t *pCfg);
 static void     ecmConfigure            (const Emon32Config_t *pCfg);
 static void     evtKiloHertz            (void);
 static uint32_t evtPending              (EVTSRC_t evt);
@@ -54,6 +60,7 @@ static void     pulseConfigure          (const Emon32Config_t *pCfg);
 static void     ssd1306Setup            (void);
 static uint32_t tempSetup               (void);
 static uint32_t totalEnergy             (const Emon32Dataset_t *pData);
+static void     transmitData            (const Emon32Dataset_t *pSrc, const TransmitOpt_t *pOpt);
 static void     ucSetup                 (void);
 
 /*************************************
@@ -172,21 +179,21 @@ datasetUpdate(Emon32Dataset_t *pDst)
  *  @param [in] pCfg : pointer to the configuration struct
  *  @return : pointer to an RFM packet if using RFM, 0 if not.
  */
-static RFMPkt_t *
+static RFMOpt_t *
 dataTxConfigure(const Emon32Config_t *pCfg)
 {
     EMON32_ASSERT(pCfg);
 
-    RFMPkt_t *rfmPkt = 0;
+    RFMOpt_t *rfmOpt = 0;
     if (DATATX_RFM69 == (TxType_t)pCfg->dataTxCfg.txType)
     {
-        rfmPkt              = rfmGetHandle();
-        rfmPkt->node        = pCfg->baseCfg.nodeID;
-        rfmPkt->grp         = pCfg->baseCfg.dataGrp;    /* Fixed for OpenEnergyMonitor */
-        rfmPkt->rf_pwr      = pCfg->dataTxCfg.rfmPwr;
-        rfmPkt->threshold   = 0u;
-        rfmPkt->timeout     = 1000u;
-        rfmPkt->n           = 23u;
+        rfmOpt              = rfmGetHandle();
+        rfmOpt->node        = pCfg->baseCfg.nodeID;
+        rfmOpt->grp         = pCfg->baseCfg.dataGrp;    /* Fixed for OpenEnergyMonitor */
+        rfmOpt->rf_pwr      = pCfg->dataTxCfg.rfmPwr;
+        rfmOpt->threshold   = 0u;
+        rfmOpt->timeout     = 1000u;
+        rfmOpt->n           = 23u;
         if (sercomExtIntfEnabled())
         {
             rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq);
@@ -212,7 +219,7 @@ dataTxConfigure(const Emon32Config_t *pCfg)
          */
         (void)uart_data_cfg;
     }
-    return rfmPkt;
+    return rfmOpt;
 }
 
 
@@ -243,10 +250,7 @@ ecmConfigure(const Emon32Config_t *pCfg)
      */
     EMON32_ASSERT(pCfg);
 
-    ECMCfg_t    *ecmCfg;
-    PhaseXY_t   phaseXY;
-
-    ecmCfg = ecmConfigGet();
+    ECMCfg_t *ecmCfg = ecmConfigGet();
 
     ecmCfg->downsample      = DOWNSAMPLE_DSP;
     ecmCfg->reportCycles    = pCfg->baseCfg.reportCycles;
@@ -264,29 +268,21 @@ ecmConfigure(const Emon32Config_t *pCfg)
         ecmCfg->timeMicrosDelta = &timerMicrosDelta;
     }
 
-    ecmConfigInit();
-
     for (unsigned int i = 0; i < NUM_V; i ++)
     {
-        ecmCfg->voltageCal[i] = ecmCalibrationCalculate(pCfg->voltageCfg[i].voltageCal);
+        ecmCfg->vCfg[i].voltageCalRaw   = pCfg->voltageCfg[i].voltageCal;
+        ecmCfg->vCfg[i].vActive         = pCfg->voltageCfg[i].vActive;
     }
-    /* REVISIT : currently only doing single phase measurement */
-    ecmCfg->vActive[0] = true;
-    ecmCfg->vActive[1] = false;
-    ecmCfg->vActive[2] = false;
 
     for (unsigned int i = 0; i < NUM_CT; i++)
     {
-        uint32_t active = pCfg->ctActive & (1 << i);
-
-        phaseXY = ecmPhaseCalculate(pCfg->ctCfg[i].phase, i);
-
-        ecmCfg->ctCfg[i].phaseX = phaseXY.phaseX;
-        ecmCfg->ctCfg[i].phaseY = phaseXY.phaseY;
-        ecmCfg->ctCfg[i].ctCal  = ecmCalibrationCalculate(pCfg->ctCfg[i].ctCal);
-        ecmCfg->ctCfg[i].active = active ? 1u : 0u;
-        ecmCfg->ctCfg[i].vChan  = pCfg->ctCfg[i].vChan;
+        ecmCfg->ctCfg[i].phCal          = pCfg->ctCfg[i].phase;
+        ecmCfg->ctCfg[i].ctCalRaw       = pCfg->ctCfg[i].ctCal;
+        ecmCfg->ctCfg[i].active         = pCfg->ctCfg[i].ctActive;
+        ecmCfg->ctCfg[i].vChan          = pCfg->ctCfg[i].vChan;
     }
+
+    ecmConfigInit();
 }
 
 
@@ -413,9 +409,8 @@ pulseConfigure(const Emon32Config_t *pCfg)
             pulseCfg->grp       = pinsPulse[i][0];
             pulseCfg->pin       = pinsPulse[i][1];
             pulseCfg->periods   = pCfg->pulseCfg[i].period;
-            pulseCfg->active    =   (0 == (pCfg->pulseActive & (1 << i)))
-                                  ? 0
-                                  : 1;
+            pulseCfg->active    = pCfg->pulseCfg[i].pulseActive;
+
             pulseInit(i);
         }
     }
@@ -497,6 +492,41 @@ totalEnergy(const Emon32Dataset_t *pData)
     return totalEnergy;
 }
 
+static void
+transmitData(const Emon32Dataset_t *pSrc, const TransmitOpt_t *pOpt)
+{
+    char txBuffer[TX_BUFFER_W]   = {0};
+
+    int pktLength = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W,
+                                   pOpt->json);
+
+    if (pOpt->useRFM)
+    {
+        PackedData_t packedData = {0};
+        dataPackPacked(pSrc, &packedData);
+        if (sercomExtIntfEnabled())
+        {
+            /* Try to send in "clean" air. If failed, retry on
+             * next loop. Should not reach RFM_FAILED at all.
+             */
+            RFMSend_t res = rfmSendReady(5u);
+            if (RFM_SUCCESS == res)
+            {
+                rfmSend(&packedData);
+            }
+        }
+    }
+    else
+    {
+        uartPutsNonBlocking(DMA_CHAN_UART_DATA, txBuffer, pktLength);
+    }
+
+    if (pOpt->logSerial)
+    {
+        uartPutsNonBlocking(DMA_CHAN_UART_DBG, txBuffer, pktLength);
+    }
+}
+
 
 /*! @brief Setup the microcontoller. This function must be called first. An
  *         implementation must provide all the functions that are called.
@@ -527,12 +557,10 @@ main(void)
     Emon32Dataset_t dataset                 = {0};
     unsigned int    numTempSensors          = 0;
     eepromPktWL_t   nvmCumulative           = {0};
-    PackedData_t    packedData              = {0};
-    RFMPkt_t        *rfmPkt                 = 0;
+    RFMOpt_t        *rfmOpt                 = 0;
     unsigned int    tempCount               = 0;
     int16_t         tempValue               = 0;
     unsigned int    timeSinceTrigger        = 0;
-    char            txBuffer[TX_BUFFER_W]   = {0};
 
     ucSetup     ();
     uiLedOn     (LED_STATUS);
@@ -562,7 +590,7 @@ main(void)
     lastStoredWh = totalEnergy(&dataset);
 
     /* Set up data transmission interfaces and configuration */
-    rfmPkt = dataTxConfigure(&e32Config);
+    rfmOpt = dataTxConfigure(&e32Config);
 
     /* Set up pulse and temperature sensors, if present */
     pulseConfigure(&e32Config);
@@ -601,7 +629,7 @@ main(void)
                 if ((e32Config.baseCfg.reportCycles - cyclesProcessed) > e32Config.baseCfg.mainsFreq)
                 {
                     timeSinceTrigger = timerMillis();
-                    emon32EventSet(EVT_TEMP_SAMPLE);
+                    (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
                 }
 
                 if (  (timerMillisDelta(timeSinceTrigger) >= TEMP_CONVERSION_T)
@@ -612,43 +640,25 @@ main(void)
                 }
             }
 
-            /* A full mains cycle has completed. Calculate power/energy. When
-             * all samples are complete, trigger a read of any temperature
-             * sensors.
+            /* Trigger a temperature sample 1 s before the report is due.
+             * In 12bit mode (default), DS18B20 takes 750 ms to acquire.
+             * If there is a process trigger >1 s before the nominal report
+             * due time, then start a sample as well.
              */
             if (evtPending(EVT_ECM_CYCLE_CMPL))
             {
-                if (ECM_REPORT_COMPLETE == ecmProcessCycle())
-                {
-                    cyclesProcessed = 0;
-                    emon32EventSet(EVT_TEMP_READ);
-                }
-
-                /* Trigger a temperature sample 1 s before the report is due.
-                 * In 12bit mode (default), DS18B20 takes 750 ms to acquire.
-                 * If there is a process trigger >1 s before the nominal report
-                 * due time, then start a sample as well.
-                 */
                 cyclesProcessed++;
                 if (((e32Config.baseCfg.reportCycles - cyclesProcessed) == e32Config.baseCfg.mainsFreq))
                 {
+                    cyclesProcessed = 0;
+                    if (0 != numTempSensors)
+                    {
+                        (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
+                    }
                     emon32EventSet(EVT_TEMP_SAMPLE);
                 }
 
                 emon32EventClr(EVT_ECM_CYCLE_CMPL);
-            }
-
-            /* Start temperature sampling on OneWire interface. All sensors are
-             * triggered simultaneously.
-             */
-            if (evtPending(EVT_TEMP_SAMPLE))
-            {
-                if (numTempSensors > 0)
-                {
-                    /* REVISIT : report failed conversion here? */
-                    (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
-                }
-                emon32EventClr(EVT_TEMP_SAMPLE);
             }
 
             /* Read back samples from each DS18B20 present. This is a blocking
@@ -681,42 +691,14 @@ main(void)
              */
             if (evtPending(EVT_ECM_SET_CMPL))
             {
-                int pktLength;
+                TransmitOpt_t opt;
+                opt.json        = e32Config.baseCfg.useJson;
+                opt.useRFM      = (0 != rfmOpt);
+                opt.logSerial   = e32Config.baseCfg.logToSerial;
 
-                ecmProcessSet(&ecmDataset);
-                datasetUpdate(&dataset);
-
-                pktLength = dataPackSerial(&dataset, txBuffer, TX_BUFFER_W,
-                                           e32Config.baseCfg.useJson);
-
-                if (0 == rfmPkt)
-                {
-                    uartPutsNonBlocking(DMA_CHAN_UART_DATA, txBuffer, pktLength);
-                }
-                else
-                {
-                    dataPackPacked(&dataset, &packedData);
-                    if (sercomExtIntfEnabled())
-                    {
-                        /* Try to send in "clean" air. If failed, retry on
-                         * next loop. Should not reach RFM_FAILED at all.
-                         */
-                        RFMSend_t res = rfmSendReady(5u);
-                        if (RFM_NO_INIT == res)
-                        {
-                            rfmInit((RFM_Freq_t)e32Config.dataTxCfg.rfmFreq);
-                        }
-                        else if (RFM_SUCCESS == res)
-                        {
-                            rfmSend(&packedData);
-                        }
-                    }
-                }
-
-                if (e32Config.baseCfg.logToSerial)
-                {
-                    uartPutsNonBlocking(DMA_CHAN_UART_DBG, txBuffer, pktLength);
-                }
+                ecmProcessSet   (&ecmDataset);
+                datasetUpdate   (&dataset);
+                transmitData    (&dataset, &opt);
 
                 /* If the energy used since the last storage is greater than the
                  * configured energy delta (baseCfg.whDeltaStore), then save the

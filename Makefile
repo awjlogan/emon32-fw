@@ -17,7 +17,7 @@ else
   MKDIR = mkdir
 endif
 
-CFLAGS += -W -Wall -Wextra -Wpedantic --std=c17 -Os
+CFLAGS += -W -Wall -Wextra -Wpedantic --std=c17 -Os -g3
 CFLAGS += -fno-diagnostics-show-caret -fno-common
 CFLAGS += -fdata-sections -ffunction-sections
 CFLAGS += -funsigned-char -funsigned-bitfields

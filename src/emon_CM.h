@@ -49,78 +49,47 @@ typedef struct __attribute__((__packed__)) SampleSetPacked_ {
     SingleRawSampleSet_t samples[SAMPLES_IN_SET];
 } RawSampleSetPacked_t;
 
-typedef struct RawSampleSetUnpacked {
-    q15_t smp[VCT_TOTAL];
-} RawSampleSetUnpacked_t;
-
 /* SampleSet_t contains an unpacked set of single sample sets */
 typedef struct SampleSet_ {
-    q15_t smpV[NUM_V];
-    q15_t smpCT[NUM_CT];
+    q15_t   smpV[NUM_V];
+    q15_t   smpCT[NUM_CT];
 } SampleSet_t;
 
+typedef struct VCfg_ {
+    float   voltageCal;
+    float   voltageCalRaw;
+    bool    vActive;
+} VCfg_t;
+
 typedef struct CTCfgUnpacked_ {
-    float           phaseX;
-    float           phaseY;
-    float           ctCal;
-    bool            active;
-    unsigned int    vChan;
-} CTCfgUnpacked_t;
+    float   phaseX;
+    float   phaseY;
+    float   phCal;
+    float   ctCal;
+    float   ctCalRaw;
+    bool    active;
+    int     vChan;
+} CTCfg_t;
 
 typedef struct ECMCfg_ {
-    bool            downsample;                     /* DSP enabled */
-    int             (*zx_hw_stat)(void);            /* HW zero crossing status function */
-    void            (*zx_hw_clr)(void);             /* HW zero crossing clear function */
-    uint32_t        (*timeMicros)(void);            /* Time in microseconds now */
-    uint32_t        (*timeMicrosDelta)(uint32_t);   /* Time delta in microseconds */
-    unsigned int    reportCycles;                   /* Number of cycles before reporting */
-    unsigned int    sampleRateHz;                   /* Sample rate in Hz (after any downsampling)*/
-    unsigned int    mainsFreq;                      /* Mains frequency */
-    CTCfgUnpacked_t ctCfg[NUM_CT];                  /* CT Configuration */
-    float           voltageCal[NUM_V];              /* Voltage calibration */
-    bool            vActive[NUM_V];                 /* Voltage channel active */
+    bool        downsample;                     /* DSP enabled */
+    int         (*zx_hw_stat)(void);            /* HW zero crossing status function */
+    void        (*zx_hw_clr)(void);             /* HW zero crossing clear function */
+    uint32_t    (*timeMicros)(void);            /* Time in microseconds now */
+    uint32_t    (*timeMicrosDelta)(uint32_t);   /* Time delta in microseconds */
+    int         reportCycles;                   /* Number of cycles before reporting */
+    int         sampleRateHz;                   /* Sample rate in Hz (after any downsampling)*/
+    int         mainsFreq;                      /* Mains frequency */
+    CTCfg_t     ctCfg[NUM_CT];                          /* CT Configuration */
+    VCfg_t      vCfg[NUM_V];                    /* Voltage configuration */
 } ECMCfg_t;
-
-typedef enum Polarity_ {
-    POL_POS,
-    POL_NEG
-} Polarity_t;
-
-typedef struct VAccumulator_ {
-    int32_t     sumV_sqr;
-    int32_t     sumV_deltas;
-} VAccumulator_t;
-
-typedef struct CTAccumulator_ {
-    int32_t     sumPA;
-    int32_t     sumPB;
-    int32_t     sumI_sqr;
-    int32_t     sumI_deltas;
-} CTAccumulator_t;
-
-typedef struct Accumulator_ {
-    VAccumulator_t  processV[NUM_V];
-    CTAccumulator_t processCT[NUM_CT];
-    unsigned int    numSamples;
-} Accumulator_t;
-
-/* This struct matches emonLibCM's calculations */
-typedef struct CycleCT_ {
-    float powerNow;           /* Summed power in cycles */
-    float rmsCT;              /* Accumulated I_RMS */
-} CycleCT_t;
-
-typedef struct ECMCycle_ {
-    uint32_t    cycleCount;
-    float       rmsV[NUM_V];    /* Accumulated V_RMS */
-    CycleCT_t   valCT[NUM_CT];  /* Combined CT values */
-} ECMCycle_t;
 
 typedef struct DataCT_ {
     float       rmsI;
     float       pf;
-    int32_t     realPower;
-    uint32_t    wattHour;
+    int         realPower;
+    int         apparentPower;
+    int         wattHour;
     float       residualEnergy; /* Energy held over to next set */
 } DataCT_t;
 
@@ -128,11 +97,6 @@ typedef struct ECMDataset_ {
     float       rmsV[NUM_V];
     DataCT_t    CT[NUM_CT];
 } ECMDataset_t;
-
-typedef struct PhaseXY_ {
-    float phaseX;
-    float phaseY;
-} PhaseXY_t;
 
 typedef struct ECMPerformance_ {
     int numSlices;
@@ -146,13 +110,6 @@ typedef struct ECMPerformance_ {
 /******************************************************************************
  * Function prototypes
  *****************************************************************************/
-
-/*! @brief Turn an amplitude calibration value into a factor to change the
- *         abstract value into the real value, accounting for ADC width.
- *  @param [in] cal : the calibration value
- *  @return : the scaled calibration value
- */
-float ecmCalibrationCalculate(float cal);
 
 /*! @brief Get the pointer to the configuration struct
  *  @return : pointer to Emon CM configuration struct
@@ -193,14 +150,6 @@ ECM_STATUS_t ecmInjectSample(void) RAMFUNC;
  *  @return : pointer to the performance counter
  */
 ECMPerformance_t *ecmPerformance(void);
-
-/*! @brief Decompose a floating point CT phase into an X/Y pair for
- *         interpolation.
- *  @param [in] phase : CT lead phase in degrees.
- *  @param [in] idxCT : index (0-based) of the CT
- *  @return : structure with the X/Y fixed point coefficients.
- */
-PhaseXY_t ecmPhaseCalculate(float phase, int idxCT);
 
 /*! @brief Calibrate a CT sensor's lead against the input voltage
  *  @param [in] idx : CT index

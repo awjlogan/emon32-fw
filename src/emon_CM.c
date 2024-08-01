@@ -20,20 +20,136 @@
 #include "emon_CM.h"
 #include "emon_CM_coeffs.h"
 
-/* Number of samples available for power calculation. must be power of 2 */
+/* Number of samples available for power calculation. Must be power of 2. */
 #define PROC_DEPTH      32u     /* REVISIT only need  to store V values */
-#define ZC_HYST         3u      /* Zero crossing hysteresis */
-#define EQUIL_CYCLES    5u      /* Number of cycles to discard at POR */
+#define ZC_HYST         2u      /* Zero crossing hysteresis */
+#define EQUIL_CYCLES    8u      /* Number of cycles to discard at startup */
 
-const float twoPi = 6.2831853072f;
+static const float twoPi = 6.2831853072f;
+
+static bool channelActive[VCT_TOTAL];
+
+/*************************************
+ * Local typedefs
+ *************************************/
+
+/* @typedef
+ * @brief This struct contains V and CT phase information
+ */
+typedef struct PhaseCal_ {
+    int     low;                    /* RESERVED */
+    float   phaseLow;               /* Phase error at and below low limit */
+    int     high;                   /* RESERVED */
+    float   phaseHigh;              /* RESERVED */
+} PhaseCal_t;
+
+typedef struct PhaseData_ {
+    int     positionOfV;            /* Voltage index */
+    float   phaseErrorV;            /* Voltage phase error (degrees) */
+    int     positionOfC;            /* CT index */
+    float   phaseErrorC;            /* CT phase error (degrees) */
+    int     relativeCSample;        /* Position of current relative to this */
+    int     relativeLastVSample;    /* Position of previous V */
+    int     relativeThisVSample;    /* Position of next V */
+    float   x;                      /* Coefficient for interpolation */
+    float   y;                      /* Coefficient for interpolation */
+} PhaseData_t;
+
+typedef struct VoltageChan_ {
+    int         inPin;
+    float       voltageCal;         /* Percentage deviation from ideal, 100.0 -> ideal */
+    PhaseCal_t  phaseCal;
+    int         scanPos;
+    float       Vrms;
+    bool        inUse;
+    bool        acPresent;
+} VoltageChan_t;
+
+typedef struct CurrentChan_ {
+    int         inPin;
+    float       ctCal;              /* Nominal 100 A CT @ 333 mV output */
+    PhaseCal_t  phaseCal;
+    int         scanPos;
+    float       Irms;
+    bool        inUse;
+} CurrentChan_t;
+
+typedef struct PowerInput_ {
+    CurrentChan_t *cIn;             /* Input no. of current input from API */
+    VoltageChan_t *vIn1;            /* Input no. of voltage input 1 */
+    VoltageChan_t *vIn2;            /* Input no. of voltage input 2 */
+    float         residualEnergy;   /* left over from value reported */
+    uint64_t      sumEnergy;        /* accumulated so far (Wh) */
+    PhaseData_t   phaseDataV1;      /* phase data for V1 */
+    PhaseData_t   phaseDataV2;      /* phase data for V2 */
+    int32_t       sumPA1;           /* 'Partial powers' line-neutral loads */
+    int32_t       sumPB1;
+    int32_t       sumPA2;           /* Second 'Partial powers' line-line loads */
+    int32_t       sumPB2;
+    int           realPower;
+    int           apparentPower;
+    int32_t       wh;
+    float         pf;
+    bool          inUse;
+} PowerInput_t;
+
+VoltageChan_t   vInput[NUM_V];
+CurrentChan_t   cInput[NUM_CT];
+PowerInput_t    pInput[NUM_CT];
+
+typedef enum Polarity_ {
+    POL_POS,
+    POL_NEG
+} Polarity_t;
+
+typedef struct VAccumulator_ {
+    int64_t sumV_sqr;
+    int     sumV_deltas;
+} VAccumulator_t;
+
+typedef struct CTAccumulator_ {
+    int64_t sumPA;
+    int64_t sumPB;
+    int64_t sumPA1;
+    int64_t sumPB1;
+    int64_t sumI_sqr;
+    int     sumI_deltas;
+} CTAccumulator_t;
+
+typedef struct Accumulator_ {
+    VAccumulator_t  processV[NUM_V];
+    CTAccumulator_t processCT[NUM_CT];
+    int             numSamples;
+    int             cycles;
+} Accumulator_t;
+
+
+typedef struct CalcRMS_ {
+    float    cal;
+    int64_t  sSqr;
+    int64_t  sDelta;
+    int      numSamples;
+} CalcRMS_t;
+
+typedef struct PhaseXY_ {
+    float phaseX;
+    float phaseY;
+} PhaseXY_t;
+
+typedef struct RawSampleSetUnpacked {
+    q15_t smp[VCT_TOTAL];
+} RawSampleSetUnpacked_t;
 
 /*************************************
  * Function prototypes
  *************************************/
 
-static inline q15_t     __STRUNCATE     (int32_t val)   RAMFUNC;
-static void             ecmSwapPtr      (void **pIn1, void **pIn2);
-static int              zeroCrossingSW  (q15_t smpV)    RAMFUNC;
+static inline q15_t __STRUNCATE         (int32_t val)       RAMFUNC;
+static float        calcRMS             (CalcRMS_t *pSrc)   RAMFUNC;
+static float        calibrationAmplitude(float cal, float fixed);
+static void         calibrationPhase    (PhaseXY_t *pPh, float phase, int idxCT);
+static void         swapPtr             (void **pIn1, void **pIn2);
+static bool         zeroCrossingSW      (q15_t smpV)        RAMFUNC;
 
 /******** FIXED POINT MATHS FUNCTIONS ********
  *
@@ -58,10 +174,32 @@ __STRUNCATE(int32_t val)
 
 /***** END FIXED POINT FUNCIONS *****/
 
+static RAMFUNC float
+calcRMS(CalcRMS_t *pSrc)
+{
+    int64_t numSamplesSqr   = (int64_t)pSrc->numSamples * pSrc->numSamples;
+    float   vcal            = pSrc->cal;
+
+    int64_t deltasSqr       = pSrc->sDelta * pSrc->sDelta;
+
+    float offsetCorr = qfp_fdiv(qfp_int642float(deltasSqr),
+                                qfp_int642float(numSamplesSqr));
+
+
+    float rms = qfp_fdiv(qfp_int642float(pSrc->sSqr),
+                            qfp_int2float(pSrc->numSamples));
+
+    rms = qfp_fsub(rms, offsetCorr);
+    rms = qfp_fsqrt(rms);
+    rms = qfp_fmul(vcal, rms);
+
+    return rms;
+}
+
 /*! @brief Swap pointers to buffers
  */
 static void
-ecmSwapPtr(void **pIn1, void **pIn2)
+swapPtr(void **pIn1, void **pIn2)
 {
     void *tmp = *pIn1;
     *pIn1 = *pIn2;
@@ -72,10 +210,10 @@ ecmSwapPtr(void **pIn1, void **pIn2)
  * Configuration
  *****************************************************************************/
 
-static ECMCfg_t ecmCfg;
+static ECMCfg_t ecmCfg = {0};
 static bool     processTrigger = false;
 static int      discardCycles = EQUIL_CYCLES;
-static int      initDone = 0;
+static bool     initDone = true;
 static int      samplePeriodus;
 static float    sampleIntervalRad;
 
@@ -98,7 +236,27 @@ ecmConfigInit(void)
     sampleIntervalRad = twoPi / 360.0f;
     sampleIntervalRad = qfp_fmul(sampleIntervalRad, sampleIntervalDeg);
 
-    initDone = 1;
+    for (int i = 0; i < NUM_V; i++)
+    {
+        const float vsCal = 8.0087f;    // Port from emonPi2/Tx4
+        channelActive[i] = ecmCfg.vCfg[i].vActive;
+        ecmCfg.vCfg->voltageCal = calibrationAmplitude(ecmCfg.vCfg[i].voltageCalRaw,
+                                                       vsCal);
+    }
+    for (int i = 0; i < NUM_CT; i++)
+    {
+        const float iCal = 3.0f;        // Port from emonPi2/Tx4 for 333 mV CT
+        channelActive[i + NUM_V] = ecmCfg.ctCfg[i].active;
+        ecmCfg.ctCfg[i].ctCal = calibrationAmplitude(ecmCfg.ctCfg[i].ctCalRaw,
+                                                     iCal);
+
+        PhaseXY_t phaseXY;
+        calibrationPhase(&phaseXY, ecmCfg.ctCfg[i].phCal, i);
+        ecmCfg.ctCfg[i].phaseX = phaseXY.phaseX;
+        ecmCfg.ctCfg[i].phaseY = phaseXY.phaseY;
+    }
+
+    initDone = true;
 }
 
 /******************************************************************************
@@ -113,7 +271,7 @@ static volatile RawSampleSetPacked_t *volatile adcProc      = adcSamples + 1;
 void
 ecmDataBufferSwap(void)
 {
-    ecmSwapPtr((void **)&adcActive, (void **)&adcProc);
+    swapPtr((void **)&adcActive, (void **)&adcProc);
 }
 
 
@@ -137,7 +295,7 @@ static SampleSet_t              sampleRingBuffer[PROC_DEPTH];
 static Accumulator_t    accumBuffer[2];
 static Accumulator_t    *accumCollecting = accumBuffer;
 static Accumulator_t    *accumProcessing = accumBuffer + 1;
-static ECMCycle_t       ecmCycle;
+
 static ECMPerformance_t perfCounter[2];
 static ECMPerformance_t *perfActive = perfCounter;
 static ECMPerformance_t *perfIdle   = perfCounter + 1;
@@ -148,9 +306,9 @@ static ECMPerformance_t *perfIdle   = perfCounter + 1;
 
 /*! @brief Zero crossing detection, software
  *  @param [in] smpV : current voltage sample
- *  @return 1 for positive crossing, 0 otherwise
+ *  @return true for positive crossing, false otherwise
  */
-RAMFUNC static int
+RAMFUNC bool
 zeroCrossingSW(q15_t smpV)
 {
     Polarity_t          polarityNow;
@@ -168,27 +326,43 @@ zeroCrossingSW(q15_t smpV)
             polarityLast = polarityNow;
             if (POL_POS == polarityNow)
             {
-                return 1;
+                return true;
             }
         }
     }
-    return 0;
+    return false;
 }
 
 
-float
-ecmCalibrationCalculate(float cal)
+/*! @brief Turn an amplitude calibration value into a factor to change the
+ *         abstract value into the real value, accounting for ADC width.
+ *  @param [in] cal : the calibration value
+ *  @param [in] fixed : the hardware specific calibration value
+ *  @return : the scaled calibration value
+ */
+static float
+calibrationAmplitude(float cal, float fixed)
 {
-    const unsigned int adcWidth = 12u;
-    return qfp_fdiv(cal, qfp_uint2float(1 << (adcWidth - 1u)));
+    const int   adcWidth    = ADC_RES_BITS;
+    const float vRef        = ADC_VREF;
+
+    float cmCal = qfp_fmul(cal, vRef);
+    cmCal = qfp_fmul(cmCal, fixed);
+    cmCal = qfp_fdiv(cmCal, qfp_uint2float(1 << (adcWidth - 1u)));
+
+    return cmCal;
 }
 
 
-PhaseXY_t
-ecmPhaseCalculate(float phase, int idxCT)
+/*! @brief Decompose a floating point CT phase into an X/Y pair for
+ *         interpolation.
+ *  @param [in] phase : CT lead phase in degrees.
+ *  @param [in] idxCT : index (0-based) of the CT
+ *  @return : structure with the X/Y fixed point coefficients.
+ */
+static void
+calibrationPhase(PhaseXY_t *pPh, float phase, int idxCT)
 {
-    PhaseXY_t phaseXY;
-
     /* REVISIT : parts of the correction can be made constant for each CT */
     float phaseShift = qfp_fdiv(phase, 360.0f);
     int phCorr_i = (idxCT + NUM_V) * ecmCfg.mainsFreq * samplePeriodus;
@@ -197,13 +371,12 @@ ecmPhaseCalculate(float phase, int idxCT)
     phaseShift = qfp_fadd(phaseShift, phCorr_f);
     phaseShift = qfp_fmul(phaseShift, twoPi);
 
-    phaseXY.phaseY = qfp_fdiv(qfp_fsin(phaseShift),
-                              qfp_fsin(sampleIntervalRad));
+    pPh->phaseY = qfp_fdiv(qfp_fsin(phaseShift),
+                           qfp_fsin(sampleIntervalRad));
 
-    phaseXY.phaseX = qfp_fsub(qfp_fcos(phaseShift),
-                              (qfp_fmul(phaseXY.phaseY,
+    pPh->phaseX = qfp_fsub(qfp_fcos(phaseShift),
+                              (qfp_fmul(pPh->phaseY,
                                         qfp_fcos(sampleIntervalRad))));
-    return phaseXY;
 }
 
 
@@ -310,11 +483,15 @@ ecmFilterSample(SampleSet_t *pDst)
             if (idxSmpEnd >= downsampleTaps) idxSmpEnd -= downsampleTaps;
         }
 
-        /* Truncate with rounding to nearest LSB and place into field */
-        /* REVISIT This is a fixed implementation for V/CT unpacking; abstract this */
+        /* Truncate with rounding to nearest LSB and place into field. 0 if
+         * the channel is not in use.
+         */
         for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++)
         {
-            const q15_t resTrunc = __STRUNCATE(intRes[idxChannel]);
+            const q15_t resTrunc =   channelActive[idxChannel]
+                                   ? __STRUNCATE(intRes[idxChannel])
+                                   : 0;
+
             if (idxChannel < NUM_V)
             {
                 pDst->smpV[idxChannel] = resTrunc;
@@ -338,9 +515,10 @@ ecmFilterSample(SampleSet_t *pDst)
 RAMFUNC ECM_STATUS_t
 ecmInjectSample(void)
 {
-    unsigned int        zerox_flag = 0;
-    static unsigned int idxInject;
-    uint32_t            t_start = 0;
+    bool        reportReady = false;
+    bool        zerox_flag  = false;
+    static int  idxInject;
+    uint32_t    t_start = 0;
 
     if (0 != ecmCfg.timeMicros)
     {
@@ -356,67 +534,63 @@ ecmInjectSample(void)
 
     accumCollecting->numSamples++;
 
-    /* TODO this is only for single phase currently, loop is there for later */
     const unsigned int idxLast = (idxInject - 1u) & (PROC_DEPTH - 1u);
-    const q15_t thisV = sampleRingBuffer[idxInject].smpV[0];
-    const q15_t lastV = sampleRingBuffer[idxLast].smpV[0];
+
     for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
     {
-        if (ecmCfg.vActive[idxV])
+        if (channelActive[idxV])
         {
-            const q15_t V = sampleRingBuffer[idxInject].smpV[idxV];
-            accumCollecting->processV[idxV].sumV_sqr    += (q22_t) V * V;
-            accumCollecting->processV[idxV].sumV_deltas += (int32_t) V;
+            int64_t V = sampleRingBuffer[idxInject].smpV[idxV];
+            accumCollecting->processV[idxV].sumV_sqr    += V * V;
+            accumCollecting->processV[idxV].sumV_deltas += V;
         }
     }
 
     for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
     {
-        if (ecmCfg.ctCfg[idxCT].active)
+        if (channelActive[idxCT + NUM_V])
         {
-            const q15_t lastCT = sampleRingBuffer[idxLast].smpCT[idxCT];
-            accumCollecting->processCT[idxCT].sumPA         += (q22_t) lastCT * lastV;
-            accumCollecting->processCT[idxCT].sumPB         += (q22_t) lastCT * thisV;
-            accumCollecting->processCT[idxCT].sumI_sqr      += (q22_t) lastCT * lastCT;
-            accumCollecting->processCT[idxCT].sumI_deltas   += (int32_t) lastCT;
+            int64_t thisV = sampleRingBuffer[idxInject].smpV[ecmCfg.ctCfg[idxCT].vChan];
+            int64_t lastV = sampleRingBuffer[idxLast].smpV[ecmCfg.ctCfg[idxCT].vChan];
+            int64_t thisCT = sampleRingBuffer[idxInject].smpCT[idxCT];
+
+            accumCollecting->processCT[idxCT].sumPA         += thisCT * lastV;
+            accumCollecting->processCT[idxCT].sumPB         += thisCT * thisV;
+            accumCollecting->processCT[idxCT].sumI_sqr      += thisCT * thisCT;
+            accumCollecting->processCT[idxCT].sumI_deltas   += thisCT;
         }
     }
 
-    /* Flag if there has been a (-) -> (+) crossing */
-    if (0 == ecmCfg.zx_hw_stat)
-    {
-        zerox_flag = zeroCrossingSW(thisV);
-    }
-    else
-    {
-        zerox_flag = (*ecmCfg.zx_hw_stat)();
-    }
+    /* Flag if there has been a (-) -> (+) crossing, always on V1. Check for
+     * zero-crossing, swap buffers and pend event.
+     */
+    zerox_flag =   ecmCfg.zx_hw_stat
+                 ? (*ecmCfg.zx_hw_stat)()
+                 : zeroCrossingSW(sampleRingBuffer[idxInject].smpV[0]);
 
     /* Check for zero crossing, swap buffers and pend event */
-    if (1 == zerox_flag)
+    if (zerox_flag)
     {
-        ecmSwapPtr((void **)&accumCollecting, (void **)&accumProcessing);
-        memset((void *)accumCollecting, 0, sizeof(*accumCollecting));
+        if (ecmCfg.zx_hw_clr) (*ecmCfg.zx_hw_clr)();
 
-        /* Clear the hardware zero crossing, if in use. */
-        if (0 != ecmCfg.zx_hw_clr)
-        {
-            (*ecmCfg.zx_hw_clr)();
-        }
-
-        /* If out of the "warm up" period, then indicate a full cycle */
         if (0 == discardCycles)
         {
-            return ECM_CYCLE_COMPLETE;
+            accumCollecting->cycles++;
         }
         else
         {
             discardCycles--;
         }
-    }
 
-    /* Advance injection point, masking for overflow */
-    idxInject = (idxInject + 1u) & (PROC_DEPTH - 1u);
+        if (accumCollecting->cycles >= ecmCfg.reportCycles || processTrigger)
+        {
+            swapPtr((void **)&accumCollecting, (void **)&accumProcessing);
+            memset((void *)accumCollecting, 0, sizeof(*accumCollecting));
+
+            processTrigger  = false;
+            reportReady     = true;
+        }
+    }
 
     if (0 != ecmCfg.timeMicrosDelta)
     {
@@ -424,85 +598,106 @@ ecmInjectSample(void)
         perfActive->microsSlices += (*ecmCfg.timeMicrosDelta)(t_start);
     }
 
-    return ECM_CYCLE_ONGOING;
+    /* Advance injection point, masking for overflow */
+    idxInject = (idxInject + 1u) & (PROC_DEPTH - 1u);
+
+    return   reportReady
+           ? ECM_REPORT_COMPLETE
+           : ECM_CYCLE_ONGOING;
 }
 
 
 ECMPerformance_t *
 ecmPerformance(void)
 {
-    ecmSwapPtr((void **)&perfActive, (void **)&perfIdle);
+    swapPtr((void **)&perfActive, (void **)&perfIdle);
     memset(perfActive, 0, sizeof(*perfActive));
 
     return perfIdle;
 }
 
 
-RAMFUNC ECM_STATUS_t
-ecmProcessCycle(void)
+RAMFUNC void
+ecmProcessSet(ECMDataset_t *pData)
 {
     uint32_t t_start = 0;
+    CalcRMS_t rms;
 
     if (0 != ecmCfg.timeMicros)
     {
         t_start = (*ecmCfg.timeMicros)();
     }
 
-    ecmCycle.cycleCount++;
-
     /* Reused constants */
     const int numSamples       = accumProcessing->numSamples;
     const int numSamplesSqr    = numSamples * numSamples;
+    rms.numSamples = numSamples;
 
-    /* RMS for V channels, substracting off fine offset */
-    for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
+    for (int idxV = 0; idxV < NUM_V; idxV++)
     {
-        if (ecmCfg.vActive[idxV])
+        if (channelActive[idxV])
         {
-            accumProcessing->processV[idxV].sumV_deltas *= accumProcessing->processV[idxV].sumV_deltas;
-            int meanSqr = accumProcessing->processV[idxV].sumV_sqr / numSamples;
-            int dcCorr  = accumProcessing->processV[idxV].sumV_deltas / numSamplesSqr;
-            meanSqr -= dcCorr;
-
-            float rms = qfp_fsqrt(qfp_int2float(meanSqr));
-            ecmCycle.rmsV[idxV] = qfp_fadd(ecmCycle.rmsV[idxV], rms);
-        }
-    }
-
-    /* CT channels */
-    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
-    {
-        if (0 != ecmCfg.ctCfg[idxCT].active)
-        {
-            float   powerNow;
-            int32_t ctCurrent;
-            int32_t deltasScaled;
-            int32_t sumI_deltas_sqr =   accumProcessing->processCT[idxCT].sumI_deltas
-                                      * accumProcessing->processCT[idxCT].sumI_deltas;
-
-            /* Apply phase calibration for CT interpolated between V samples */
-            float sumRealPower = qfp_fmul(qfp_int2float(accumProcessing->processCT[idxCT].sumPA),
-                                          ecmCfg.ctCfg[idxCT].phaseX);
-            sumRealPower = qfp_fadd(sumRealPower,
-                                    qfp_fmul(qfp_int2float(accumProcessing->processCT[idxCT].sumPB),
-                                             ecmCfg.ctCfg[idxCT].phaseY));
-
-            deltasScaled = sumI_deltas_sqr / numSamplesSqr;
-            powerNow = qfp_fdiv(sumRealPower, qfp_int2float(numSamples));
-            powerNow = qfp_fsub(powerNow, qfp_int2float(deltasScaled));
-
-            ctCurrent = accumProcessing->processCT[idxCT].sumI_sqr / numSamples;
-            ctCurrent -= deltasScaled;
-
-            ecmCycle.valCT[idxCT].powerNow = qfp_fadd(ecmCycle.valCT[idxCT].powerNow,
-                                                      powerNow);
-            ecmCycle.valCT[idxCT].rmsCT = qfp_fadd(ecmCycle.valCT[idxCT].rmsCT,
-                                                   qfp_fsqrt(qfp_int2float(ctCurrent)));
+            rms.cal     = ecmCfg.vCfg[idxV].voltageCal;
+            rms.sDelta  = accumProcessing->processV[idxV].sumV_deltas;
+            rms.sSqr    = accumProcessing->processV[idxV].sumV_sqr;
+            pData->rmsV[idxV] = calcRMS(&rms);
         }
         else
         {
-            ecmCycle.valCT[idxCT].powerNow = 0.0f;
-            ecmCycle.valCT[idxCT].rmsCT = 0.0f;
+            pData->rmsV[idxV] = 0.0f;
+        }
+    }
+
+    for (int idxCT = 0; idxCT < NUM_CT; idxCT++)
+    {
+        if (channelActive[idxCT + NUM_V])
+        {
+            int idxV = ecmCfg.ctCfg[idxCT].vChan;
+
+            // RMS Current
+            rms.cal     = ecmCfg.ctCfg[idxCT].ctCal;
+            rms.sDelta  = accumProcessing->processCT[idxCT].sumI_deltas;
+            rms.sSqr    = accumProcessing->processCT[idxCT].sumI_sqr;
+            pData->CT[idxCT].rmsI = calcRMS(&rms);
+
+            // Power and energy
+            float sumEnergy = qfp_fadd((qfp_fmul(qfp_int642float(accumProcessing->processCT[idxCT].sumPA),
+                                                ecmCfg.ctCfg[idxCT].phaseX)),
+                                       (qfp_fmul(qfp_int642float(accumProcessing->processCT[idxCT].sumPB),
+                                                ecmCfg.ctCfg[idxCT].phaseY)));
+
+            int64_t vi_offset = rms.sDelta * accumProcessing->processV[idxV].sumV_deltas;
+            float powerNow = qfp_fdiv(sumEnergy, qfp_int2float(numSamples));
+
+            powerNow = qfp_fsub(powerNow, qfp_fdiv(qfp_int642float(vi_offset),
+                                          qfp_int642float(numSamplesSqr)));
+            powerNow = qfp_fmul(powerNow,
+                                qfp_fmul(rms.cal, ecmCfg.vCfg[idxV].voltageCal));
+
+            // Power factor
+            float rmsV  = pData->rmsV[idxV];
+            float VA    = qfp_fmul(pData->CT[idxCT].rmsI, rmsV);
+            float pf    = qfp_fdiv(powerNow, VA);
+            bool  pf_b  = ((pf > 1.05f) || (pf < -1.05f) || (pf != pf));
+            pData->CT[idxCT].pf = pf_b ? 0.0f : pf;
+
+            // Energy and power
+            pData->CT[idxCT].realPower = qfp_float2int(qfp_fadd(powerNow, 0.5f));
+            pData->CT[idxCT].apparentPower = qfp_float2int(qfp_fadd(VA, 0.5f));
+
+            float energyNow = qfp_fmul(powerNow, qfp_int2float(numSamples));
+
+            energyNow   = qfp_fadd(energyNow, pData->CT[idxCT].residualEnergy);
+            int whNow   = qfp_float2int(qfp_fdiv(energyNow, 3600.0f));
+
+            pData->CT[idxCT].wattHour += whNow;
+            pData->CT[idxCT].residualEnergy = qfp_fsub(energyNow,
+                                                       qfp_int2float(whNow * 3600));
+        }
+        else
+        {
+            /* Zero all values otherwise */
+            memset(&pData->CT[idxCT], 0, sizeof(*pData->CT));
         }
     }
 
@@ -511,110 +706,8 @@ ecmProcessCycle(void)
         perfActive->numCycles++;
         perfActive->microsCycles += (*ecmCfg.timeMicrosDelta)(t_start);
     }
-
-    if ((ecmCycle.cycleCount >= ecmCfg.reportCycles) || processTrigger)
-    {
-        processTrigger = false;
-        return ECM_REPORT_COMPLETE;
-    }
-    return ECM_REPORT_ONGOING;
 }
 
-
-RAMFUNC void
-ecmProcessSet(ECMDataset_t *pData)
-{
-    uint32_t    t_start = 0;
-    float       vCal;
-    float       cycleCount = qfp_uint2float(ecmCycle.cycleCount);
-
-    if (0 != ecmCfg.timeMicros)
-    {
-        t_start = (*ecmCfg.timeMicros)();
-    }
-
-    /* Mean value for each RMS voltage */
-    for (unsigned int idxV = 0; idxV < NUM_V; idxV++)
-    {
-        if (ecmCfg.vActive[idxV])
-        {
-            vCal = ecmCfg.voltageCal[idxV];
-            pData->rmsV[idxV] = qfp_fdiv(ecmCycle.rmsV[idxV],
-                                         cycleCount);
-            pData->rmsV[idxV] = qfp_fmul(pData->rmsV[idxV], vCal);
-        }
-        else
-        {
-            pData->rmsV[idxV] = 0.0f;
-        }
-    }
-
-    /* CT channels */
-    vCal = ecmCfg.voltageCal[0];
-    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++)
-    {
-        float   VA;
-        float   pf;
-        float   rmsI;
-        float   energyNow;
-        float   powerNow;
-        int     wattHoursNow;
-        float   wattHoursRecent;
-
-        if (ecmCfg.ctCfg[idxCT].active)
-        {
-            /* RMS Current */
-            rmsI = qfp_fdiv(ecmCycle.valCT[idxCT].rmsCT,
-                            cycleCount);
-            rmsI = qfp_fmul(rmsI,
-                            ecmCfg.ctCfg[idxCT].ctCal);
-
-            VA = qfp_fmul(rmsI, pData->rmsV[0]);
-
-            powerNow = ecmCycle.valCT[idxCT].powerNow;
-            powerNow = qfp_fmul(powerNow, qfp_fmul(ecmCfg.voltageCal[0],
-                                                   ecmCfg.ctCfg->ctCal));
-
-
-            /* Power factor [pf != pf] checks for NaN */
-            pf = qfp_fdiv(powerNow, VA);
-            if ((pf > 1.05f) || (pf < 1.05f) ||  (pf != pf))
-            {
-                pf = 0.0f;
-            }
-            pData->CT[idxCT].pf = pf;
-
-            /* Real power */
-            pData->CT[idxCT].realPower  = qfp_float2int(qfp_fadd(qfp_fdiv(powerNow,
-                                                                          cycleCount),
-                                                        0.5f));
-
-            /* REVISIT : add frequency deviation scaling */
-            energyNow                       = qfp_fadd(powerNow,
-                                                       pData->CT[idxCT].residualEnergy);
-            wattHoursNow                    = qfp_float2int(energyNow) / 3600;
-            pData->CT[idxCT].wattHour       += wattHoursNow;
-            wattHoursRecent                 = qfp_fdiv(energyNow, 3600.0f);
-            pData->CT[idxCT].residualEnergy = qfp_fsub(energyNow,
-                                                       qfp_fmul(wattHoursRecent,
-                                                                3600.0f));
-        }
-        else
-        {
-            /* Zero all values if CT is inactive */
-            memset(&pData->CT[idxCT], 0, sizeof(*pData->CT));
-        }
-    }
-
-    /* Zero out cycle accummulator */
-    memset((void *)&ecmCycle, 0, sizeof(ecmCycle));
-
-    if (0 != ecmCfg.timeMicrosDelta)
-    {
-        perfActive->numDatasets++;
-        perfActive->microsDatasets += (*ecmCfg.timeMicrosDelta)(t_start);
-    }
-}
 
 void
 ecmProcessSetTrigger(void)

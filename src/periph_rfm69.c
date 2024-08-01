@@ -18,7 +18,7 @@ static void     rfmWriteReg(const unsigned int addr, const uint8_t data);
 
 const Pin_t     sel = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
 static int      initDone;
-static RFMPkt_t rfmPkt;
+static RFMOpt_t rfmOpt;
 
 
 static uint8_t
@@ -93,10 +93,10 @@ rfmSleep(void)
     rfmWriteReg(REG_OPMODE, tempRecv);
 }
 
-RFMPkt_t *
+RFMOpt_t *
 rfmGetHandle(void)
 {
-    return &rfmPkt;
+    return &rfmOpt;
 }
 
 void
@@ -169,7 +169,7 @@ rfmSend(const void *pData)
      * 2. Send at specified RF power
      * 3. Enter sleep mode
      */
-    crc = crc16_update(crc, rfmPkt.grp);
+    crc = crc16_update(crc, rfmOpt.grp);
     while (txState < 5)
     {
         if (0 == (rfmReadReg(REG_IRQFLAGS2) & 0x80u))
@@ -177,17 +177,17 @@ rfmSend(const void *pData)
             switch (txState)
             {
                 case 0:
-                    writeByte = rfmPkt.node & 0x1F;
+                    writeByte = rfmOpt.node & 0x1F;
                     txState++;
                     break;
                 case 1:
-                    writeByte = rfmPkt.n;
+                    writeByte = rfmOpt.n;
                     txState++;
                     break;
                 case 2:
                     writeByte = *data++;
-                    rfmPkt.n--;
-                    if (0 == rfmPkt.n)
+                    rfmOpt.n--;
+                    if (0 == rfmOpt.n)
                     {
                         txState++;
                     }
@@ -216,7 +216,7 @@ rfmSend(const void *pData)
         txState++;
     }
 
-    writeByte = (rfmPkt.rf_pwr & 0x1F) | 0x80;
+    writeByte = (rfmOpt.rf_pwr & 0x1F) | 0x80;
     rfmWriteReg(0x11u, writeByte);
 
     tempRecv = rfmReadReg(REG_OPMODE);
@@ -262,7 +262,7 @@ rfmSendReady(uint32_t timeout)
         while (0 == (rfmReadReg(0x23u) & 0x02u));
 
         /* REG_RSSI_VALUE */
-        if (rfmReadReg(0x24u) > (rfmPkt.threshold * -2))
+        if (rfmReadReg(0x24u) > (rfmOpt.threshold * -2))
         {
             return RFM_SUCCESS;
         }

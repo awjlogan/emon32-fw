@@ -11,7 +11,7 @@ typedef struct PulseCfg_ {
     unsigned int    grp;
     unsigned int    pin;
     unsigned int    periods;
-    unsigned int    active;
+    bool            active;
 } PulseCfg_t;
 
 /*! @brief Returns a pointer to the pulse counter configuration

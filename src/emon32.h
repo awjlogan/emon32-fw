@@ -67,39 +67,40 @@ typedef struct __attribute__((__packed__)) DataTxCfg_ {
 typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
     uint8_t     period;
     uint8_t     edge;
-    uint8_t     res0[2];
+    bool        pulseActive;
+    uint8_t     res0;
 } PulseCfgPacked_t;
 
 typedef struct __attribute__((__packed__)) VoltageCfg_ {
    float        voltageCal;      /* Conversion to real V value */
-   uint8_t      res0[4];
-} VoltageCfg_t;
+   bool         vActive;
+   uint8_t      res0[3];
+} VoltageCfgPacked_t;
 
 typedef struct __attribute__((__packed__)) CTCfg_ {
     float   ctCal;          /* Conversion to real I value */
     float   phase;          /* Phase angle, recalculated to fixed point */
     uint8_t vChan;
-    uint8_t res0[3];
-} CTCfg_t;
+    bool    ctActive;
+    uint8_t res0[2];
+} CTCfgPacked_t;
 
 typedef struct __attribute__((__packed__)) Emon32Config_ {
     uint32_t            key;
     BaseCfg_t           baseCfg;
     DataTxCfg_t         dataTxCfg;
-    VoltageCfg_t        voltageCfg[NUM_V];
-    CTCfg_t             ctCfg[NUM_CT];
-    uint32_t            ctActive;       /* Bitmap of active inputs */
+    VoltageCfgPacked_t  voltageCfg[NUM_V];
+    CTCfgPacked_t       ctCfg[NUM_CT];
     PulseCfgPacked_t    pulseCfg[NUM_PULSECOUNT];
-    uint8_t             pulseActive;
     uint8_t             res0[17];
     uint16_t            crc16_ccitt;
 } Emon32Config_t;
 
-_Static_assert((sizeof(BaseCfg_t) == 24), "BaseCfg_t is not 24 bytes wide.");
-_Static_assert((sizeof(DataTxCfg_t) == 4), "DataTxCfg_t is not 4 bytes wide.");
+_Static_assert((sizeof(BaseCfg_t) == 24),       "BaseCfg_t is not 24 bytes wide.");
+_Static_assert((sizeof(DataTxCfg_t) == 4),      "DataTxCfg_t is not 4 bytes wide.");
 _Static_assert((sizeof(PulseCfgPacked_t) == 4), "PulseCfgPacked_t is not 4 bytes wide.");
-_Static_assert((sizeof(VoltageCfg_t) == 8), "VoltageCfg_t is not 8 bytes wide.");
-_Static_assert((sizeof(CTCfg_t) == 12), "CTCfg_t is not 12 bytes wide.");
+_Static_assert((sizeof(VoltageCfgPacked_t) == 8), "VoltageCfgPacked_t is not 8 bytes wide.");
+_Static_assert((sizeof(CTCfgPacked_t) == 12),   "CTCfgPacked_t is not 12 bytes wide.");
 
 typedef struct Emon32Dataset_ {
     uint32_t        msgNum;

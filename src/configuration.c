@@ -82,29 +82,28 @@ configDefault(void)
 
     for (unsigned int idxV = 0u; idxV < NUM_V; idxV++)
     {
-        /* This is the peak mains voltage producing 1.024 V at the input
-         * to the emon32 system.
-         */
-        pCfg->voltageCfg[idxV].voltageCal = 405.0f;
+        pCfg->voltageCfg[idxV].voltageCal = 100.0f;
+        pCfg->voltageCfg[idxV].vActive = (0 == idxV);
     }
 
     /* 4.2 degree shift @ 50 Hz */
     for (unsigned int idxCT = 0u; idxCT < NUM_CT; idxCT++)
     {
-        pCfg->ctCfg[idxCT].ctCal    = 20.0f;
+        pCfg->ctCfg[idxCT].ctCal    = 100.0f;
         pCfg->ctCfg[idxCT].phase    = 4.2f;
         pCfg->ctCfg[idxCT].vChan    = 0;
+        pCfg->ctCfg[idxCT].ctActive = (idxCT < NUM_CT_ACTIVE_DEF);
     }
-    pCfg->ctActive = (1 << NUM_CT_ACTIVE_DEF) - 1u;
+
 
     /* Pulse counters:
      *   - Period: 100 ms
      *   - Rising edge trigger
      *   - All disabled
     */
-    pCfg->pulseActive = 0u;
     for (unsigned int i = 0u; i < NUM_PULSECOUNT; i++)
     {
+        pCfg->pulseCfg[i].pulseActive = false;
         pCfg->pulseCfg[i].period = 100u;
         pCfg->pulseCfg[i].edge   = 0u;
     }
@@ -218,13 +217,13 @@ configurePulse(void)
     /* If inactive, clear active flag, no decode for the rest */
     if (0 == active)
     {
-        pCfg->pulseActive &= ~(1 << ch);
+        pCfg->pulseCfg[ch].pulseActive = false;
         printf_("> Pulse channel %d disabled.\r\n", (ch + 1u));
         return;
     }
     else
     {
-        pCfg->pulseActive |= (1 << ch);
+        pCfg->pulseCfg[ch].pulseActive = true;
         printf_("> Pulse channel %d: ", (ch + 1u));
         switch (inBuffer[edgePos])
         {
@@ -370,7 +369,7 @@ printSettings(void)
 
     for (unsigned int i = 0; i < NUM_PULSECOUNT; i++)
     {
-        unsigned int enabled = pCfg->pulseActive & (1 << i);
+        bool enabled = pCfg->pulseCfg[i].pulseActive;
         printf_("Pulse Channel %d:\r\n", i);
         printf_("  - Enabled:         %c\r\n", enabled ? 'Y' : 'N');
         printf_("  - Hysteresis (ms): %d\r\n", pCfg->pulseCfg[i].period);

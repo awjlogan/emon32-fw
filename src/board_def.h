@@ -30,8 +30,10 @@
 #define SAMPLE_RATE         4800
 #define SAMPLES_IN_SET      2
 #define SAMPLE_BUF_DEPTH    2
+#define ADC_VREF            1.024f
+#define ADC_RES_BITS        12
 
-/* If there is hardware support of zero-crossing detection, set 1*/
+/* If there is hardware support of zero-crossing detection, set 1 */
 #define ZEROX_HW_SPT        0
 #define EIC_INTEN_ZEROX     EIC_INTENSET_EXTINT15
 #define EIC_INTDIS_ZEROX    EIC_INTENCLR_EXTINT15

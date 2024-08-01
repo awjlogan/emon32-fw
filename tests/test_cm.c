@@ -54,7 +54,6 @@ main(int argc, char *argv[])
     FILE            *fptr;
     ECMDataset_t    dataset;
     ECMCfg_t        *pEcmCfg;
-    PhaseXY_t       phase;
     ECM_STATUS_t    status;
     wave_t          wave[VCT_TOTAL];
 
@@ -85,6 +84,8 @@ main(int argc, char *argv[])
     }
 
     pEcmCfg = ecmConfigGet();
+    pEcmCfg->zx_hw_stat = 0;
+    pEcmCfg->zx_hw_clr  = 0;
 
     /* ecmDataBuffer returns a pointer to the buffer which the DMA is putting
      * data into.
@@ -99,24 +100,22 @@ main(int argc, char *argv[])
     pEcmCfg->reportCycles = (unsigned int)(REPORT_TIME * MAINS_FREQ);
     pEcmCfg->mainsFreq = 50;
     pEcmCfg->sampleRateHz = (SAMPLE_RATE / 2);
-    ecmConfigInit();
 
     for (int i = 0; i < NUM_V; i++)
     {
-        pEcmCfg->voltageCal[i] = ecmCalibrationCalculate(405.0f);
+        pEcmCfg->vCfg[i].voltageCalRaw = 100.0f;
+        pEcmCfg->vCfg[i].vActive = (i == 0);
     }
-    pEcmCfg->vActive[0] = 1;
 
     for (int i = 0; i < NUM_CT; i++)
     {
-        pEcmCfg->ctCfg[i].active    = 1;
-        pEcmCfg->ctCfg[i].ctCal     = ecmCalibrationCalculate(5.0f);
-        phase = ecmPhaseCalculate(5.0f, i);
-        pEcmCfg->ctCfg[i].phaseX    = phase.phaseX;
-        pEcmCfg->ctCfg[i].phaseY    = phase.phaseY;
+        pEcmCfg->ctCfg[i].active    = (i < 2);
+        pEcmCfg->ctCfg[i].ctCalRaw  = 100.0f;
+        pEcmCfg->ctCfg[i].phCal     = 4.2f;
         pEcmCfg->ctCfg[i].vChan     = 0;
     }
 
+    ecmConfigInit();
     printf("---- emon32 CM test ----\n\n");
 
     /* Sanity check by dumping a CSV of 10 cycles @ mains freq */
@@ -200,11 +199,6 @@ main(int argc, char *argv[])
         smpIdx = !smpIdx;
         ecmDataBufferSwap();
         status = ecmInjectSample();
-
-        if (ECM_CYCLE_COMPLETE == status)
-        {
-            status = ecmProcessCycle();
-        }
 
         if (ECM_REPORT_COMPLETE == status)
         {

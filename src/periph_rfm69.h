@@ -18,7 +18,7 @@ typedef enum RFMSend_ {
     RFM_SUCCESS
 } RFMSend_t;
 
-typedef struct RFMPkt_ {
+typedef struct RFMOpt_ {
     void            *data;
     unsigned int    n;
     unsigned int    node;
@@ -26,9 +26,9 @@ typedef struct RFMPkt_ {
     unsigned int    rf_pwr;
     unsigned int    threshold;
     unsigned int    timeout;
-} RFMPkt_t;
+} RFMOpt_t;
 
-RFMPkt_t *rfmGetHandle(void);
+RFMOpt_t *rfmGetHandle(void);
 
 /*! @brief Initialise the RFM69 module
  *  @param [in] freq : RFM operating frequency

@@ -43,6 +43,11 @@ float qfp_int2float(int a)
     return (float)a;
 }
 
+float qfp_int642float(int64_t a)
+{
+    return (float)a;
+}
+
 float qfp_uint2float(unsigned int a)
 {
     return (float)a;
