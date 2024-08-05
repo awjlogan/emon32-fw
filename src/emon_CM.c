@@ -141,6 +141,7 @@ typedef struct RawSampleSetUnpacked {
  *************************************/
 
 static inline q15_t __STRUNCATE(int32_t val) RAMFUNC;
+static void         accumSwapClear(void);
 static float        calcRMS(CalcRMS_t *pSrc) RAMFUNC;
 static float        calibrationAmplitude(float cal, float fixed);
 static void         calibrationPhase(PhaseXY_t *pPh, float phase, int idxCT);
@@ -274,6 +275,11 @@ static ECMPerformance_t *perfIdle   = perfCounter + 1;
 /******************************************************************************
  * Functions
  *****************************************************************************/
+
+static void accumSwapClear(void) {
+  swapPtr((void **)&accumCollecting, (void **)&accumProcessing);
+  memset((void *)accumCollecting, 0, sizeof(*accumCollecting));
+}
 
 /*! @brief Zero crossing detection, software
  *  @param [in] smpV : current voltage sample
@@ -507,12 +513,12 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
       accumCollecting->cycles++;
     } else {
       discardCycles--;
+      if (0 == discardCycles)
+        accumSwapClear();
     }
 
     if (accumCollecting->cycles >= ecmCfg.reportCycles || processTrigger) {
-      swapPtr((void **)&accumCollecting, (void **)&accumProcessing);
-      memset((void *)accumCollecting, 0, sizeof(*accumCollecting));
-
+      accumSwapClear();
       processTrigger = false;
       reportReady    = true;
     }
@@ -560,6 +566,8 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
     }
   }
 
+  float energyCorr = qfp_fdiv(qfp_int2float(numSamples * VCT_TOTAL),
+                              (float)(SAMPLE_RATE / SAMPLES_IN_SET));
   for (int idxCT = 0; idxCT < NUM_CT; idxCT++) {
     if (channelActive[idxCT + NUM_V]) {
       int idxV = ecmCfg.ctCfg[idxCT].vChan;
@@ -597,10 +605,10 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
       pData->CT[idxCT].realPower     = qfp_float2int(qfp_fadd(powerNow, 0.5f));
       pData->CT[idxCT].apparentPower = qfp_float2int(qfp_fadd(VA, 0.5f));
 
-      float energyNow = qfp_fmul(powerNow, qfp_int2float(numSamples));
-
-      energyNow = qfp_fadd(energyNow, pData->CT[idxCT].residualEnergy);
-      int whNow = qfp_float2int(qfp_fdiv(energyNow, 3600.0f));
+      // Consider double precision here, some truncation observed
+      float energyNow = qfp_fmul(powerNow, energyCorr);
+      energyNow       = qfp_fadd(energyNow, pData->CT[idxCT].residualEnergy);
+      int whNow       = qfp_float2int(qfp_fdiv(energyNow, 3600.0f));
 
       pData->CT[idxCT].wattHour += whNow;
       pData->CT[idxCT].residualEnergy =

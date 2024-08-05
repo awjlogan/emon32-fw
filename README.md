@@ -26,7 +26,6 @@ Contributions are welcome! Small PRs can be accepted at any time. Please get in 
 
 > [!TIP]
 > A [clang-format](https://clang.llvm.org/docs/ClangFormat.html) autoformat pattern is included in the repository. Run the `install-hooks.sh` script to install the pre-commit hook to the autoformatter. You may need to install `clang-format` using your OS's package manager.
-
 > [!NOTE]
 > Please bear in mind that this is an open source project and PRs and enhancements may not be addressed quickly, or at all. This is no comment on the quality of the contribution, and please feel free to fork as you like!
 

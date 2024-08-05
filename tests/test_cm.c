@@ -13,9 +13,8 @@
 #define REPORT_CT   3 /* Number of CT channels to report */
 #define REPORT_TIME 9.8f
 #define REPORT_V    1 /* Number of V channels to report */
-// #define SAMPLE_RATE     4800u
 #define SMP_TICK    1000000u / SAMPLE_RATE / (VCT_TOTAL)
-#define TEST_TIME   50E6 /* Time to run in microseconds */
+#define TEST_TIME   100E6 /* Time to run in microseconds */
 
 typedef struct wave_ {
   double omega;  /* Angular velocity */
@@ -96,18 +95,20 @@ int main(int argc, char *argv[]) {
   pEcmCfg->sampleRateHz = (SAMPLE_RATE / 2);
 
   for (int i = 0; i < NUM_V; i++) {
-    pEcmCfg->vCfg[i].voltageCalRaw = 100.0f;
+    pEcmCfg->vCfg[i].voltageCalRaw = 50.0f; // REVISIT this is 1/2 the OEM value
     pEcmCfg->vCfg[i].vActive       = (i == 0);
   }
 
   for (int i = 0; i < NUM_CT; i++) {
     pEcmCfg->ctCfg[i].active   = (i < 2);
-    pEcmCfg->ctCfg[i].ctCalRaw = 100.0f;
+    pEcmCfg->ctCfg[i].ctCalRaw = 20.0f;
     pEcmCfg->ctCfg[i].phCal    = 4.2f;
     pEcmCfg->ctCfg[i].vChan    = 0;
   }
 
   ecmConfigInit();
+  printf("%f\r\n", pEcmCfg->vCfg[0].voltageCal);
+
   printf("---- emon32 CM test ----\n\n");
 
   /* Sanity check by dumping a CSV of 10 cycles @ mains freq */
@@ -199,7 +200,7 @@ int main(int argc, char *argv[]) {
       }
     }
   }
-  printf("Done!\n\n");
+  printf("\r\n  Finished!\n\n");
 }
 
 void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {
