@@ -123,7 +123,7 @@ typedef struct Accumulator_ {
 typedef struct CalcRMS_ {
   float   cal;
   int64_t sSqr;
-  int64_t sDelta;
+  int     sDelta;
   int     numSamples;
 } CalcRMS_t;
 
@@ -551,9 +551,9 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
   }
 
   /* Reused constants */
-  const int numSamples    = accumProcessing->numSamples;
-  const int numSamplesSqr = numSamples * numSamples;
-  rms.numSamples          = numSamples;
+  const int     numSamples    = accumProcessing->numSamples;
+  const int64_t numSamplesSqr = numSamples * numSamples;
+  rms.numSamples              = numSamples;
 
   for (int idxV = 0; idxV < NUM_V; idxV++) {
     if (channelActive[idxV]) {
@@ -566,8 +566,12 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
     }
   }
 
-  float energyCorr = qfp_fdiv(qfp_int2float(numSamples * VCT_TOTAL),
-                              (float)(SAMPLE_RATE / SAMPLES_IN_SET));
+  /* Use the actual count period (in us) to account for rounding */
+  const int   cntPer = F_TIMER_ADC / SAMPLE_RATE / VCT_TOTAL;
+  const float timeForSet =
+      (float)(cntPer * VCT_TOTAL * SAMPLES_IN_SET) / 1000000.0f;
+  float timeTotal = qfp_fmul(qfp_int2float(numSamples), timeForSet);
+
   for (int idxCT = 0; idxCT < NUM_CT; idxCT++) {
     if (channelActive[idxCT + NUM_V]) {
       int idxV = ecmCfg.ctCfg[idxCT].vChan;
@@ -585,12 +589,11 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
           (qfp_fmul(qfp_int642float(accumProcessing->processCT[idxCT].sumPB),
                     ecmCfg.ctCfg[idxCT].phaseY)));
 
-      int64_t vi_offset =
-          rms.sDelta * accumProcessing->processV[idxV].sumV_deltas;
-      float powerNow = qfp_fdiv(sumEnergy, qfp_int2float(numSamples));
+      int vi_offset = rms.sDelta * accumProcessing->processV[idxV].sumV_deltas;
 
-      powerNow = qfp_fsub(powerNow, qfp_fdiv(qfp_int642float(vi_offset),
-                                             qfp_int642float(numSamplesSqr)));
+      float powerNow = qfp_fdiv(sumEnergy, qfp_int2float(numSamples));
+      powerNow       = qfp_fsub(powerNow, qfp_fdiv(qfp_int2float(vi_offset),
+                                                   qfp_int642float(numSamplesSqr)));
       powerNow =
           qfp_fmul(powerNow, qfp_fmul(rms.cal, ecmCfg.vCfg[idxV].voltageCal));
 
@@ -601,12 +604,12 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
       bool  pf_b          = ((pf > 1.05f) || (pf < -1.05f) || (pf != pf));
       pData->CT[idxCT].pf = pf_b ? 0.0f : pf;
 
-      // Energy and power
+      // Energy and power, rounding to nearest integer
       pData->CT[idxCT].realPower     = qfp_float2int(qfp_fadd(powerNow, 0.5f));
       pData->CT[idxCT].apparentPower = qfp_float2int(qfp_fadd(VA, 0.5f));
 
-      // Consider double precision here, some truncation observed
-      float energyNow = qfp_fmul(powerNow, energyCorr);
+      // REVISIT : Consider double precision here, some truncation observed
+      float energyNow = qfp_fmul(powerNow, timeTotal);
       energyNow       = qfp_fadd(energyNow, pData->CT[idxCT].residualEnergy);
       int whNow       = qfp_float2int(qfp_fdiv(energyNow, 3600.0f));
 

@@ -101,7 +101,7 @@ int main(int argc, char *argv[]) {
 
   for (int i = 0; i < NUM_CT; i++) {
     pEcmCfg->ctCfg[i].active   = (i < 2);
-    pEcmCfg->ctCfg[i].ctCalRaw = 20.0f;
+    pEcmCfg->ctCfg[i].ctCalRaw = 10.0f; // REVISIT also 1/2
     pEcmCfg->ctCfg[i].phCal    = 4.2f;
     pEcmCfg->ctCfg[i].vChan    = 0;
   }
@@ -173,10 +173,12 @@ int main(int argc, char *argv[]) {
   }
 
   printf("  Dynamic test...\n\n");
+  /* Increment through the sample channels (2x for oversampling)
+   * and generate the wave for each channel at each point.
+   */
+  int prevE = 0;
   while (time < TEST_TIME) {
-    /* Increment through the sample channels (2x for oversampling)
-     * and generate the wave for each channel at each point.
-     */
+
     for (int j = 0; j < 2; j++) {
       for (int i = 0; i < VCT_TOTAL; i++) {
         smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
@@ -188,16 +190,16 @@ int main(int argc, char *argv[]) {
     status = ecmInjectSample();
 
     if (ECM_REPORT_COMPLETE == status) {
-      printf("    Report %d: ", reportNum++);
+      int thisE;
       ecmProcessSet(&dataset);
-      for (int i = 0; i < REPORT_V; i++) {
-        printf("V%d:%.2f,", i, dataset.rmsV[i]);
-      }
-      for (int i = 0; i < REPORT_CT; i++) {
-        printf("P%d:%d,E%d:%d", i, dataset.CT[i].realPower, i,
-               dataset.CT[i].wattHour);
-        printf("%c", ((i != (REPORT_CT - 1)) ? ',' : '\n'));
-      }
+      thisE = dataset.CT[0].wattHour;
+      printf("    Report %d:\r\n", reportNum++);
+      printf("      Vrms (V) : %.2f\r\n", dataset.rmsV[0]);
+      printf("      Irms (A) : %.2f\r\n", dataset.CT[0].rmsI);
+      printf("      P    (W) : %d\r\n", dataset.CT[0].realPower);
+      printf("      E    (Wh): %d (delta: %d)\r\n", thisE, (thisE - prevE));
+      printf("      pF       : %.2f\r\n", dataset.CT[0].pf);
+      prevE = thisE;
     }
   }
   printf("\r\n  Finished!\n\n");
