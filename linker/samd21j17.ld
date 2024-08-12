@@ -31,7 +31,8 @@ MEMORY
 {
   bootloader (rx) : ORIGIN = 0x00000000, LENGTH = 0x2000 /* 8K */
   flash (rx) : ORIGIN = 0x00002000, LENGTH = 0x1E000 /* 120k */
-  ram  (rwx) : ORIGIN = 0x20000000, LENGTH = 0x4000 /* 16k */
+  ram  (rwx) : ORIGIN = 0x20000000, LENGTH = 0x3FFC /* 16k - 4 */
+  blsm (rwx) : ORIGIN = 0x20003FFC, LENGTH = 0x4 /* 4 */
 }
 
 __top_flash = ORIGIN(flash) + LENGTH(flash);
@@ -119,4 +120,10 @@ SECTIONS
   } > ram
 
   PROVIDE(_stack_top = __top_ram - 0);
+
+  .blsm (NOLOAD) :
+  {
+    . = ALIGN(4);
+    _blsm = .;
+  } > blsm
 }

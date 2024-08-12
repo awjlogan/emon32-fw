@@ -40,6 +40,7 @@ static void     configDefault(void);
 static void     configInitialiseNVM(void);
 static void     configureAnalog(void);
 static void     configurePulse(void);
+static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
 static void     phaseAutoCalibrate(void);
@@ -208,6 +209,26 @@ static void configurePulse(void) {
     }
     pCfg->pulseCfg[ch].period = utilAtoi((inBuffer + timePos), ITOA_BASE10);
     printf_("%d ms\r\n", pCfg->pulseCfg[ch].period);
+  }
+}
+
+/*! @brief Enter the bootloader, confirmation required */
+static void enterBootloader(void) {
+  /* Linker reserves 4 bytes at the bottom of the stack and write the UF2
+   * bootloader key followed by reset. Will enter bootloader upon reset. */
+  char               c;
+  extern uint32_t    _blsm;
+  volatile uint32_t *p_blsm   = (volatile uint32_t *)_blsm;
+  // Key is uf2-samdx1/inc/uf2.h:DBL_TAP_MAGIC
+  const uint32_t     blsm_key = 0xF01669EF;
+  dbgPuts(
+      "> Enter bootloader? All unsaved changes will be lost. 'y' to proceed.");
+  c = waitForChar();
+  if ('y' == c) {
+    *p_blsm = blsm_key;
+    NVIC_SystemReset();
+  } else {
+    dbgPuts("    - Cancelled.");
   }
 }
 
@@ -472,6 +493,7 @@ void configProcessCmd(void) {
       " - c<n>        : log to serial output. n = 0: OFF, n = 1: ON\r\n"
       " - d<x.x>      : data log period (s)\r\n"
       " - f<n>        : line frequency (Hz)\r\n"
+      " - e           : enter bootloader\r\n"
       " - g<n>        : set network group (default = 210)\r\n"
       " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
       " - k<x> <y.y> <z.z>\r\n"
@@ -535,6 +557,10 @@ void configProcessCmd(void) {
             qfp_float2double(pCfg->baseCfg.reportTime));
     resetReq = 1u;
     emon32EventSet(EVT_CONFIG_CHANGED);
+    break;
+  case 'e':
+    /* Enter the bootloader through firmware */
+    enterBootloader();
     break;
   case 'f':
     /* Set line frequency.
