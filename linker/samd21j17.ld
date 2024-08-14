@@ -123,7 +123,7 @@ SECTIONS
 
   .blsm (NOLOAD) :
   {
-    . = ALIGN(4);
-    _blsm = .;
+    PROVIDE(__blsm = .);
+    KEEP(*(.blsm))
   } > blsm
 }

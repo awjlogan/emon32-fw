@@ -217,10 +217,10 @@ static void enterBootloader(void) {
   /* Linker reserves 4 bytes at the bottom of the stack and write the UF2
    * bootloader key followed by reset. Will enter bootloader upon reset. */
   char               c;
-  extern uint32_t    _blsm;
-  volatile uint32_t *p_blsm   = (volatile uint32_t *)_blsm;
+  volatile uint32_t *p_blsm =
+      (volatile uint32_t *)(HMCRAMC0_ADDR + HMCRAMC0_SIZE - 4);
   // Key is uf2-samdx1/inc/uf2.h:DBL_TAP_MAGIC
-  const uint32_t     blsm_key = 0xF01669EF;
+  const uint32_t blsm_key = 0xF01669EF;
   dbgPuts(
       "> Enter bootloader? All unsaved changes will be lost. 'y' to proceed.");
   c = waitForChar();
