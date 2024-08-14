@@ -285,8 +285,7 @@ static void evtKiloHertz(void) {
    */
   wdtFeed();
 
-  /* Do any required TUSB tasks and handle transactions */
-  tud_task();
+  /* Handle any USB transactions */
   usbCDCTask();
 
   /* Update the pulse counters, looking on different edges */

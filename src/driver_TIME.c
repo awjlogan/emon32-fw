@@ -1,6 +1,7 @@
 #include "emon32_samd.h"
 
 #include "driver_TIME.h"
+#include "driver_USB.h"
 #include "driver_WDT.h"
 #include "emon32.h"
 
@@ -210,7 +211,8 @@ void IRQ_TIMER_DELAY(void) {
 }
 
 /*! @brief 1 ms timer overflow. Update for the next ms / s match, set the event
- *         and handle any immediate priority actions.
+ *         and handle any immediate priority actions:
+ *          - Regular USB update
  */
 void IRQ_TIMER_TICK(void) {
   if (TIMER_TICK->COUNT32.INTFLAG.reg & TC_INTFLAG_MC0) {
@@ -219,6 +221,8 @@ void IRQ_TIMER_TICK(void) {
     while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
       ;
     timeMillisCounter++;
+
+    tud_task();
 
     emon32EventSet(EVT_TICK_1kHz);
   }

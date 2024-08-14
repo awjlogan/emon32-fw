@@ -25,6 +25,10 @@ uint8_t usbCDCRxGetChar(void) {
 }
 
 void usbCDCTask(void) {
+  if (!usbCDCIsConnected()) {
+    return;
+  }
+
   /* Flush write buffer and read any available characters */
   tud_cdc_write_flush();
   int nrx = tud_cdc_available();
