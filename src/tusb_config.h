@@ -90,9 +90,11 @@
 #define CFG_TUD_MIDI   0
 #define CFG_TUD_VENDOR 0
 
-// CDC FIFO size of TX and RX
-#define CFG_TUD_CDC_RX_BUFSIZE (TUD_OPT_HIGH_SPEED ? 512 : 64)
-#define CFG_TUD_CDC_TX_BUFSIZE (TUD_OPT_HIGH_SPEED ? 512 : 64)
+// CDC FIFO size of TX and RX.
+// TX buffer is oversized, but avoids having to send in chunks. Reduce if there
+// is pressure on RAM usage.
+#define CFG_TUD_CDC_RX_BUFSIZE 64
+#define CFG_TUD_CDC_TX_BUFSIZE 512
 
 // CDC Endpoint transfer buffer size, more is faster
 #define CFG_TUD_CDC_EP_BUFSIZE (TUD_OPT_HIGH_SPEED ? 512 : 64)

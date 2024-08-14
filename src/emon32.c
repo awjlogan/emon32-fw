@@ -362,12 +362,6 @@ static void pulseConfigure(const Emon32Config_t *pCfg) {
  */
 void putchar_(char c) {
   if (usbCDCIsConnected()) {
-    /* Flush if the buffer is full, and then write character. This will be
-     * written on the CDC task @ 1 kHz or when the Tx buffer is full again.
-     */
-    if (usbCDCTxAvailable()) {
-      usbCDCTxFlush();
-    }
     usbCDCTxChar(c);
   } else {
     uartPutcBlocking(SERCOM_UART_DBG, c);
