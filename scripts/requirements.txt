@@ -1,2 +1,4 @@
 matplotlib
 scipy
+ruamel.yaml
+pyserial

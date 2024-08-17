@@ -323,9 +323,9 @@ static void printSettings(void) {
     printf_("Power:     %d\r\n", pCfg->dataTxCfg.rfmPwr);
   } else {
     dbgPuts("Serial\r\n");
-    printf_("Data transmission:         %s\r\n",
-            pCfg->baseCfg.useJson ? "JSON" : "K:V");
   }
+  printf_("Data format:             %s\r\n",
+          pCfg->baseCfg.useJson ? "JSON" : "K:V");
   dbgPuts("\r\n");
 
   for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {

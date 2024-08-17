@@ -29,23 +29,30 @@ typedef struct wave_ {
  *  @param [in] phase : CT phase
  *  @param [out] pW  : pointer to the wave struct
  */
-void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w);
+static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w);
 
 /*! @brief Generates a Q11 [-2048, 2047] wave with configurable parameters
  *  @param [in] w       : pointer to wave information
  *  @param [in] tMicros : time in microseconds
  */
-q15_t generateWave(wave_t *w, int tMicros);
+static q15_t generateWave(wave_t *w, int tMicros);
+
+/*! @brief Print the output from the emonCM report
+ *  @param [in] reportNum   Report number
+ *  @param [in] time        Simulation time in us
+ *  @param [in] pDataset    Pointer to the dataset
+ */
+static void printReport(int reportNum, int64_t time, ECMDataset_t *pDataset);
 
 /*! @brief Convert a voltage into a wave description
  *  @param [in] vRMS : RMS voltage
  *  @param [out] pW  : pointer to the wave struct
  */
-void voltageToWave(double vRMS, wave_t *w);
+static void voltageToWave(double vRMS, wave_t *w);
 
 int main(int argc, char *argv[]) {
-  int time      = 0;
-  int reportNum = 0;
+  int64_t time      = 0;
+  int     reportNum = 0;
 
   FILE        *fptr;
   ECMDataset_t dataset;
@@ -172,12 +179,12 @@ int main(int argc, char *argv[]) {
     printf("Complete\n\n");
   }
 
-  printf("  Dynamic test...\n\n");
   /* Increment through the sample channels (2x for oversampling)
    * and generate the wave for each channel at each point.
    */
-  int prevE = 0;
-  while (time < TEST_TIME) {
+  printf("  Dynamic test...\n\n");
+  printf("    - In phase, PF = 1\n\n");
+  while (reportNum < 4) {
 
     for (int j = 0; j < 2; j++) {
       for (int i = 0; i < VCT_TOTAL; i++) {
@@ -190,22 +197,63 @@ int main(int argc, char *argv[]) {
     status = ecmInjectSample();
 
     if (ECM_REPORT_COMPLETE == status) {
-      int thisE;
       ecmProcessSet(&dataset);
-      thisE = dataset.CT[0].wattHour;
-      printf("    Report %d:\r\n", reportNum++);
-      printf("      Vrms (V) : %.2f\r\n", dataset.rmsV[0]);
-      printf("      Irms (A) : %.2f\r\n", dataset.CT[0].rmsI);
-      printf("      P    (W) : %d\r\n", dataset.CT[0].realPower);
-      printf("      E    (Wh): %d (delta: %d)\r\n", thisE, (thisE - prevE));
-      printf("      pF       : %.2f\r\n", dataset.CT[0].pf);
-      prevE = thisE;
+      printReport(reportNum, time, &dataset);
+      reportNum++;
     }
   }
+  ecmFlush();
+
+  printf("\n\n    - 90 out of phase, power factor = 0\n\n");
+  wave[NUM_V].phi = M_PI / 2;
+  reportNum       = 0;
+  time            = 0;
+  while (reportNum < 4) {
+
+    for (int j = 0; j < 2; j++) {
+      for (int i = 0; i < VCT_TOTAL; i++) {
+        smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
+        time += SMP_TICK;
+      }
+    }
+    smpIdx = !smpIdx;
+    ecmDataBufferSwap();
+    status = ecmInjectSample();
+
+    if (ECM_REPORT_COMPLETE == status) {
+      ecmProcessSet(&dataset);
+      printReport(reportNum, time, &dataset);
+      reportNum++;
+    }
+  }
+
+  printf("\n\n    - 180 out of phase, power factor = -1\n\n");
+  wave[NUM_V].phi = M_PI;
+  reportNum       = 0;
+  time            = 0;
+  while (reportNum < 4) {
+
+    for (int j = 0; j < 2; j++) {
+      for (int i = 0; i < VCT_TOTAL; i++) {
+        smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
+        time += SMP_TICK;
+      }
+    }
+    smpIdx = !smpIdx;
+    ecmDataBufferSwap();
+    status = ecmInjectSample();
+
+    if (ECM_REPORT_COMPLETE == status) {
+      ecmProcessSet(&dataset);
+      printReport(reportNum, time, &dataset);
+      reportNum++;
+    }
+  }
+
   printf("\r\n  Finished!\n\n");
 }
 
-void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {
+static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {
   double iPk = IRMS * sqrt(2);
   w->offset  = 0;
   w->omega   = 2 * M_PI * MAINS_FREQ;
@@ -213,7 +261,7 @@ void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {
   w->s       = iPk / scaleCT;
 }
 
-q15_t generateWave(wave_t *w, int tMicros) {
+static q15_t generateWave(wave_t *w, int tMicros) {
   assert((w->s > 0.0) && (w->s <= 1.0));
   q15_t  wave;
   double a = sin(((w->omega * tMicros) / 1000000.0) + w->phi) * w->s;
@@ -229,7 +277,21 @@ q15_t generateWave(wave_t *w, int tMicros) {
   return wave;
 }
 
-void voltageToWave(double vRMS, wave_t *w) {
+static void printReport(int reportNum, int64_t time, ECMDataset_t *pDataset) {
+  static int prevE = 0;
+  int        thisE;
+
+  thisE = pDataset->CT[0].wattHour;
+  printf("    Report %d (t = %.2f s):\r\n", reportNum++, (time / 1000000.0));
+  printf("      Vrms (V) : %.2f\r\n", pDataset->rmsV[0]);
+  printf("      Irms (A) : %.2f\r\n", pDataset->CT[0].rmsI);
+  printf("      P    (W) : %d\r\n", pDataset->CT[0].realPower);
+  printf("      E    (Wh): %d (delta: %d)\r\n", thisE, (thisE - prevE));
+  printf("      pF       : %.2f\r\n", pDataset->CT[0].pf);
+  prevE = thisE;
+}
+
+static void voltageToWave(double vRMS, wave_t *w) {
   double vPk = vRMS * sqrt(2);
   w->offset  = 0;
   w->omega   = 2 * M_PI * MAINS_FREQ;
