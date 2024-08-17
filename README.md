@@ -195,7 +195,7 @@ Assertions are [implemented](https://interrupt.memfault.com/blog/asserts-in-embe
 
 ### Tests
 
-A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware. In _./tests_, run `make cm` to build the tests (tested on macOS and Linux).
+A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware. In _./tests_, run `make cm` to build the tests (tested on macOS and Linux) and then run `./cm.test`.
 
 ## Hardware Description
 
