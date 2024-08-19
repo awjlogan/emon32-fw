@@ -158,7 +158,8 @@ typedef enum EVTSRC_ {
   EVT_SAFE_RESET_REQ  = 18u,
   EVT_PROCESS_CMD     = 19u,
   EVT_PROCESS_DATASET = 20u,
-  EVT_EEPROM_STORE    = 21u
+  EVT_EEPROM_STORE    = 21u,
+  EVT_CLEAR_ACCUM     = 22u
 } EVTSRC_t;
 
 /*! @brief Output a string to the debug destination. If the USB CDC is connected

@@ -517,6 +517,23 @@ int main(void) {
         emon32EventClr(EVT_TICK_1kHz);
       }
 
+      /* Configuration request to clear all accumulator values (energy and pulse
+       * count). The NVM is overwritten with 0s and the index of the next
+       * read/write is reset. Clear the running counters in the main loop, any
+       * residual energy in the dataset, and all pulse counters.
+       */
+      if (evtPending(EVT_CLEAR_ACCUM)) {
+        lastStoredWh               = 0;
+        nvmCumulative.idxNextWrite = -1;
+        for (int i = 0; i < NUM_CT; i++) {
+          ecmDataset.CT[i].residualEnergy = 0.0f;
+        }
+        for (int i = 0; i < NUM_PULSECOUNT; i++) {
+          pulseSetCount(0, i);
+        }
+        emon32EventClr(EVT_CLEAR_ACCUM);
+      }
+
       /* There has been a trigger request externally. This needs to come
        * > 1s before the report is nominally due to allow slow
        * temperature sensors to complete before processing the data. If

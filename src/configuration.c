@@ -43,20 +43,19 @@ static void     configurePulse(void);
 static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
-static void     phaseAutoCalibrate(void);
 static void     printSettings(void);
 static char     waitForChar(void);
-static void     zeroAccumulators(void);
+static bool     zeroAccumulators(void);
 
 /*************************************
  * Local variables
  *************************************/
 
-#define IN_BUFFER_W 64u
+#define IN_BUFFER_W 64
 static char            inBuffer[IN_BUFFER_W];
-static unsigned int    inBufferIdx = 0;
+static int             inBufferIdx = 0;
 static Emon32Config_t *pCfg;
-static unsigned int    resetReq = 0;
+static int             resetReq = 0;
 
 /*! @brief Set all configuration values to defaults */
 static void configDefault(void) {
@@ -74,13 +73,13 @@ static void configDefault(void) {
   pCfg->dataTxCfg.rfmPwr     = 0x19;
   pCfg->dataTxCfg.rfmFreq    = 0;
 
-  for (unsigned int idxV = 0u; idxV < NUM_V; idxV++) {
+  for (int idxV = 0u; idxV < NUM_V; idxV++) {
     pCfg->voltageCfg[idxV].voltageCal = 100.0f;
     pCfg->voltageCfg[idxV].vActive    = (0 == idxV);
   }
 
   /* 4.2 degree shift @ 50 Hz */
-  for (unsigned int idxCT = 0u; idxCT < NUM_CT; idxCT++) {
+  for (int idxCT = 0u; idxCT < NUM_CT; idxCT++) {
     pCfg->ctCfg[idxCT].ctCal    = 100.0f;
     pCfg->ctCfg[idxCT].phase    = 4.2f;
     pCfg->ctCfg[idxCT].vChan    = 0;
@@ -92,7 +91,7 @@ static void configDefault(void) {
    *   - Rising edge trigger
    *   - All disabled
    */
-  for (unsigned int i = 0u; i < NUM_PULSECOUNT; i++) {
+  for (int i = 0u; i < NUM_PULSECOUNT; i++) {
     pCfg->pulseCfg[i].pulseActive = false;
     pCfg->pulseCfg[i].period      = 100u;
     pCfg->pulseCfg[i].edge        = 0u;
@@ -105,7 +104,7 @@ static void configDefault(void) {
  *         accumulator space to.
  */
 static void configInitialiseNVM(void) {
-  unsigned int eepromSize = 0;
+  int eepromSize = 0;
 
   dbgPuts("  - Initialising NVM... ");
 
@@ -124,12 +123,12 @@ static void configureAnalog(void) {
   /* String format: k<x> <yy.y> <zz.z>
    * Find space delimiters, then convert to null and a->i/f
    */
-  unsigned int ch       = 0;
-  unsigned int posCalib = 0;
-  float        cal      = 0.0f;
-  unsigned int posPhase = 0;
+  int   ch       = 0;
+  int   posCalib = 0;
+  float cal      = 0.0f;
+  int   posPhase = 0;
 
-  for (unsigned int i = 0; i < IN_BUFFER_W; i++) {
+  for (int i = 0; i < IN_BUFFER_W; i++) {
     if (' ' == inBuffer[i]) {
       inBuffer[i] = 0;
       if (0 == posCalib) {
@@ -146,19 +145,19 @@ static void configureAnalog(void) {
     return;
   }
 
-  /* Voltage channels are [0..2], CTs are [3..]. */
-  ch  = utilAtoi(inBuffer + 1u, ITOA_BASE10);
+  /* Voltage channels are [1..3], CTs are [4..] but 0 indexed internally */
+  ch  = utilAtoi(inBuffer + 1u, ITOA_BASE10) - 1;
   cal = utilAtof(inBuffer + posCalib);
 
-  if (3 > ch) {
+  if (NUM_V > ch) {
     pCfg->voltageCfg[ch].voltageCal = cal;
     printf_("> V%d calibration set to: %.02f\r\n", (ch + 1),
             qfp_float2double(pCfg->voltageCfg[ch].voltageCal));
     return;
   } else {
-    pCfg->ctCfg[ch - 3u].ctCal = cal;
-    printf_("> CT%d calibration set to: %.02f\r\n", (ch - 2u),
-            qfp_float2double(pCfg->ctCfg[ch - 3u].ctCal));
+    pCfg->ctCfg[ch - NUM_V].ctCal = cal;
+    printf_("> CT%d calibration set to: %.02f\r\n", (ch - NUM_V + 1),
+            qfp_float2double(pCfg->ctCfg[ch - NUM_V].ctCal));
   }
 
   /* Didn't find a space for value "z", so exit early */
@@ -166,10 +165,10 @@ static void configureAnalog(void) {
     return;
   }
 
-  cal                        = utilAtof(inBuffer + posPhase);
-  pCfg->ctCfg[ch - 3u].phase = cal;
-  printf_("> CT%d phase set to: %.02f\r\n", (ch - 2u),
-          qfp_float2double(pCfg->ctCfg[ch - 3u].phase));
+  cal                           = utilAtof(inBuffer + posPhase);
+  pCfg->ctCfg[ch - NUM_V].phase = cal;
+  printf_("> CT%d phase set to: %.02f\r\n", (ch - NUM_V + 1),
+          qfp_float2double(pCfg->ctCfg[ch - NUM_V].phase));
 }
 
 /*! @brief Configure a pulse channel. */
@@ -180,10 +179,10 @@ static void configurePulse(void) {
    *      [5] -> edge (rising, falling, both)
    *      [7] -> NULL: blank time
    */
-  const unsigned int ch      = (inBuffer[1] - 48u) - 1u;
-  const unsigned int active  = inBuffer[3] - 48u;
-  const unsigned int edgePos = 5u;
-  const unsigned int timePos = 7u;
+  const int ch      = (inBuffer[1] - 48u) - 1u;
+  const int active  = inBuffer[3] - 48u;
+  const int edgePos = 5u;
+  const int timePos = 7u;
 
   /* If inactive, clear active flag, no decode for the rest */
   if (0 == active) {
@@ -275,27 +274,11 @@ static char *getLastReset(void) {
  *  @param [in] idx : index of 32bit word
  *  @return : 32bit word from index
  */
-uint32_t getUniqueID(unsigned int idx) {
+uint32_t getUniqueID(int idx) {
   /* Section 10.3.3 Serial Number */
   const uint32_t id_addr_lut[4] = {0x0080A00C, 0x0080A040, 0x0080A044,
                                    0x0080A048};
   return *(volatile uint32_t *)id_addr_lut[idx];
-}
-
-/*! @brief Start auto calibration for CT lead */
-static void phaseAutoCalibrate(void) {
-  unsigned int ch = utilAtoi(inBuffer + 1u, ITOA_BASE10);
-
-  char c;
-  dbgPuts("> Begin phase auto calibration? 'y' to proceed.\r\n");
-
-  c = waitForChar();
-  if ('y' == c) {
-    adcDMACStop();
-    ecmPhaseCalibrate(ch);
-  } else {
-    dbgPuts("    - Cancelled.\r\n");
-  }
 }
 
 /*! @brief Print the emon32's configuration settings */
@@ -307,7 +290,7 @@ static void printSettings(void) {
   printf_("Minimum accumulation (Wh): %d\r\n", pCfg->baseCfg.whDeltaStore);
   printf_("Data transmission:         ");
   if (DATATX_RFM69 == (TxType_t)pCfg->dataTxCfg.txType) {
-    dbgPuts("RFM69\r\n");
+    dbgPuts("RFM69, ");
     switch (pCfg->dataTxCfg.rfmFreq) {
     case 0:
       dbgPuts("868");
@@ -319,19 +302,17 @@ static void printSettings(void) {
       dbgPuts("433");
       break;
     }
-    dbgPuts(" MHz\r\n");
-    printf_("Power:     %d\r\n", pCfg->dataTxCfg.rfmPwr);
+    printf_(" MHz, power %d\r\n", pCfg->dataTxCfg.rfmPwr);
   } else {
     dbgPuts("Serial\r\n");
   }
   printf_("Data format:             %s\r\n",
-          pCfg->baseCfg.useJson ? "JSON" : "K:V");
+          pCfg->baseCfg.useJson ? "JSON" : "Key:Value");
   dbgPuts("\r\n");
 
   for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
     bool enabled = pCfg->pulseCfg[i].pulseActive;
-    printf_("Pulse Channel %d:\r\n", i);
-    printf_("  - Enabled:         %c\r\n", enabled ? 'Y' : 'N');
+    printf_("Pulse Channel %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
     printf_("  - Hysteresis (ms): %d\r\n", pCfg->pulseCfg[i].period);
     dbgPuts("  - Edge:            ");
     switch (pCfg->pulseCfg[i].edge) {
@@ -350,21 +331,20 @@ static void printSettings(void) {
     dbgPuts("\r\n");
   }
 
-  dbgPuts("\r\n==== Calibration ====\r\n\r\n");
-  for (unsigned int i = 0; i < NUM_V; i++) {
-    printf_("Voltage Channel %d\r\n", (i + 1u));
-    printf_("  - Conversion: %.02f\r\n",
+  dbgPuts("| Channel | Active | Calibration | Phase | In 1 | In 2 |\r\n");
+  dbgPuts("+=========+========+=============+=======+======+======+\r\n");
+  for (int i = 0; i < NUM_V; i++) {
+    printf_("|  V %2d   | %c      | %6.2f      |       |      |      |\r\n",
+            (i + 1), (pCfg->voltageCfg[i].vActive ? 'Y' : 'N'),
             qfp_float2double(pCfg->voltageCfg[i].voltageCal));
   }
-  dbgPuts("\r\n");
-  for (unsigned int i = 0; i < NUM_CT; i++) {
-    printf_("CT Channel %d\r\n", (i + 1u));
-    printf_("  - Conversion:      %.02f\r\n",
-            qfp_float2double(pCfg->ctCfg[i].ctCal));
-    printf_("  - Phase:           %.02f\r\n",
-            qfp_float2double(pCfg->ctCfg[i].phase));
-    printf_("  - Voltage channel: %d\r\n", (pCfg->ctCfg[i].vChan + 1u));
+  for (int i = 0; i < NUM_CT; i++) {
+    printf_("| CT %2d   | %c      | %6.2f      | %5.2f | %d    |      |\r\n",
+            (i + 1), (pCfg->ctCfg[i].ctActive ? 'Y' : 'N'),
+            qfp_float2double(pCfg->ctCfg[i].ctCal),
+            qfp_float2double(pCfg->ctCfg[i].phase), pCfg->ctCfg[i].vChan);
   }
+  dbgPuts("\r\n");
 }
 
 /*! @brief Blocking wait for a key from the serial link. If the USB CDC is
@@ -399,8 +379,10 @@ static char waitForChar(void) {
   return c;
 }
 
-/*! @brief Zero the accumulator portion of the NVM */
-static void zeroAccumulators(void) {
+/*! @brief Zero the accumulator portion of the NVM
+ *  @return true if cleared, false if cancelled
+ */
+static bool zeroAccumulators(void) {
   char c;
   dbgPuts("> Zero accumulators. This can not be undone. 'y' to proceed.\r\n");
 
@@ -408,8 +390,10 @@ static void zeroAccumulators(void) {
   if ('y' == c) {
     eepromInitBlock(EEPROM_WL_OFFSET, 0, (1024 - EEPROM_WL_OFFSET));
     dbgPuts("    - Accumulators cleared.\r\n");
+    return true;
   } else {
     dbgPuts("    - Cancelled.\r\n");
+    return false;
   }
 }
 
@@ -509,7 +493,6 @@ void configProcessCmd(void) {
       "     - y : edge sensitivity (r,f,b). Ignored if x = 0\r\n"
       "     - z : minimum period (ms). Ignored if x = 0\r\n"
       " - n<n>        : set node ID [1..60]\r\n"
-      " - o<x>        : automatic phase calibration for CT[x]\r\n"
       " - p<n>        : set the RF power level\r\n"
       " - r           : restore defaults\r\n"
       " - s           : save settings to NVM\r\n"
@@ -598,9 +581,7 @@ void configProcessCmd(void) {
     break;
   case 'o':
     /* Start auto calibration of CT<x> lead */
-    phaseAutoCalibrate();
-    resetReq = 1u;
-    emon32EventSet(EVT_CONFIG_CHANGED);
+    dbgPuts("> Reserved for auto calibration. Not yet implemented.\r\n");
     break;
   case 'p':
     /* Configure RF power */
@@ -644,9 +625,9 @@ void configProcessCmd(void) {
     break;
   case 'z':
     /* Clear accumulator space */
-    zeroAccumulators();
-    resetReq = 1u;
-    emon32EventSet(EVT_CONFIG_CHANGED);
+    if (zeroAccumulators()) {
+      emon32EventSet(EVT_CLEAR_ACCUM);
+    }
     break;
   }
 
@@ -655,7 +636,6 @@ void configProcessCmd(void) {
   (void)memset(inBuffer, 0, IN_BUFFER_W);
 }
 
-unsigned int configTimeToCycles(const float        time,
-                                const unsigned int mainsFreq) {
-  return qfp_float2uint(qfp_fmul(time, qfp_uint2float(mainsFreq)));
+unsigned int configTimeToCycles(const float time, const int mainsFreq) {
+  return qfp_float2uint(qfp_fmul(time, qfp_int2float(mainsFreq)));
 }
