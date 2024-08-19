@@ -221,7 +221,7 @@ void ecmConfigInit(void) {
   for (int i = 0; i < NUM_V; i++) {
     const float vsCal = 8.0087f; // Port from emonPi2/Tx4
     channelActive[i]  = ecmCfg.vCfg[i].vActive;
-    ecmCfg.vCfg->voltageCal =
+    ecmCfg.vCfg[i].voltageCal =
         calibrationAmplitude(ecmCfg.vCfg[i].voltageCalRaw, vsCal);
   }
   for (int i = 0; i < NUM_CT; i++) {
@@ -317,7 +317,7 @@ static float calibrationAmplitude(float cal, float fixed) {
 
   float cmCal = qfp_fmul(cal, vRef);
   cmCal       = qfp_fmul(cmCal, fixed);
-  cmCal       = qfp_fdiv(cmCal, qfp_uint2float(1 << (adcWidth - 1u)));
+  cmCal       = qfp_fdiv(cmCal, qfp_uint2float(1 << adcWidth));
 
   return cmCal;
 }

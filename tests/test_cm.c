@@ -102,13 +102,13 @@ int main(int argc, char *argv[]) {
   pEcmCfg->sampleRateHz = (SAMPLE_RATE / 2);
 
   for (int i = 0; i < NUM_V; i++) {
-    pEcmCfg->vCfg[i].voltageCalRaw = 50.0f; // REVISIT this is 1/2 the OEM value
+    pEcmCfg->vCfg[i].voltageCalRaw = 100.0f;
     pEcmCfg->vCfg[i].vActive       = (i == 0);
   }
 
   for (int i = 0; i < NUM_CT; i++) {
     pEcmCfg->ctCfg[i].active   = (i < 2);
-    pEcmCfg->ctCfg[i].ctCalRaw = 10.0f; // REVISIT also 1/2
+    pEcmCfg->ctCfg[i].ctCalRaw = 20.0f;
     pEcmCfg->ctCfg[i].phCal    = 4.2f;
     pEcmCfg->ctCfg[i].vChan    = 0;
   }
