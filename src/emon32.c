@@ -453,17 +453,17 @@ static void ucSetup(void) {
 }
 
 int main(void) {
-  unsigned int     cyclesProcessed  = 0u;
-  Emon32Config_t   e32Config        = {0};
-  ECMDataset_t     ecmDataset       = {0};
-  eepromWrStatus_t eepromWrStatus   = EEPROM_WR_PEND;
-  Emon32Dataset_t  dataset          = {0};
-  unsigned int     numTempSensors   = 0;
-  eepromPktWL_t    nvmCumulative    = {0};
-  RFMOpt_t        *rfmOpt           = 0;
-  unsigned int     tempCount        = 0;
-  int16_t          tempValue        = 0;
-  unsigned int     timeSinceTrigger = 0;
+  unsigned int     cyclesProcessed       = 0u;
+  Emon32Config_t   e32Config             = {0};
+  ECMDataset_t     ecmDataset            = {0};
+  eepromWrStatus_t eepromWrStatus        = EEPROM_WR_PEND;
+  Emon32Dataset_t  dataset               = {0};
+  unsigned int     numTempSensors        = 0;
+  eepromPktWL_t    nvmCumulative         = {0};
+  RFMOpt_t        *rfmOpt                = 0;
+  unsigned int     tempCount             = 0;
+  int16_t          tempValue             = 0;
+  int              millisSinceTempSample = 0;
 
   ucSetup();
   uiLedOn(LED_STATUS);
@@ -534,49 +534,43 @@ int main(void) {
         emon32EventClr(EVT_CLEAR_ACCUM);
       }
 
-      /* There has been a trigger request externally. This needs to come
-       * > 1s before the report is nominally due to allow slow
-       * temperature sensors to complete before processing the data. If
-       * there are no temperature sensors immediately trigger the
-       * processing, otherwise wait until the conversion time has
-       * elapsed.
+      /* There has been a trigger request externally; the CM buffers will be
+       * swapped on the next cycle. If there has been sufficient time between
+       * the last temperature sample, start a temperature sample as well.
        */
       if (evtPending(EVT_PROCESS_DATASET)) {
-        if ((e32Config.baseCfg.reportCycles - cyclesProcessed) >
-            e32Config.baseCfg.mainsFreq) {
-          timeSinceTrigger = timerMillis();
+        if (timerMillisDelta(millisSinceTempSample) >= TEMP_CONVERSION_T) {
+          millisSinceTempSample = timerMillis();
           (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
         }
-
-        if ((timerMillisDelta(timeSinceTrigger) >= TEMP_CONVERSION_T) ||
-            (numTempSensors == 0)) {
-          ecmProcessSetTrigger();
-          emon32EventClr(EVT_PROCESS_DATASET);
-        }
+        ecmProcessSetTrigger();
+        emon32EventClr(EVT_PROCESS_DATASET);
       }
 
-      /* Trigger a temperature sample 1 s before the report is due.
-       * In 12bit mode (default), DS18B20 takes 750 ms to acquire.
-       * If there is a process trigger >1 s before the nominal report
-       * due time, then start a sample as well.
+      /* At each full cycle sampled:
+       *  - Trigger a temperature sample 1 s before the report is due. In 12 bit
+       *    mode (default), DS18B20 takes 750 ms to acquire.
+       *  - If at the report time, then process the full data set.
        */
       if (evtPending(EVT_ECM_CYCLE_CMPL)) {
         cyclesProcessed++;
         if (((e32Config.baseCfg.reportCycles - cyclesProcessed) ==
              e32Config.baseCfg.mainsFreq)) {
-          cyclesProcessed = 0;
-          if (0 != numTempSensors) {
-            (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
-          }
-          emon32EventSet(EVT_TEMP_SAMPLE);
+          millisSinceTempSample = timerMillis();
+          (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
         }
 
+        if (cyclesProcessed >= e32Config.baseCfg.reportCycles) {
+          cyclesProcessed = 0;
+          emon32EventSet(EVT_TEMP_READ);
+        }
         emon32EventClr(EVT_ECM_CYCLE_CMPL);
       }
 
       /* Read back samples from each DS18B20 present. This is a blocking
        * routine, and is lower priority than processing a cycle, so read
-       * one sensor on each loop.
+       * one sensor on each loop. When all are complete, send the data out
+       * through the configured interface.
        */
       if (evtPending(EVT_TEMP_READ)) {
         if (numTempSensors > 0) {
