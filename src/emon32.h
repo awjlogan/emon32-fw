@@ -14,7 +14,7 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 #define DELTA_WH_STORE 200u /* Threshold in WH to store to NVM */
 #define DOWNSAMPLE_DSP 1u   /* 0: no downsampling; 1: half band LPF */
 #define NODE_ID        17u  /* Node ID for reports */
-#define PERF_ENABLED   1u /* Performance tracing enabled (1) or disabled (0) */
+#define PERF_ENABLED   0u /* Performance tracing enabled (1) or disabled (0) */
 #define TX_INDICATE_T  250u /* Transmission indication time (ms) */
 
 /*********************************
@@ -32,75 +32,6 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 /* Configuration key - indicates that the configuration is the default or
  * has been retrieved from non-volatile storage */
 #define CONFIG_NVM_KEY 0xca55e77eul
-
-/* Pulse count setup */
-#define NUM_PULSECOUNT 2
-
-/* Configurable options. All the structs are packed to allow simple write to
- * EEPROM as a contiguous set.
- */
-
-typedef struct __attribute__((__packed__)) BaseCfg_ {
-  uint8_t  nodeID;       /* ID for report*/
-  uint8_t  mainsFreq;    /* Mains frequency */
-  uint16_t reportCycles; /* Cycles between reports */
-  uint16_t whDeltaStore; /* Minimum energy delta to store */
-  uint8_t  dataGrp;      /* Transmission group - default 210 */
-  bool     logToSerial;  /* Log data to serial output */
-  bool     useJson;      /* JSON format for serial output */
-  uint8_t  res0[11];
-  float    reportTime; /* Time between reports */
-} BaseCfg_t;
-
-typedef enum DataTx_ { DATATX_RFM69 = 0, DATATX_UART = 1 } TxType_t;
-
-typedef struct __attribute__((__packed__)) DataTxCfg_ {
-  uint8_t txType;  /* UART or RFM on SPI */
-  uint8_t rfmFreq; /* 0: 868 MHz, 1: 915 MHz, 2: 433 MHz. */
-  uint8_t rfmPwr;
-  uint8_t res0;
-} DataTxCfg_t;
-
-typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
-  uint8_t period;
-  uint8_t edge;
-  bool    pulseActive;
-  uint8_t res0;
-} PulseCfgPacked_t;
-
-typedef struct __attribute__((__packed__)) VoltageCfg_ {
-  float   voltageCal; /* Conversion to real V value */
-  bool    vActive;
-  uint8_t res0[3];
-} VoltageCfgPacked_t;
-
-typedef struct __attribute__((__packed__)) CTCfg_ {
-  float   ctCal; /* Conversion to real I value */
-  float   phase; /* Phase angle, recalculated to fixed point */
-  uint8_t vChan;
-  bool    ctActive;
-  uint8_t res0[2];
-} CTCfgPacked_t;
-
-typedef struct __attribute__((__packed__)) Emon32Config_ {
-  uint32_t           key;
-  BaseCfg_t          baseCfg;
-  DataTxCfg_t        dataTxCfg;
-  VoltageCfgPacked_t voltageCfg[NUM_V];
-  CTCfgPacked_t      ctCfg[NUM_CT];
-  PulseCfgPacked_t   pulseCfg[NUM_PULSECOUNT];
-  uint8_t            res0[17];
-  uint16_t           crc16_ccitt;
-} Emon32Config_t;
-
-_Static_assert((sizeof(BaseCfg_t) == 24), "BaseCfg_t is not 24 bytes wide.");
-_Static_assert((sizeof(DataTxCfg_t) == 4), "DataTxCfg_t is not 4 bytes wide.");
-_Static_assert((sizeof(PulseCfgPacked_t) == 4),
-               "PulseCfgPacked_t is not 4 bytes wide.");
-_Static_assert((sizeof(VoltageCfgPacked_t) == 8),
-               "VoltageCfgPacked_t is not 8 bytes wide.");
-_Static_assert((sizeof(CTCfgPacked_t) == 12),
-               "CTCfgPacked_t is not 12 bytes wide.");
 
 typedef struct Emon32Dataset_ {
   uint32_t      msgNum;
@@ -159,7 +90,9 @@ typedef enum EVTSRC_ {
   EVT_PROCESS_CMD     = 19u,
   EVT_PROCESS_DATASET = 20u,
   EVT_EEPROM_STORE    = 21u,
-  EVT_CLEAR_ACCUM     = 22u
+  EVT_CLEAR_ACCUM     = 22u,
+  EVT_ECM_PEND_1S     = 23u,
+  EVT_ECM_TRIG        = 24
 } EVTSRC_t;
 
 /*! @brief Output a string to the debug destination. If the USB CDC is connected

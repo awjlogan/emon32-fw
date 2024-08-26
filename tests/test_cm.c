@@ -31,7 +31,7 @@ typedef struct wave_ {
  */
 static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w);
 
-/*! @brief Generates a Q11 [-2048, 2047] wave with configurable parameters
+/*! @brief Generates a Q11 [-1024, 1023] wave with configurable parameters
  *  @param [in] w       : pointer to wave information
  *  @param [in] tMicros : time in microseconds
  */
@@ -265,14 +265,14 @@ static q15_t generateWave(wave_t *w, int tMicros) {
   assert((w->s > 0.0) && (w->s <= 1.0));
   q15_t  wave;
   double a = sin(((w->omega * tMicros) / 1000000.0) + w->phi) * w->s;
-  wave     = (q15_t)(a * 2048);
+  wave     = (q15_t)(a * 1024);
   wave += w->offset;
 
   /* Clip if the offset exceeds the bounds */
-  if (wave < -2048) {
-    wave = -2048;
-  } else if (wave > 2047) {
-    wave = 2047;
+  if (wave < -1024) {
+    wave = -1024;
+  } else if (wave > 1023) {
+    wave = 1023;
   }
   return wave;
 }

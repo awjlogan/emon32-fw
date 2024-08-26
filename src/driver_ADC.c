@@ -8,15 +8,16 @@
 #include "emon_CM.h"
 #include "qfplib-m0-full.h"
 
-static void adcCalibrate(void);
-static void adcConfigureDMAC(void);
+static void    adcCalibrate(void);
+static int16_t adcCalibrateSmp(int pin);
+static void    adcConfigureDMAC(void);
+static void    adcSync(void);
 
 /*! @brief Load gain and offset registers for automatic compensation. Only
  *         available when using SAMD21 with sufficient ADC pins.
  */
 static void adcCalibrate(void) {
-  /* Expected ADC values for 1/4 and 3/4 scale */
-  /* REVISIT : why is the extra /2 required? */
+  /* Expected ADC values for 1/4 and 3/4 scale, /2 for differential */
   const int32_t refScale14 = -16383 / 2;
   const int32_t refScale34 = 16382 / 2;
 
@@ -38,31 +39,20 @@ static void adcCalibrate(void) {
   ADC->AVGCTRL.reg  = ADC_AVGCTRL_SAMPLENUM_1024;
   ADC->CTRLB.reg =
       ADC_CTRLB_PRESCALER_DIV4 | ADC_CTRLB_DIFFMODE | ADC_CTRLB_RESSEL_16BIT;
-  while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-    ;
+  adcSync();
 
-  /* Read 1/4 and 3/4 scale readings */
+  /* Read 1/4 and 3/4 scale readings. The 1/4 scale is read twice as the first
+   * read from the ADC is not defined through reset.
+   */
   ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
-  while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-    ;
+  adcSync();
 
-  ADC->INPUTCTRL.reg = ADC_INPUTCTRL_MUXNEG_PIN0 | ADC_INPUTCTRL_MUXPOS_PIN18;
-  ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
-  ADC->SWTRIG.reg = ADC_SWTRIG_START;
-  while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY))
-    ;
-  expScale14 = ADC->RESULT.reg;
-
-  ADC->INPUTCTRL.reg = ADC_INPUTCTRL_MUXNEG_PIN0 | ADC_INPUTCTRL_MUXPOS_PIN17;
-  ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
-  ADC->SWTRIG.reg = ADC_SWTRIG_START;
-  while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY))
-    ;
-  expScale34 = ADC->RESULT.reg;
+  expScale14 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN18);
+  expScale14 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN18);
+  expScale34 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN17);
 
   ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
-  while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-    ;
+  adcSync();
 
   /* The corrected value is:
    * (Conversion + -OFFSET) * GAINCORR
@@ -90,6 +80,15 @@ static void adcCalibrate(void) {
    */
   ADC->OFFSETCORR.reg = (int16_t)offset >> 4;
   ADC->GAINCORR.reg   = (int16_t)gain;
+}
+
+static int16_t adcCalibrateSmp(int pin) {
+  ADC->INPUTCTRL.reg = ADC_INPUTCTRL_MUXNEG_PIN0 | pin;
+  ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
+  ADC->SWTRIG.reg = ADC_SWTRIG_START;
+  while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY))
+    ;
+  return ADC->RESULT.reg;
 }
 
 /*! @brief Load gain and offset registers for automatic compensation. Only
@@ -140,8 +139,7 @@ void adcDMACStart(void) {
   /* Enable ADC; requires synchronisation (30.6.13) */
   if (!(ADC->CTRLA.reg & ADC_CTRLA_ENABLE)) {
     ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
-    while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-      ;
+    adcSync();
   }
 }
 
@@ -177,8 +175,7 @@ void adcSetup(void) {
    */
   ADC->CTRLB.reg = ADC_CTRLB_PRESCALER_DIV4 | ADC_CTRLB_DIFFMODE |
                    ADC_CTRLB_CORREN | ADC_CTRLB_RESSEL_12BIT;
-  while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-    ;
+  adcSync();
 
   /* Setup 3 us conversion time - allows up to ~333 ksps @ 1 MHz CLK
    * SAMPLEN = (2T / T_clk) - 1 = 5
@@ -193,8 +190,7 @@ void adcSetup(void) {
                        ADC_INPUTCTRL_MUXNEG_PIN0
                        /* INPUTSCAN is number of channels - 1 */
                        | ADC_INPUTCTRL_INPUTSCAN(VCT_TOTAL - 1u);
-  while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-    ;
+  adcSync();
 
   /* ADC is triggered by an event from TIMER_ADC with no CPU intervention */
   ADC->EVCTRL.reg = ADC_EVCTRL_STARTEI;
@@ -212,16 +208,14 @@ int16_t adcSingleConversion(const unsigned int ch) {
   const unsigned int inputCtrl = ADC->INPUTCTRL.reg;
 
   ADC->INPUTCTRL.reg = ADC_INPUTCTRL_MUXNEG_PIN0 | ADC_INPUTCTRL_MUXPOS(ch);
-  while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-    ;
+  adcSync();
 
   ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
 
   if (!(ADC->CTRLA.reg & ADC_CTRLA_ENABLE)) {
     enabledFlag = 1u;
     ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
-    while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-      ;
+    adcSync();
   }
 
   ADC->SWTRIG.reg = ADC_SWTRIG_START;
@@ -231,15 +225,18 @@ int16_t adcSingleConversion(const unsigned int ch) {
 
   ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
   ADC->INPUTCTRL.reg = inputCtrl;
-  while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-    ;
+  adcSync();
 
   /* Disable the ADC if it was enabled for a single conversion */
   if (enabledFlag) {
     ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
-    while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
-      ;
+    adcSync();
   }
 
   return result;
+}
+
+static void adcSync(void) {
+  while (ADC->STATUS.reg & ADC_STATUS_SYNCBUSY)
+    ;
 }

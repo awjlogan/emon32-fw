@@ -52,7 +52,7 @@ static void cumulativeNVMStore(eepromPktWL_t         *pPkt,
                                const Emon32Dataset_t *pData);
 static void cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData,
                               const unsigned int whDeltaStore);
-static void datasetUpdate(Emon32Dataset_t *pDst);
+static void datasetAddPulse(Emon32Dataset_t *pDst);
 static RFMOpt_t *dataTxConfigure(const Emon32Config_t *pCfg);
 static void      ecmConfigure(const Emon32Config_t *pCfg);
 static void      evtKiloHertz(void);
@@ -152,7 +152,7 @@ static void cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData,
 /*! @brief Add pulse counting information to the dataset to be sent
  *  @param [out] pDst : pointer to the data struct
  */
-static void datasetUpdate(Emon32Dataset_t *pDst) {
+static void datasetAddPulse(Emon32Dataset_t *pDst) {
   EMON32_ASSERT(pDst);
 
   pDst->msgNum++;
@@ -453,17 +453,15 @@ static void ucSetup(void) {
 }
 
 int main(void) {
-  unsigned int     cyclesProcessed       = 0u;
-  Emon32Config_t   e32Config             = {0};
-  ECMDataset_t     ecmDataset            = {0};
-  eepromWrStatus_t eepromWrStatus        = EEPROM_WR_PEND;
-  Emon32Dataset_t  dataset               = {0};
-  unsigned int     numTempSensors        = 0;
-  eepromPktWL_t    nvmCumulative         = {0};
-  RFMOpt_t        *rfmOpt                = 0;
-  unsigned int     tempCount             = 0;
-  int16_t          tempValue             = 0;
-  int              millisSinceTempSample = 0;
+
+  Emon32Config_t  *pConfig        = 0;
+  ECMDataset_t     ecmDataset     = {0};
+  eepromWrStatus_t eepromWrStatus = EEPROM_WR_PEND;
+  Emon32Dataset_t  dataset        = {0};
+  unsigned int     numTempSensors = 0;
+  eepromPktWL_t    nvmCumulative  = {0};
+  RFMOpt_t        *rfmOpt         = 0;
+  unsigned int     tempCount      = 0;
 
   ucSetup();
   uiLedOn(LED_STATUS);
@@ -480,12 +478,10 @@ int main(void) {
   /* Load stored values (configuration and accumulated energy) from
    * non-volatile memory (NVM). If the NVM has not been used before then
    * store default configuration and 0 energy accumulator area.
-   * REVISIT add check that firmware version matches stored config.
    */
   dbgPuts("> Reading configuration and accumulators from NVM...\r\n");
-  configLoadFromNVM(&e32Config);
-  e32Config.baseCfg.reportCycles = configTimeToCycles(
-      e32Config.baseCfg.reportTime, e32Config.baseCfg.mainsFreq);
+  configLoadFromNVM();
+  pConfig = configGetConfig();
 
   dataset.pECM = &ecmDataset;
   cumulativeNVMLoad(&nvmCumulative, &dataset);
@@ -493,15 +489,15 @@ int main(void) {
   lastStoredWh = totalEnergy(&dataset);
 
   /* Set up data transmission interfaces and configuration */
-  rfmOpt = dataTxConfigure(&e32Config);
+  rfmOpt = dataTxConfigure(pConfig);
 
   /* Set up pulse and temperature sensors, if present */
-  pulseConfigure(&e32Config);
+  pulseConfigure(pConfig);
   numTempSensors         = tempSetup();
   dataset.numTempSensors = numTempSensors;
 
   /* Set up buffers for ADC data, configure energy processing, and start */
-  ecmConfigure(&e32Config);
+  ecmConfigure(pConfig);
   ecmFlush();
   adcDMACStart();
   dbgPuts("> Start monitoring...\r\n");
@@ -538,33 +534,22 @@ int main(void) {
        * swapped on the next cycle. If there has been sufficient time between
        * the last temperature sample, start a temperature sample as well.
        */
-      if (evtPending(EVT_PROCESS_DATASET)) {
-        if (timerMillisDelta(millisSinceTempSample) >= TEMP_CONVERSION_T) {
-          millisSinceTempSample = timerMillis();
-          (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
-        }
+      if (evtPending(EVT_ECM_TRIG)) {
+        (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
         ecmProcessSetTrigger();
-        emon32EventClr(EVT_PROCESS_DATASET);
+        emon32EventClr(EVT_ECM_TRIG);
       }
 
-      /* At each full cycle sampled:
-       *  - Trigger a temperature sample 1 s before the report is due. In 12 bit
-       *    mode (default), DS18B20 takes 750 ms to acquire.
-       *  - If at the report time, then process the full data set.
-       */
-      if (evtPending(EVT_ECM_CYCLE_CMPL)) {
-        cyclesProcessed++;
-        if (((e32Config.baseCfg.reportCycles - cyclesProcessed) ==
-             e32Config.baseCfg.mainsFreq)) {
-          millisSinceTempSample = timerMillis();
-          (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
-        }
+      /* Trigger a temperature sample 1 s before the report is due. */
+      if (evtPending(EVT_ECM_PEND_1S)) {
+        (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
+        emon32EventClr(EVT_ECM_PEND_1S);
+      }
 
-        if (cyclesProcessed >= e32Config.baseCfg.reportCycles) {
-          cyclesProcessed = 0;
-          emon32EventSet(EVT_TEMP_READ);
-        }
-        emon32EventClr(EVT_ECM_CYCLE_CMPL);
+      /* Readout has been requested, trigger a temperature read. */
+      if (evtPending(EVT_ECM_SET_CMPL)) {
+        emon32EventSet(EVT_TEMP_READ);
+        emon32EventClr(EVT_ECM_SET_CMPL);
       }
 
       /* Read back samples from each DS18B20 present. This is a blocking
@@ -574,15 +559,16 @@ int main(void) {
        */
       if (evtPending(EVT_TEMP_READ)) {
         if (numTempSensors > 0) {
-          tempValue = tempReadSample(TEMP_INTF_ONEWIRE, tempCount);
-          dataset.temp[tempCount++] = tempAsFloat(TEMP_INTF_ONEWIRE, tempValue);
+          TempRead_t tempValue = tempReadSample(TEMP_INTF_ONEWIRE, tempCount);
+          dataset.temp[tempCount++] =
+              tempAsFloat(TEMP_INTF_ONEWIRE, tempValue.result);
           if (tempCount == numTempSensors) {
-            emon32EventSet(EVT_ECM_SET_CMPL);
+            emon32EventSet(EVT_PROCESS_DATASET);
             emon32EventClr(EVT_TEMP_READ);
             tempCount = 0;
           }
         } else {
-          emon32EventSet(EVT_ECM_SET_CMPL);
+          emon32EventSet(EVT_PROCESS_DATASET);
           emon32EventClr(EVT_TEMP_READ);
         }
       }
@@ -590,14 +576,14 @@ int main(void) {
       /* Report period elapsed; generate, pack, and send through the
        * configured channel. Echo on debug console, if enabled.
        */
-      if (evtPending(EVT_ECM_SET_CMPL)) {
+      if (evtPending(EVT_PROCESS_DATASET)) {
         TransmitOpt_t opt;
-        opt.json      = e32Config.baseCfg.useJson;
+        opt.json      = pConfig->baseCfg.useJson;
         opt.useRFM    = (0 != rfmOpt);
-        opt.logSerial = e32Config.baseCfg.logToSerial;
+        opt.logSerial = pConfig->baseCfg.logToSerial;
 
         ecmProcessSet(&ecmDataset);
-        datasetUpdate(&dataset);
+        datasetAddPulse(&dataset);
         transmitData(&dataset, &opt);
 
         /* If the energy used since the last storage is greater than the
@@ -605,11 +591,11 @@ int main(void) {
          * accumulated energy in NVM.
          */
         cumulativeProcess(&nvmCumulative, &dataset,
-                          e32Config.baseCfg.whDeltaStore);
+                          pConfig->baseCfg.whDeltaStore);
 
         /* Blink the STATUS LED, and clear the event. */
         uiLedOff(LED_STATUS);
-        emon32EventClr(EVT_ECM_SET_CMPL);
+        emon32EventClr(EVT_PROCESS_DATASET);
       }
 
       if (evtPending(EVT_EEPROM_STORE)) {
@@ -647,8 +633,7 @@ int main(void) {
       }
     }
 
-    /* A blocking event is taking longer than 1 ms */
-    EMON32_ASSERT(timerMicrosDelta(TIMER_TICK->COUNT32.CC[0].reg) <= 1000);
+    /* REVISIT add invariant and behaviour assertions */
 
     /* Enter WFI until woken by an interrupt */
     __WFI();

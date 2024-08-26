@@ -82,8 +82,15 @@ void irqHandlerADCCommon(void) {
   ECM_STATUS_t injectStatus;
   ecmDataBufferSwap();
   injectStatus = ecmInjectSample();
-  if (ECM_CYCLE_COMPLETE == injectStatus) {
-    emon32EventSet(EVT_ECM_CYCLE_CMPL);
+  switch (injectStatus) {
+  case ECM_REPORT_COMPLETE:
+    emon32EventSet(EVT_ECM_SET_CMPL);
+    break;
+  case ECM_PEND_1S:
+    emon32EventSet(EVT_ECM_PEND_1S);
+    break;
+  default:
+    break;
   }
 }
 

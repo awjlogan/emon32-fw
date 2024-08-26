@@ -24,10 +24,11 @@ typedef enum {
   ECM_INIT_FAIL_ENABLED, /* Init failed as currently enabled */
   ECM_ENABLE_SUCCESS,
   ECM_ENABLE_FAIL_ENABLED,
-  ECM_CYCLE_ONGOING,  /* A mains cycle is being accumulated */
-  ECM_CYCLE_COMPLETE, /* A full mains cycle has completed */
-  ECM_REPORT_ONGOING, /* A full set is accumulating */
-  ECM_REPORT_COMPLETE /* A full set to report is complete */
+  ECM_CYCLE_ONGOING,   /* A mains cycle is being accumulated */
+  ECM_CYCLE_COMPLETE,  /* A full mains cycle has completed */
+  ECM_REPORT_ONGOING,  /* A full set is accumulating */
+  ECM_REPORT_COMPLETE, /* A full set to report is complete */
+  ECM_PEND_1S          /* 1s until the set is due to complete */
 } ECM_STATUS_t;
 
 /* Alias integer types for fixed point calculation */

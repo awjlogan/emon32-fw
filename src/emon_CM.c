@@ -208,6 +208,7 @@ static float    sampleIntervalRad;
 ECMCfg_t *ecmConfigGet(void) { return &ecmCfg; }
 
 void ecmConfigInit(void) {
+
   /* Calculate the angular sampling rate in degrees and radians. */
   float sampleIntervalDeg = qfp_fmul(360.0f, qfp_int2float(ecmCfg.mainsFreq));
   sampleIntervalDeg =
@@ -219,13 +220,13 @@ void ecmConfigInit(void) {
   sampleIntervalRad = qfp_fmul(sampleIntervalRad, sampleIntervalDeg);
 
   for (int i = 0; i < NUM_V; i++) {
-    const float vsCal = 8.0087f; // Port from emonPi2/Tx4
+    const float vsCal = 16.0174f; // Port from emonPi2/Tx4 * 2 for differential
     channelActive[i]  = ecmCfg.vCfg[i].vActive;
     ecmCfg.vCfg[i].voltageCal =
         calibrationAmplitude(ecmCfg.vCfg[i].voltageCalRaw, vsCal);
   }
   for (int i = 0; i < NUM_CT; i++) {
-    const float iCal         = 3.0f; // Port from emonPi2/Tx4 for 333 mV CT
+    const float iCal         = 6.0f; // Port from emonPi2/Tx4 for 333 mV CT
     channelActive[i + NUM_V] = ecmCfg.ctCfg[i].active;
     ecmCfg.ctCfg[i].ctCal =
         calibrationAmplitude(ecmCfg.ctCfg[i].ctCalRaw, iCal);
@@ -457,6 +458,7 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
 RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
   bool       reportReady = false;
   bool       zerox_flag  = false;
+  bool       pend_1s     = false;
   static int idxInject;
   uint32_t   t_start = 0;
 
@@ -517,7 +519,17 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
         accumSwapClear();
     }
 
-    if (accumCollecting->cycles >= ecmCfg.reportCycles || processTrigger) {
+    /* Flag one second before the report is due to allow slow sensors to sample.
+     * For example, DS18B20 requires 750 ms to sample.
+     */
+    if (accumCollecting->cycles == (ecmCfg.reportCycles - ecmCfg.mainsFreq)) {
+      pend_1s = true;
+    }
+
+    /* All samples for this set are complete, or there has been a request from
+     * software to read out the sample.
+     */
+    if ((accumCollecting->cycles >= ecmCfg.reportCycles) || processTrigger) {
       accumSwapClear();
       processTrigger = false;
       reportReady    = true;
@@ -532,7 +544,8 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
   /* Advance injection point, masking for overflow */
   idxInject = (idxInject + 1u) & (PROC_DEPTH - 1u);
 
-  return reportReady ? ECM_REPORT_COMPLETE : ECM_CYCLE_ONGOING;
+  return reportReady ? ECM_REPORT_COMPLETE
+                     : (pend_1s ? ECM_PEND_1S : ECM_CYCLE_ONGOING);
 }
 
 ECMPerformance_t *ecmPerformance(void) {

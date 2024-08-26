@@ -44,6 +44,7 @@ static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
 static void     printSettings(void);
+static void     putFloat(float val);
 static char     waitForChar(void);
 static bool     zeroAccumulators(void);
 
@@ -52,38 +53,38 @@ static bool     zeroAccumulators(void);
  *************************************/
 
 #define IN_BUFFER_W 64
-static char            inBuffer[IN_BUFFER_W];
-static int             inBufferIdx = 0;
-static Emon32Config_t *pCfg;
-static int             resetReq = 0;
+static char           inBuffer[IN_BUFFER_W];
+static int            inBufferIdx = 0;
+static Emon32Config_t config;
+static int            resetReq = 0;
 
 /*! @brief Set all configuration values to defaults */
 static void configDefault(void) {
-  pCfg->key = CONFIG_NVM_KEY;
+  config.key = CONFIG_NVM_KEY;
 
   /* Single phase, 50 Hz, 240 VAC, 10 s report period */
-  pCfg->baseCfg.nodeID       = NODE_ID; /* Node ID to transmit */
-  pCfg->baseCfg.mainsFreq    = 50u;     /* Mains frequency */
-  pCfg->baseCfg.reportTime   = 9.8f;
-  pCfg->baseCfg.whDeltaStore = DELTA_WH_STORE; /* 200 */
-  pCfg->baseCfg.dataGrp      = 210u;
-  pCfg->baseCfg.logToSerial  = true;
-  pCfg->baseCfg.useJson      = false;
-  pCfg->dataTxCfg.txType     = (uint8_t)DATATX_UART;
-  pCfg->dataTxCfg.rfmPwr     = 0x19;
-  pCfg->dataTxCfg.rfmFreq    = 0;
+  config.baseCfg.nodeID       = NODE_ID; /* Node ID to transmit */
+  config.baseCfg.mainsFreq    = 50u;     /* Mains frequency */
+  config.baseCfg.reportTime   = 9.8f;
+  config.baseCfg.whDeltaStore = DELTA_WH_STORE; /* 200 */
+  config.baseCfg.dataGrp      = 210u;
+  config.baseCfg.logToSerial  = true;
+  config.baseCfg.useJson      = false;
+  config.dataTxCfg.txType     = (uint8_t)DATATX_UART;
+  config.dataTxCfg.rfmPwr     = 0x19;
+  config.dataTxCfg.rfmFreq    = 0;
 
   for (int idxV = 0u; idxV < NUM_V; idxV++) {
-    pCfg->voltageCfg[idxV].voltageCal = 100.0f;
-    pCfg->voltageCfg[idxV].vActive    = (0 == idxV);
+    config.voltageCfg[idxV].voltageCal = 100.0f;
+    config.voltageCfg[idxV].vActive    = (0 == idxV);
   }
 
   /* 4.2 degree shift @ 50 Hz */
   for (int idxCT = 0u; idxCT < NUM_CT; idxCT++) {
-    pCfg->ctCfg[idxCT].ctCal    = 100.0f;
-    pCfg->ctCfg[idxCT].phase    = 4.2f;
-    pCfg->ctCfg[idxCT].vChan    = 0;
-    pCfg->ctCfg[idxCT].ctActive = (idxCT < NUM_CT_ACTIVE_DEF);
+    config.ctCfg[idxCT].ctCal    = 100.0f;
+    config.ctCfg[idxCT].phase    = 4.2f;
+    config.ctCfg[idxCT].vChan    = 0;
+    config.ctCfg[idxCT].ctActive = (idxCT < NUM_CT_ACTIVE_DEF);
   }
 
   /* Pulse counters:
@@ -92,12 +93,12 @@ static void configDefault(void) {
    *   - All disabled
    */
   for (int i = 0u; i < NUM_PULSECOUNT; i++) {
-    pCfg->pulseCfg[i].pulseActive = false;
-    pCfg->pulseCfg[i].period      = 100u;
-    pCfg->pulseCfg[i].edge        = 0u;
+    config.pulseCfg[i].pulseActive = false;
+    config.pulseCfg[i].period      = 100u;
+    config.pulseCfg[i].edge        = 0u;
   }
 
-  pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(*pCfg) - 2u));
+  config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2u));
 }
 
 /*! @brief Write the configuration values to index 0, and zero the
@@ -110,7 +111,7 @@ static void configInitialiseNVM(void) {
 
   configDefault();
   eepromInitBlock(0, 0, 256);
-  eepromInitConfig(pCfg, sizeof(*pCfg));
+  eepromInitConfig(&config, sizeof(config));
 
   // eepromSize = eepromDiscoverSize();
   eepromSize = 1024;
@@ -150,14 +151,16 @@ static void configureAnalog(void) {
   cal = utilAtof(inBuffer + posCalib);
 
   if (NUM_V > ch) {
-    pCfg->voltageCfg[ch].voltageCal = cal;
-    printf_("> V%d calibration set to: %.02f\r\n", (ch + 1),
-            qfp_float2double(pCfg->voltageCfg[ch].voltageCal));
+    config.voltageCfg[ch].voltageCal = cal;
+    printf_("> V%d calibration set to: ", (ch + 1));
+    putFloat(config.voltageCfg[ch].voltageCal);
+    dbgPuts("\r\n");
     return;
   } else {
-    pCfg->ctCfg[ch - NUM_V].ctCal = cal;
-    printf_("> CT%d calibration set to: %.02f\r\n", (ch - NUM_V + 1),
-            qfp_float2double(pCfg->ctCfg[ch - NUM_V].ctCal));
+    config.ctCfg[ch - NUM_V].ctCal = cal;
+    printf_("> CT%d calibration set to: ", (ch - NUM_V + 1));
+    putFloat(config.ctCfg[ch - NUM_V].ctCal);
+    dbgPuts("\r\n");
   }
 
   /* Didn't find a space for value "z", so exit early */
@@ -165,10 +168,11 @@ static void configureAnalog(void) {
     return;
   }
 
-  cal                           = utilAtof(inBuffer + posPhase);
-  pCfg->ctCfg[ch - NUM_V].phase = cal;
-  printf_("> CT%d phase set to: %.02f\r\n", (ch - NUM_V + 1),
-          qfp_float2double(pCfg->ctCfg[ch - NUM_V].phase));
+  cal                            = utilAtof(inBuffer + posPhase);
+  config.ctCfg[ch - NUM_V].phase = cal;
+  printf_("> CT%d phase set to: ", (ch - NUM_V + 1));
+  putFloat(config.ctCfg[ch - NUM_V].phase);
+  dbgPuts("\r\n");
 }
 
 /*! @brief Configure a pulse channel. */
@@ -186,28 +190,28 @@ static void configurePulse(void) {
 
   /* If inactive, clear active flag, no decode for the rest */
   if (0 == active) {
-    pCfg->pulseCfg[ch].pulseActive = false;
+    config.pulseCfg[ch].pulseActive = false;
     printf_("> Pulse channel %d disabled.\r\n", (ch + 1u));
     return;
   } else {
-    pCfg->pulseCfg[ch].pulseActive = true;
+    config.pulseCfg[ch].pulseActive = true;
     printf_("> Pulse channel %d: ", (ch + 1u));
     switch (inBuffer[edgePos]) {
     case 'r':
-      printf_("Rising, ");
-      pCfg->pulseCfg[ch].edge = 0u;
+      dbgPuts("Rising, ");
+      config.pulseCfg[ch].edge = 0u;
       break;
     case 'f':
-      printf_("Falling, ");
-      pCfg->pulseCfg[ch].edge = 1u;
+      dbgPuts("Falling, ");
+      config.pulseCfg[ch].edge = 1u;
       break;
     case 'b':
-      printf_("Both, ");
-      pCfg->pulseCfg[ch].edge = 2u;
+      dbgPuts("Both, ");
+      config.pulseCfg[ch].edge = 2u;
       break;
     }
-    pCfg->pulseCfg[ch].period = utilAtoi((inBuffer + timePos), ITOA_BASE10);
-    printf_("%d ms\r\n", pCfg->pulseCfg[ch].period);
+    config.pulseCfg[ch].period = utilAtoi((inBuffer + timePos), ITOA_BASE10);
+    printf_("%d ms\r\n", config.pulseCfg[ch].period);
   }
 }
 
@@ -284,14 +288,14 @@ uint32_t getUniqueID(int idx) {
 /*! @brief Print the emon32's configuration settings */
 static void printSettings(void) {
   dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
-  printf_("Mains frequency (Hz)       %d\r\n", pCfg->baseCfg.mainsFreq);
-  printf_("Data log time (s):         %.02f\r\n",
-          qfp_float2double(pCfg->baseCfg.reportTime));
-  printf_("Minimum accumulation (Wh): %d\r\n", pCfg->baseCfg.whDeltaStore);
-  printf_("Data transmission:         ");
-  if (DATATX_RFM69 == (TxType_t)pCfg->dataTxCfg.txType) {
+  printf_("Mains frequency (Hz)       %d\r\n", config.baseCfg.mainsFreq);
+  dbgPuts("Data log time (s):         ");
+  putFloat(config.baseCfg.reportTime);
+  printf_("\r\nMinimum accumulation (Wh): %d\r\n", config.baseCfg.whDeltaStore);
+  dbgPuts("Data transmission:         ");
+  if (DATATX_RFM69 == (TxType_t)config.dataTxCfg.txType) {
     dbgPuts("RFM69, ");
-    switch (pCfg->dataTxCfg.rfmFreq) {
+    switch (config.dataTxCfg.rfmFreq) {
     case 0:
       dbgPuts("868");
       break;
@@ -302,20 +306,20 @@ static void printSettings(void) {
       dbgPuts("433");
       break;
     }
-    printf_(" MHz, power %d\r\n", pCfg->dataTxCfg.rfmPwr);
+    printf_(" MHz, power %d\r\n", config.dataTxCfg.rfmPwr);
   } else {
     dbgPuts("Serial\r\n");
   }
-  printf_("Data format:             %s\r\n",
-          pCfg->baseCfg.useJson ? "JSON" : "Key:Value");
+  printf_("Data format:               %s\r\n",
+          config.baseCfg.useJson ? "JSON" : "Key:Value");
   dbgPuts("\r\n");
 
   for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
-    bool enabled = pCfg->pulseCfg[i].pulseActive;
+    bool enabled = config.pulseCfg[i].pulseActive;
     printf_("Pulse Channel %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
-    printf_("  - Hysteresis (ms): %d\r\n", pCfg->pulseCfg[i].period);
+    printf_("  - Hysteresis (ms): %d\r\n", config.pulseCfg[i].period);
     dbgPuts("  - Edge:            ");
-    switch (pCfg->pulseCfg[i].edge) {
+    switch (config.pulseCfg[i].edge) {
     case 0:
       dbgPuts("Rising");
       break;
@@ -328,23 +332,32 @@ static void printSettings(void) {
     default:
       dbgPuts("Unknown");
     }
-    dbgPuts("\r\n");
+    dbgPuts("\r\n\r\n");
   }
 
   dbgPuts("| Channel | Active | Calibration | Phase | In 1 | In 2 |\r\n");
   dbgPuts("+=========+========+=============+=======+======+======+\r\n");
   for (int i = 0; i < NUM_V; i++) {
-    printf_("|  V %2d   | %c      | %6.2f      |       |      |      |\r\n",
-            (i + 1), (pCfg->voltageCfg[i].vActive ? 'Y' : 'N'),
-            qfp_float2double(pCfg->voltageCfg[i].voltageCal));
+    printf_("|  V %2d   | %c      | ", (i + 1),
+            (config.voltageCfg[i].vActive ? 'Y' : 'N'));
+    putFloat(config.voltageCfg[i].voltageCal);
+    dbgPuts("      |       |      |      |\r\n");
   }
   for (int i = 0; i < NUM_CT; i++) {
-    printf_("| CT %2d   | %c      | %6.2f      | %5.2f | %d    |      |\r\n",
-            (i + 1), (pCfg->ctCfg[i].ctActive ? 'Y' : 'N'),
-            qfp_float2double(pCfg->ctCfg[i].ctCal),
-            qfp_float2double(pCfg->ctCfg[i].phase), pCfg->ctCfg[i].vChan);
+    printf_("| CT %2d   | %c      | ", (i + 1),
+            (config.ctCfg[i].ctActive ? 'Y' : 'N'));
+    putFloat(config.ctCfg[i].ctCal);
+    dbgPuts("      | ");
+    putFloat(config.ctCfg[i].phase);
+    printf_("  | %d    |      |\r\n", config.ctCfg[i].vChan);
   }
   dbgPuts("\r\n");
+}
+
+static void putFloat(float val) {
+  char strBuffer[16];
+  utilFtoa(strBuffer, val);
+  dbgPuts(strBuffer);
 }
 
 /*! @brief Blocking wait for a key from the serial link. If the USB CDC is
@@ -427,31 +440,30 @@ void configFirmwareBoardInfo(void) {
   dbgPuts("  - For Bear and Moose\r\n\r\n");
 }
 
-void configLoadFromNVM(Emon32Config_t *pConfig) {
-  EMON32_ASSERT(pConfig);
+Emon32Config_t *configGetConfig(void) { return &config; }
 
-  const uint32_t cfgSize     = sizeof(*pConfig);
+void configLoadFromNVM(void) {
+
+  const uint32_t cfgSize     = sizeof(config);
   uint16_t       crc16_ccitt = 0;
   char           c           = 0;
-
-  pCfg = pConfig;
 
   /* Load from "static" part of EEPROM. If the key does not match
    * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
    * wear levelled portion. Otherwise, read configuration from EEPROM.
    */
-  eepromRead(0, pCfg, cfgSize);
+  eepromRead(0, &config, cfgSize);
 
-  if (CONFIG_NVM_KEY != pCfg->key) {
+  if (CONFIG_NVM_KEY != config.key) {
     configInitialiseNVM();
   } else {
     /* Check the CRC and raise a warning if not matched. -2 from the base
      * size to account for the stored 16 bit CRC.
      */
-    crc16_ccitt = calcCRC16_ccitt(pCfg, cfgSize - 2u);
-    if (crc16_ccitt != pCfg->crc16_ccitt) {
+    crc16_ccitt = calcCRC16_ccitt(&config, cfgSize - 2u);
+    if (crc16_ccitt != config.crc16_ccitt) {
       printf_("  - CRC mismatch. Found: 0x%04x -- Expected: 0x%04x\r\n",
-              pCfg->crc16_ccitt, crc16_ccitt);
+              config.crc16_ccitt, crc16_ccitt);
       dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
       while ('y' != c && 'n' != c) {
         c = waitForChar();
@@ -461,6 +473,9 @@ void configLoadFromNVM(Emon32Config_t *pConfig) {
       }
     }
   }
+
+  config.baseCfg.reportCycles =
+      configTimeToCycles(config.baseCfg.reportTime, config.baseCfg.mainsFreq);
 }
 
 void configProcessCmd(void) {
@@ -528,16 +543,18 @@ void configProcessCmd(void) {
      * Format: c0 | c1
      */
     if (2u == arglen) {
-      pCfg->baseCfg.logToSerial = utilAtoi(inBuffer + 1, ITOA_BASE10);
-      printf_("> Log to serial: %c\r\n", pCfg->baseCfg.logToSerial ? 'Y' : 'N');
+      config.baseCfg.logToSerial = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      printf_("> Log to serial: %c\r\n",
+              config.baseCfg.logToSerial ? 'Y' : 'N');
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;
   case 'd':
     /* Set the datalog period (s) */
-    pCfg->baseCfg.reportTime = utilAtof(inBuffer + 1);
-    printf_("> Data log report time set to: %.02f\r\n",
-            qfp_float2double(pCfg->baseCfg.reportTime));
+    config.baseCfg.reportTime = utilAtof(inBuffer + 1);
+    printf_("> Data log report time set to: ");
+    putFloat(config.baseCfg.reportTime);
+    dbgPuts("\r\b");
     resetReq = 1u;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
@@ -550,16 +567,16 @@ void configProcessCmd(void) {
      * Format: f50 | f60
      */
     if (3u == arglen) {
-      pCfg->baseCfg.mainsFreq = utilAtoi(inBuffer + 1, ITOA_BASE10);
-      printf_("> Mains frequency set to: %d\r\n", pCfg->baseCfg.mainsFreq);
+      config.baseCfg.mainsFreq = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      printf_("> Mains frequency set to: %d\r\n", config.baseCfg.mainsFreq);
       resetReq = 1u;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;
   case 'j':
     if (2u == arglen) {
-      pCfg->baseCfg.useJson = utilAtoi(inBuffer + 1, ITOA_BASE10);
-      printf_("> Use JSON: %c\r\n", pCfg->baseCfg.useJson ? 'Y' : 'N');
+      config.baseCfg.useJson = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      printf_("> Use JSON: %c\r\n", config.baseCfg.useJson ? 'Y' : 'N');
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;
@@ -591,7 +608,7 @@ void configProcessCmd(void) {
   case 'r':
     /* Restore defaults */
     configDefault();
-    printf_("> Restored default values.\r\n");
+    dbgPuts("> Restored default values.\r\n");
     resetReq = 1u;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
@@ -599,9 +616,9 @@ void configProcessCmd(void) {
     /* Save to EEPROM config space after recalculating CRC and
      * indicate if a reset is required.
      */
-    pCfg->crc16_ccitt = calcCRC16_ccitt(pCfg, (sizeof(*pCfg) - 2));
+    config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2));
     dbgPuts("> Saving configuration to NVM... ");
-    eepromInitConfig(pCfg, sizeof(*pCfg));
+    eepromInitConfig(&config, sizeof(config));
     dbgPuts("Done!\r\n");
     if (0 == resetReq) {
       emon32EventSet(EVT_CONFIG_SAVED);
@@ -611,7 +628,7 @@ void configProcessCmd(void) {
     break;
   case 't':
     /* Trigger processing on set on next cycle complete */
-    emon32EventSet(EVT_PROCESS_DATASET);
+    emon32EventSet(EVT_ECM_TRIG);
     break;
   case 'v':
     /* Print firmware and board information */
@@ -619,8 +636,8 @@ void configProcessCmd(void) {
     break;
   case 'w':
     /* Set the Wh delta between saving accumulators */
-    pCfg->baseCfg.whDeltaStore = utilAtoi(inBuffer + 1, ITOA_BASE10);
-    printf_("> Energy delta set to: %d\r\n", pCfg->baseCfg.whDeltaStore);
+    config.baseCfg.whDeltaStore = utilAtoi(inBuffer + 1, ITOA_BASE10);
+    printf_("> Energy delta set to: %d\r\n", config.baseCfg.whDeltaStore);
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
   case 'z':
