@@ -145,6 +145,8 @@ static void         accumSwapClear(void);
 static float        calcRMS(CalcRMS_t *pSrc) RAMFUNC;
 static float        calibrationAmplitude(float cal, float fixed);
 static void         calibrationPhase(PhaseXY_t *pPh, float phase, int idxCT);
+static void         configChannelV(int ch);
+static void         configChannelCT(int ch);
 static void         swapPtr(void **pIn1, void **pIn2);
 static bool         zeroCrossingSW(q15_t smpV) RAMFUNC;
 
@@ -207,6 +209,33 @@ static float    sampleIntervalRad;
 
 ECMCfg_t *ecmConfigGet(void) { return &ecmCfg; }
 
+void ecmConfigChannel(int ch) {
+  if (ch < NUM_V) {
+    configChannelV(ch);
+  } else {
+    configChannelCT(ch);
+  }
+}
+
+void configChannelCT(int ch) {
+  const float iCal          = 6.0f; // Port from emonPi2/Tx4 for 333 mV CT
+  channelActive[ch + NUM_V] = ecmCfg.ctCfg[ch].active;
+  ecmCfg.ctCfg[ch].ctCal =
+      calibrationAmplitude(ecmCfg.ctCfg[ch].ctCalRaw, iCal);
+
+  PhaseXY_t phaseXY;
+  calibrationPhase(&phaseXY, ecmCfg.ctCfg[ch].phCal, ch);
+  ecmCfg.ctCfg[ch].phaseX = phaseXY.phaseX;
+  ecmCfg.ctCfg[ch].phaseY = phaseXY.phaseY;
+}
+
+void configChannelV(int ch) {
+  const float vsCal = 16.0174f; // Port from emonPi2/Tx4 * 2 for differential
+  channelActive[ch] = ecmCfg.vCfg[ch].vActive;
+  ecmCfg.vCfg[ch].voltageCal =
+      calibrationAmplitude(ecmCfg.vCfg[ch].voltageCalRaw, vsCal);
+}
+
 void ecmConfigInit(void) {
 
   /* Calculate the angular sampling rate in degrees and radians. */
@@ -220,24 +249,18 @@ void ecmConfigInit(void) {
   sampleIntervalRad = qfp_fmul(sampleIntervalRad, sampleIntervalDeg);
 
   for (int i = 0; i < NUM_V; i++) {
-    const float vsCal = 16.0174f; // Port from emonPi2/Tx4 * 2 for differential
-    channelActive[i]  = ecmCfg.vCfg[i].vActive;
-    ecmCfg.vCfg[i].voltageCal =
-        calibrationAmplitude(ecmCfg.vCfg[i].voltageCalRaw, vsCal);
+    configChannelV(i);
   }
-  for (int i = 0; i < NUM_CT; i++) {
-    const float iCal         = 6.0f; // Port from emonPi2/Tx4 for 333 mV CT
-    channelActive[i + NUM_V] = ecmCfg.ctCfg[i].active;
-    ecmCfg.ctCfg[i].ctCal =
-        calibrationAmplitude(ecmCfg.ctCfg[i].ctCalRaw, iCal);
 
-    PhaseXY_t phaseXY;
-    calibrationPhase(&phaseXY, ecmCfg.ctCfg[i].phCal, i);
-    ecmCfg.ctCfg[i].phaseX = phaseXY.phaseX;
-    ecmCfg.ctCfg[i].phaseY = phaseXY.phaseY;
+  for (int i = 0; i < NUM_CT; i++) {
+    configChannelCT(i);
   }
 
   initDone = true;
+}
+
+void ecmConfigReportCycles(int reportCycles) {
+  ecmCfg.reportCycles = reportCycles;
 }
 
 /******************************************************************************
@@ -326,11 +349,11 @@ static float calibrationAmplitude(float cal, float fixed) {
 /*! @brief Decompose a floating point CT phase into an X/Y pair for
  *         interpolation.
  *  @param [in] phase : CT lead phase in degrees.
- *  @param [in] idxCT : index (0-based) of the CT
+ *  @param [in] idxCT : physical index (0-based) of the CT
  *  @return : structure with the X/Y fixed point coefficients.
  */
 static void calibrationPhase(PhaseXY_t *pPh, float phase, int idxCT) {
-  /* REVISIT : parts of the correction can be made constant for each CT */
+
   float phaseShift = qfp_fdiv(phase, 360.0f);
   int   phCorr_i   = (idxCT + NUM_V) * ecmCfg.mainsFreq * samplePeriodus;
   float phCorr_f   = qfp_fdiv(qfp_int2float(phCorr_i), 1000000.0f);

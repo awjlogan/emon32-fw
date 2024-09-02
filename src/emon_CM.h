@@ -117,10 +117,20 @@ typedef struct ECMPerformance_ {
  */
 ECMCfg_t *ecmConfigGet(void);
 
+/*! @brief Configure a channel.
+ *  @param [in] ch : channel, logical index.
+ */
+void ecmConfigChannel(int ch);
+
 /*! @brief Having set all configuration values, calculate all required constant
  *         values
  */
 void ecmConfigInit(void);
+
+/*! @brief Set cycles between reports
+ *  @param [in] reportCycles : cycles between reports
+ */
+void ecmConfigReportCycles(int reportCycles);
 
 /*! @brief Returns a pointer to the ADC data buffer
  *  @return : pointer to the active ADC data buffer.

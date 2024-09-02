@@ -6,7 +6,6 @@
 #include "emon32_assert.h"
 #include "util.h"
 
-#include "qfpio.h"
 #include "qfplib-m0-full.h"
 
 #define CONV_STR_W 16
@@ -99,11 +98,10 @@ static void initFields(StrN_t *pD, char *pS, const int m) {
 }
 
 static int strnFtoa(StrN_t *strD, const float v) {
-  const uint32_t fmt = 0;
 
   /* Zero the destination buffer then convert */
   memset(strD->str, 0, strD->m);
-  qfp_float2str(v, strD->str, fmt);
+  utilFtoa(strD->str, v);
   strD->n = strnLen(strD);
 
   /* Truncate if it exceeds the length of the string */

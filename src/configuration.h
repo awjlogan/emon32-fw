@@ -94,13 +94,6 @@ void configLoadFromNVM(void);
 /*! @brief Process a pending command from the UART */
 void configProcessCmd(void);
 
-/*! @brief Convert a time into cycles
- *  @param [in] time: time in seconds
- *  @param [in] mainsFreq: mains frequency in Hertz {50, 60}
- *  @return : number of cycles between reports
- */
-unsigned int configTimeToCycles(const float time, const int mainsFreq);
-
 /*! @brief Return one word from the SAMD's unique ID
  *  @param[in] idx : index of the word to fetch
  *  @return word idx from the unique ID

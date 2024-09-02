@@ -38,6 +38,7 @@ typedef enum {
 
 static void     configDefault(void);
 static void     configInitialiseNVM(void);
+static int      configTimeToCycles(const float time, const int mainsFreq);
 static void     configureAnalog(void);
 static void     configurePulse(void);
 static void     enterBootloader(void);
@@ -53,10 +54,11 @@ static bool     zeroAccumulators(void);
  *************************************/
 
 #define IN_BUFFER_W 64
-static char           inBuffer[IN_BUFFER_W];
-static int            inBufferIdx = 0;
 static Emon32Config_t config;
-static int            resetReq = 0;
+static char           inBuffer[IN_BUFFER_W];
+static int            inBufferIdx   = 0;
+static bool           resetReq      = false;
+static bool           unsavedChange = false;
 
 /*! @brief Set all configuration values to defaults */
 static void configDefault(void) {
@@ -152,12 +154,14 @@ static void configureAnalog(void) {
 
   if (NUM_V > ch) {
     config.voltageCfg[ch].voltageCal = cal;
+    ecmConfigChannel(ch);
     printf_("> V%d calibration set to: ", (ch + 1));
     putFloat(config.voltageCfg[ch].voltageCal);
     dbgPuts("\r\n");
     return;
   } else {
     config.ctCfg[ch - NUM_V].ctCal = cal;
+    ecmConfigChannel(ch);
     printf_("> CT%d calibration set to: ", (ch - NUM_V + 1));
     putFloat(config.ctCfg[ch - NUM_V].ctCal);
     dbgPuts("\r\n");
@@ -352,6 +356,10 @@ static void printSettings(void) {
     printf_("  | %d    |      |\r\n", config.ctCfg[i].vChan);
   }
   dbgPuts("\r\n");
+
+  if (unsavedChange) {
+    dbgPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
+  }
 }
 
 static void putFloat(float val) {
@@ -481,6 +489,7 @@ void configLoadFromNVM(void) {
 void configProcessCmd(void) {
   unsigned int arglen    = 0;
   unsigned int termFound = 0;
+  float        newTime   = 0.0f;
 
   /* Help text - serves as documentation interally as well */
   const char helpText[] =
@@ -544,19 +553,31 @@ void configProcessCmd(void) {
      */
     if (2u == arglen) {
       config.baseCfg.logToSerial = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
       printf_("> Log to serial: %c\r\n",
               config.baseCfg.logToSerial ? 'Y' : 'N');
+
+      unsavedChange = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;
   case 'd':
-    /* Set the datalog period (s) */
-    config.baseCfg.reportTime = utilAtof(inBuffer + 1);
-    printf_("> Data log report time set to: ");
-    putFloat(config.baseCfg.reportTime);
-    dbgPuts("\r\b");
-    resetReq = 1u;
-    emon32EventSet(EVT_CONFIG_CHANGED);
+    /* Set the datalog period (s) in range 0.5 <= t <= 600 */
+    newTime = utilAtof(inBuffer + 1);
+    if ((newTime < 0.5f) || (newTime > 600.0f)) {
+      dbgPuts("> Log report time out of range.\r\n");
+    } else {
+      config.baseCfg.reportTime = newTime;
+      ecmConfigReportCycles(
+          configTimeToCycles(newTime, config.baseCfg.mainsFreq));
+
+      dbgPuts("> Data log report time set to: ");
+      putFloat(config.baseCfg.reportTime);
+      dbgPuts("\r\n");
+
+      unsavedChange = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
+    }
     break;
   case 'e':
     /* Enter the bootloader through firmware */
@@ -568,22 +589,28 @@ void configProcessCmd(void) {
      */
     if (3u == arglen) {
       config.baseCfg.mainsFreq = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
       printf_("> Mains frequency set to: %d\r\n", config.baseCfg.mainsFreq);
-      resetReq = 1u;
+
+      unsavedChange = true;
+      resetReq      = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;
   case 'j':
     if (2u == arglen) {
       config.baseCfg.useJson = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
       printf_("> Use JSON: %c\r\n", config.baseCfg.useJson ? 'Y' : 'N');
+
+      unsavedChange = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;
   case 'k':
     /* Configure analog channel */
     configureAnalog();
-    resetReq = 1u;
+    unsavedChange = true;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
   case 'l':
@@ -593,7 +620,7 @@ void configProcessCmd(void) {
   case 'm':
     /* Configure pulse channel */
     configurePulse();
-    resetReq = 1u;
+    unsavedChange = true;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
   case 'o':
@@ -602,25 +629,32 @@ void configProcessCmd(void) {
     break;
   case 'p':
     /* Configure RF power */
-    resetReq = 1u;
+    resetReq      = true;
+    unsavedChange = true;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
   case 'r':
     /* Restore defaults */
     configDefault();
+
     dbgPuts("> Restored default values.\r\n");
-    resetReq = 1u;
+
+    unsavedChange = true;
+    resetReq      = true;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
   case 's':
-    /* Save to EEPROM config space after recalculating CRC and
-     * indicate if a reset is required.
+    /* Save to EEPROM config space after recalculating CRC and indicate if a
+     * reset is required.
      */
     config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2));
+
     dbgPuts("> Saving configuration to NVM... ");
     eepromInitConfig(&config, sizeof(config));
     dbgPuts("Done!\r\n");
-    if (0 == resetReq) {
+
+    unsavedChange = false;
+    if (!resetReq) {
       emon32EventSet(EVT_CONFIG_SAVED);
     } else {
       emon32EventSet(EVT_SAFE_RESET_REQ);
@@ -637,7 +671,10 @@ void configProcessCmd(void) {
   case 'w':
     /* Set the Wh delta between saving accumulators */
     config.baseCfg.whDeltaStore = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
     printf_("> Energy delta set to: %d\r\n", config.baseCfg.whDeltaStore);
+
+    unsavedChange = true;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
   case 'z':
@@ -653,6 +690,6 @@ void configProcessCmd(void) {
   (void)memset(inBuffer, 0, IN_BUFFER_W);
 }
 
-unsigned int configTimeToCycles(const float time, const int mainsFreq) {
+int configTimeToCycles(const float time, const int mainsFreq) {
   return qfp_float2uint(qfp_fmul(time, qfp_int2float(mainsFreq)));
 }
