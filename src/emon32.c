@@ -59,6 +59,7 @@ static void      evtKiloHertz(void);
 static uint32_t  evtPending(EVTSRC_t evt);
 static void      pulseConfigure(const Emon32Config_t *pCfg);
 void             putchar_(char c);
+static void      putsDbgNonBlocking(const char *const s, uint16_t len);
 static void      ssd1306Setup(void);
 static uint32_t  tempSetup(void);
 static uint32_t  totalEnergy(const Emon32Dataset_t *pData);
@@ -107,11 +108,11 @@ static void cumulativeNVMStore(eepromPktWL_t         *pPkt,
   pPkt->pData = &data;
 
   /* Copy data and calculate CRC */
-  for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++) {
+  for (int idxCT = 0; idxCT < NUM_CT; idxCT++) {
     data.report.wattHour[idxCT] = pData->pECM->CT[idxCT].wattHour;
   }
 
-  for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++) {
+  for (int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++) {
     data.report.pulseCnt[0] = pData->pulseCnt[0];
   }
 
@@ -367,6 +368,14 @@ void putchar_(char c) {
   }
 }
 
+static void putsDbgNonBlocking(const char *const s, uint16_t len) {
+  if (usbCDCIsConnected()) {
+    usbCDCPutsBlocking(s);
+  } else {
+    uartPutsNonBlocking(DMA_CHAN_UART_DBG, s, len);
+  }
+}
+
 /*! @brief Setup the SSD1306 display, if present. Display a basic message */
 static void ssd1306Setup(void) {
   SSD1306_Status_t s;
@@ -427,12 +436,18 @@ static void transmitData(const Emon32Dataset_t *pSrc,
         rfmSend(&packedData);
       }
     }
+    if (pOpt->logSerial) {
+      putsDbgNonBlocking(txBuffer, pktLength);
+    }
   } else {
     uartPutsNonBlocking(DMA_CHAN_UART_DATA, txBuffer, pktLength);
-  }
 
-  if (pOpt->logSerial) {
-    uartPutsNonBlocking(DMA_CHAN_UART_DBG, txBuffer, pktLength);
+    /* Only echo to debug UART if it is not the same as the data UART, or the
+     * USB connection is enabled.
+     */
+    if ((SERCOM_UART_DATA != SERCOM_UART_DBG) || usbCDCIsConnected()) {
+      putsDbgNonBlocking(txBuffer, pktLength);
+    }
   }
 }
 

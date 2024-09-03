@@ -27,7 +27,8 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 /*********************************
  * Remaining
  *********************************/
-#define TX_BUFFER_W 448u
+
+#define TX_BUFFER_W 512u
 
 /* Configuration key - indicates that the configuration is the default or
  * has been retrieved from non-volatile storage */
