@@ -47,11 +47,12 @@ AssertInfo_t             g_assert_info;
  * Static function prototypes
  *************************************/
 
-static void cumulativeNVMLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData);
-static void cumulativeNVMStore(eepromPktWL_t         *pPkt,
+static void cumulativeNVMLoad(Emon32Cumulative_t *pPkt, Emon32Dataset_t *pData);
+static void cumulativeNVMStore(Emon32Cumulative_t    *pPkt,
                                const Emon32Dataset_t *pData);
-static void cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData,
-                              const unsigned int whDeltaStore);
+static void cumulativeProcess(Emon32Cumulative_t    *pPkt,
+                              const Emon32Dataset_t *pData,
+                              const unsigned int     whDeltaStore);
 static void datasetAddPulse(Emon32Dataset_t *pDst);
 static RFMOpt_t *dataTxConfigure(const Emon32Config_t *pCfg);
 static void      ecmConfigure(const Emon32Config_t *pCfg);
@@ -75,51 +76,40 @@ static void      ucSetup(void);
  *  @param [in] pEEPROM : pointer to EEPROM configuration
  *  @param [in] pData : pointer to current dataset
  */
-static void cumulativeNVMLoad(eepromPktWL_t *pPkt, Emon32Dataset_t *pData) {
+static void cumulativeNVMLoad(Emon32Cumulative_t *pPkt,
+                              Emon32Dataset_t    *pData) {
   EMON32_ASSERT(pPkt);
   EMON32_ASSERT(pData);
 
-  Emon32CumulativeSave_t data;
-
-  pPkt->pData        = &data;
-  pPkt->dataSize     = sizeof(data);
-  pPkt->idxNextWrite = -1;
-  memset(&data, 0, sizeof(data));
+  eepromResetWL(sizeof(*pPkt));
   eepromReadWL(pPkt);
 
   for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++) {
-    pData->pECM->CT[idxCT].wattHour = data.report.wattHour[idxCT];
+    pData->pECM->CT[idxCT].wattHour = pPkt->wattHour[idxCT];
   }
 
   for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++) {
-    pData->pulseCnt[idxPulse] = data.report.pulseCnt[idxPulse];
+    pData->pulseCnt[idxPulse] = pPkt->pulseCnt[idxPulse];
   }
 }
 
 /*! @brief Store cumulative energy and pulse values
  *  @param [in] pRes : pointer to cumulative values
  */
-static void cumulativeNVMStore(eepromPktWL_t         *pPkt,
+static void cumulativeNVMStore(Emon32Cumulative_t    *pPkt,
                                const Emon32Dataset_t *pData) {
   EMON32_ASSERT(pPkt);
   EMON32_ASSERT(pData);
 
-  Emon32CumulativeSave_t data;
-  pPkt->pData = &data;
-
-  /* Copy data and calculate CRC */
   for (int idxCT = 0; idxCT < NUM_CT; idxCT++) {
-    data.report.wattHour[idxCT] = pData->pECM->CT[idxCT].wattHour;
+    pPkt->wattHour[idxCT] = pData->pECM->CT[idxCT].wattHour;
   }
 
   for (int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++) {
-    data.report.pulseCnt[0] = pData->pulseCnt[0];
+    pPkt->pulseCnt[0] = pData->pulseCnt[0];
   }
 
-  data.crc = calcCRC16_ccitt(&data.report, sizeof(Emon32Cumulative_t));
-
   (void)eepromWriteWL(pPkt);
-  emon32EventSet(EVT_EEPROM_STORE);
 }
 
 /*! @brief Calculate the cumulative energy consumption and store if the delta
@@ -127,8 +117,9 @@ static void cumulativeNVMStore(eepromPktWL_t         *pPkt,
  *  @param [in] : pPkt : pointer to an NVM packet
  *  @param [in] : pData : pointer to the current dataset
  */
-static void cumulativeProcess(eepromPktWL_t *pPkt, const Emon32Dataset_t *pData,
-                              const unsigned int whDeltaStore) {
+static void cumulativeProcess(Emon32Cumulative_t    *pPkt,
+                              const Emon32Dataset_t *pData,
+                              const unsigned int     whDeltaStore) {
   EMON32_ASSERT(pPkt);
   EMON32_ASSERT(pData);
 
@@ -469,14 +460,13 @@ static void ucSetup(void) {
 
 int main(void) {
 
-  Emon32Config_t  *pConfig        = 0;
-  ECMDataset_t     ecmDataset     = {0};
-  eepromWrStatus_t eepromWrStatus = EEPROM_WR_PEND;
-  Emon32Dataset_t  dataset        = {0};
-  unsigned int     numTempSensors = 0;
-  eepromPktWL_t    nvmCumulative  = {0};
-  RFMOpt_t        *rfmOpt         = 0;
-  unsigned int     tempCount      = 0;
+  Emon32Config_t    *pConfig        = 0;
+  ECMDataset_t       ecmDataset     = {0};
+  Emon32Dataset_t    dataset        = {0};
+  unsigned int       numTempSensors = 0;
+  Emon32Cumulative_t nvmCumulative  = {0};
+  RFMOpt_t          *rfmOpt         = 0;
+  unsigned int       tempCount      = 0;
 
   ucSetup();
   uiLedOn(LED_STATUS);
@@ -496,6 +486,7 @@ int main(void) {
    */
   dbgPuts("> Reading configuration and accumulators from NVM...\r\n");
   configLoadFromNVM();
+
   pConfig = configGetConfig();
 
   dataset.pECM = &ecmDataset;
@@ -534,8 +525,12 @@ int main(void) {
        * residual energy in the dataset, and all pulse counters.
        */
       if (evtPending(EVT_CLEAR_ACCUM)) {
-        lastStoredWh               = 0;
-        nvmCumulative.idxNextWrite = -1;
+        lastStoredWh = 0;
+        /* REVISIT : may need to make this asynchronous as it will take 240 ms
+         * (worst case) to clear the whole EEPROM area.
+         */
+        eepromInitBlock(EEPROM_WL_OFFSET, 0, (EEPROM_SIZE - EEPROM_WL_OFFSET));
+        eepromResetWL(sizeof(nvmCumulative));
         for (int i = 0; i < NUM_CT; i++) {
           ecmDataset.CT[i].residualEnergy = 0.0f;
         }
@@ -611,13 +606,6 @@ int main(void) {
         /* Blink the STATUS LED, and clear the event. */
         uiLedOff(LED_STATUS);
         emon32EventClr(EVT_PROCESS_DATASET);
-      }
-
-      if (evtPending(EVT_EEPROM_STORE)) {
-        eepromWrStatus = eepromWriteContinue();
-        if (EEPROM_WR_COMPLETE == eepromWrStatus) {
-          emon32EventClr(EVT_EEPROM_STORE);
-        }
       }
 
       /* Configuration:

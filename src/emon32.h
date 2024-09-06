@@ -47,12 +47,6 @@ typedef struct __attribute__((__packed__)) Emon32Cumulative_ {
   uint32_t pulseCnt[NUM_PULSECOUNT];
 } Emon32Cumulative_t;
 
-typedef struct __attribute__((__packed__)) Emon32CumulativeSave_ {
-  uint8_t            valid; /* Valid byte for wear levelling */
-  Emon32Cumulative_t report;
-  uint16_t           crc; /* CRC16-CCITT of data */
-} Emon32CumulativeSave_t;
-
 /* This struct must match the OEM definitions found at:
  * https://docs.openenergymonitor.org/electricity-monitoring/networking/sending-data-between-nodes-rfm.html
  */

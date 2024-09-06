@@ -107,7 +107,6 @@ static void configDefault(void) {
  *         accumulator space to.
  */
 static void configInitialiseNVM(void) {
-  int eepromSize = 0;
 
   dbgPuts("  - Initialising NVM... ");
 
@@ -115,9 +114,7 @@ static void configInitialiseNVM(void) {
   eepromInitBlock(0, 0, 256);
   eepromInitConfig(&config, sizeof(config));
 
-  // eepromSize = eepromDiscoverSize();
-  eepromSize = 1024;
-  eepromInitBlock(EEPROM_WL_OFFSET, 0, (eepromSize - EEPROM_WL_OFFSET));
+  eepromInitBlock(EEPROM_WL_OFFSET, 0, (EEPROM_SIZE - EEPROM_WL_OFFSET));
   dbgPuts("Done!\r\n");
 }
 

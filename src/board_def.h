@@ -62,6 +62,8 @@
 #define EEPROM_WR_TIME     5000ul
 /* Size of configuration area */
 #define EEPROM_CONFIG_SIZE 256
+/* Size of the EEPROM in bytes */
+#define EEPROM_SIZE        1024
 /* Offset of wear levelled area */
 #define EEPROM_WL_OFFSET   (EEPROM_CONFIG_SIZE)
 

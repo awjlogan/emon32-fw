@@ -1,10 +1,9 @@
 #pragma once
 
-typedef struct eepromPktWL_ {
-  int          idxNextWrite; /* Index of next write to EEPROM */
-  unsigned int dataSize;     /* Size (bytes) of the data */
-  void        *pData;        /* Pointer to the packed data */
-} eepromPktWL_t;
+typedef enum eepromWLStatus_ {
+  EEPROM_WL_OK,
+  EEPROM_WL_BAD_CRC
+} eepromWLStatus_t;
 
 typedef enum eepromWrStatus_ {
   EEPROM_WR_PEND,
@@ -48,7 +47,12 @@ int eepromRead(unsigned int addr, void *pDst, unsigned int n);
 /*! @brief Read data from EEPROM with wear leveling
  *  @param [out] pPktRd : pointer to read packet
  */
-void eepromReadWL(eepromPktWL_t *pPktRd);
+void eepromReadWL(void *pPktRd);
+
+/*! @brief Reset the wear limited next write index
+ *  @param [in] len : length (in bytes) of data in WL area
+ */
+void eepromResetWL(int len);
 
 /*! @brief Do any required setup of the EEPROM */
 void eepromSetup(const unsigned int wlOffset);
@@ -75,4 +79,4 @@ eepromWrStatus_t eepromWriteContinue(void);
  *  @param [in] pPktWr : pointer to write packet
  *  @return : status of the EEPROM write process
  */
-eepromWrStatus_t eepromWriteWL(eepromPktWL_t *pPktWr);
+eepromWrStatus_t eepromWriteWL(const void *pPktWr);
