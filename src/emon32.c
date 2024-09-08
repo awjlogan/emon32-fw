@@ -216,17 +216,18 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
 
   ECMCfg_t *ecmCfg = ecmConfigGet();
 
-  ecmCfg->downsample   = DOWNSAMPLE_DSP;
-  ecmCfg->reportCycles = pCfg->baseCfg.reportCycles;
-  ecmCfg->mainsFreq    = pCfg->baseCfg.mainsFreq;
-  ecmCfg->sampleRateHz = (SAMPLE_RATE / OVERSAMPLING_RATIO);
+  ecmCfg->downsample      = DOWNSAMPLE_DSP;
+  ecmCfg->reportCycles    = pCfg->baseCfg.reportCycles;
+  ecmCfg->mainsFreq       = pCfg->baseCfg.mainsFreq;
+  ecmCfg->sampleRateHz    = (SAMPLE_RATE / OVERSAMPLING_RATIO);
+  ecmCfg->samplePeriod    = timerADCPeriod();
+  ecmCfg->timeMicros      = &timerMicros;
+  ecmCfg->timeMicrosDelta = &timerMicrosDelta;
+
   if (ZEROX_HW_SPT) {
     ecmCfg->zx_hw_stat = &eicZeroXStat;
     ecmCfg->zx_hw_clr  = &eicZeroXClr;
   }
-
-  ecmCfg->timeMicros      = &timerMicros;
-  ecmCfg->timeMicrosDelta = &timerMicrosDelta;
 
   for (unsigned int i = 0; i < NUM_V; i++) {
     ecmCfg->vCfg[i].voltageCalRaw = pCfg->voltageCfg[i].voltageCal;

@@ -2,6 +2,11 @@
 
 #include <stdint.h>
 
+/*! @brief Get the ADC trigger period
+ *  @return trigger period in microsceconds
+ */
+uint16_t timerADCPeriod(void);
+
 /*! @brief  Blocking delay. Use with caution. Returns -1 if the timer is
  *          already in use.
  *  @param [in] delay : period in ms

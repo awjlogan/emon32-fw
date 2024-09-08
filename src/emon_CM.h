@@ -73,14 +73,16 @@ typedef struct CTCfgUnpacked_ {
 } CTCfg_t;
 
 typedef struct ECMCfg_ {
-  bool downsample;                       /* DSP enabled */
   int (*zx_hw_stat)(void);               /* HW zero crossing status function */
   void (*zx_hw_clr)(void);               /* HW zero crossing clear function */
   uint32_t (*timeMicros)(void);          /* Time in microseconds now */
   uint32_t (*timeMicrosDelta)(uint32_t); /* Time delta in microseconds */
-  int     reportCycles;                  /* Number of cycles before reporting */
+
+  bool    downsample;    /* DSP enabled */
+  int     reportCycles;  /* Number of cycles before reporting */
   int     sampleRateHz;  /* Sample rate in Hz (after any downsampling)*/
   int     mainsFreq;     /* Mains frequency */
+  int     samplePeriod;  /* Sampling period for each sample */
   CTCfg_t ctCfg[NUM_CT]; /* CT Configuration */
   VCfg_t  vCfg[NUM_V];   /* Voltage configuration */
 } ECMCfg_t;

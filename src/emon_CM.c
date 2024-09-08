@@ -607,8 +607,8 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
   rms.numSamples              = numSamples;
 
   /* Use the actual count period (in us) to account for rounding */
-  const int   cntPer    = F_TIMER_ADC / SAMPLE_RATE / VCT_TOTAL;
-  const int   usForSet  = (cntPer * VCT_TOTAL * SAMPLES_IN_SET) * numSamples;
+  const int usForSet =
+      (ecmCfg.samplePeriod * VCT_TOTAL * SAMPLES_IN_SET) * numSamples;
   const float timeTotal = qfp_fdiv(qfp_int2float(usForSet), 1000000.0f);
   pData->calcTime       = timeTotal;
   pData->wallTime =
