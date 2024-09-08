@@ -95,6 +95,8 @@ typedef struct DataCT_ {
 } DataCT_t;
 
 typedef struct ECMDataset_ {
+  float    calcTime;
+  float    wallTime;
   float    rmsV[NUM_V];
   DataCT_t CT[NUM_CT];
 } ECMDataset_t;

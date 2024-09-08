@@ -225,10 +225,8 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
     ecmCfg->zx_hw_clr  = &eicZeroXClr;
   }
 
-  if (PERF_ENABLED) {
-    ecmCfg->timeMicros      = &timerMicros;
-    ecmCfg->timeMicrosDelta = &timerMicrosDelta;
-  }
+  ecmCfg->timeMicros      = &timerMicros;
+  ecmCfg->timeMicrosDelta = &timerMicrosDelta;
 
   for (unsigned int i = 0; i < NUM_V; i++) {
     ecmCfg->vCfg[i].voltageCalRaw = pCfg->voltageCfg[i].voltageCal;

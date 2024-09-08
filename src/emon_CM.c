@@ -118,6 +118,8 @@ typedef struct Accumulator_ {
   CTAccumulator_t processCT[NUM_CT];
   int             numSamples;
   int             cycles;
+  uint32_t        tStart_us;
+  uint32_t        tDelta_us;
 } Accumulator_t;
 
 typedef struct CalcRMS_ {
@@ -540,6 +542,9 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
       discardCycles--;
       if (0 == discardCycles)
         accumSwapClear();
+      if (0 != ecmCfg.timeMicros) {
+        accumCollecting->tStart_us = (*ecmCfg.timeMicros)();
+      }
     }
 
     /* Flag one second before the report is due to allow slow sensors to sample.
@@ -554,6 +559,16 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
      */
     if ((accumCollecting->cycles >= ecmCfg.reportCycles) || processTrigger) {
       accumSwapClear();
+
+      if ((0 != ecmCfg.timeMicros) && (0 != ecmCfg.timeMicrosDelta)) {
+        accumCollecting->tStart_us = (*ecmCfg.timeMicros)();
+        accumProcessing->tDelta_us =
+            (*ecmCfg.timeMicrosDelta)(accumProcessing->tStart_us);
+      } else {
+        accumCollecting->tStart_us = 0;
+        accumProcessing->tDelta_us = 0;
+      }
+
       processTrigger = false;
       reportReady    = true;
     }
@@ -591,6 +606,14 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
   const int64_t numSamplesSqr = numSamples * numSamples;
   rms.numSamples              = numSamples;
 
+  /* Use the actual count period (in us) to account for rounding */
+  const int   cntPer    = F_TIMER_ADC / SAMPLE_RATE / VCT_TOTAL;
+  const int   usForSet  = (cntPer * VCT_TOTAL * SAMPLES_IN_SET) * numSamples;
+  const float timeTotal = qfp_fdiv(qfp_int2float(usForSet), 1000000.0f);
+  pData->calcTime       = timeTotal;
+  pData->wallTime =
+      qfp_fdiv(qfp_uint2float(accumProcessing->tDelta_us), 1000000.0f);
+
   for (int idxV = 0; idxV < NUM_V; idxV++) {
     if (channelActive[idxV]) {
       rms.cal           = ecmCfg.vCfg[idxV].voltageCal;
@@ -601,12 +624,6 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
       pData->rmsV[idxV] = 0.0f;
     }
   }
-
-  /* Use the actual count period (in us) to account for rounding */
-  const int   cntPer = F_TIMER_ADC / SAMPLE_RATE / VCT_TOTAL;
-  const float timeForSet =
-      (float)(cntPer * VCT_TOTAL * SAMPLES_IN_SET) / 1000000.0f;
-  float timeTotal = qfp_fmul(qfp_int2float(numSamples), timeForSet);
 
   for (int idxCT = 0; idxCT < NUM_CT; idxCT++) {
     if (channelActive[idxCT + NUM_V]) {
