@@ -241,10 +241,12 @@ void configChannelV(int ch) {
 void ecmConfigInit(void) {
 
   /* Calculate the angular sampling rate in degrees and radians. */
+  samplePeriodus = ecmCfg.samplePeriod * OVERSAMPLING_RATIO;
+
+  float sampleRateHz =
+      qfp_fdiv(1000000.0f, qfp_int2float(samplePeriodus * VCT_TOTAL));
   float sampleIntervalDeg = qfp_fmul(360.0f, qfp_int2float(ecmCfg.mainsFreq));
-  sampleIntervalDeg =
-      qfp_fdiv(sampleIntervalDeg, qfp_int2float(ecmCfg.sampleRateHz));
-  samplePeriodus = 1000000 / (ecmCfg.sampleRateHz * (VCT_TOTAL));
+  sampleIntervalDeg       = qfp_fdiv(sampleIntervalDeg, sampleRateHz);
 
   /* This (should) be optimised at compile time */
   sampleIntervalRad = twoPi / 360.0f;
@@ -540,9 +542,8 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
       accumCollecting->cycles++;
     } else {
       discardCycles--;
-      if (0 == discardCycles)
+      if (0 == discardCycles) {
         accumSwapClear();
-      if (0 != ecmCfg.timeMicros) {
         accumCollecting->tStart_us = (*ecmCfg.timeMicros)();
       }
     }
@@ -560,24 +561,17 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
     if ((accumCollecting->cycles >= ecmCfg.reportCycles) || processTrigger) {
       accumSwapClear();
 
-      if ((0 != ecmCfg.timeMicros) && (0 != ecmCfg.timeMicrosDelta)) {
-        accumCollecting->tStart_us = (*ecmCfg.timeMicros)();
-        accumProcessing->tDelta_us =
-            (*ecmCfg.timeMicrosDelta)(accumProcessing->tStart_us);
-      } else {
-        accumCollecting->tStart_us = 0;
-        accumProcessing->tDelta_us = 0;
-      }
+      accumCollecting->tStart_us = (*ecmCfg.timeMicros)();
+      accumProcessing->tDelta_us =
+          (*ecmCfg.timeMicrosDelta)(accumProcessing->tStart_us);
 
       processTrigger = false;
       reportReady    = true;
     }
   }
 
-  if (0 != ecmCfg.timeMicrosDelta) {
-    perfActive->numSlices++;
-    perfActive->microsSlices += (*ecmCfg.timeMicrosDelta)(t_start);
-  }
+  perfActive->numSlices++;
+  perfActive->microsSlices += (*ecmCfg.timeMicrosDelta)(t_start);
 
   /* Advance injection point, masking for overflow */
   idxInject = (idxInject + 1u) & (PROC_DEPTH - 1u);
@@ -597,22 +591,16 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
   uint32_t  t_start = 0;
   CalcRMS_t rms;
 
-  if (0 != ecmCfg.timeMicros) {
-    t_start = (*ecmCfg.timeMicros)();
-  }
+  t_start = (*ecmCfg.timeMicros)();
 
   /* Reused constants */
   const int     numSamples    = accumProcessing->numSamples;
   const int64_t numSamplesSqr = numSamples * numSamples;
   rms.numSamples              = numSamples;
 
-  /* Use the actual count period (in us) to account for rounding */
-  const int usForSet =
-      (ecmCfg.samplePeriod * VCT_TOTAL * SAMPLES_IN_SET) * numSamples;
-  const float timeTotal = qfp_fdiv(qfp_int2float(usForSet), 1000000.0f);
-  pData->calcTime       = timeTotal;
-  pData->wallTime =
+  const float timeTotal =
       qfp_fdiv(qfp_uint2float(accumProcessing->tDelta_us), 1000000.0f);
+  pData->wallTime = timeTotal;
 
   for (int idxV = 0; idxV < NUM_V; idxV++) {
     if (channelActive[idxV]) {
@@ -675,10 +663,8 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
     }
   }
 
-  if (0 != ecmCfg.timeMicrosDelta) {
-    perfActive->numCycles++;
-    perfActive->microsCycles += (*ecmCfg.timeMicrosDelta)(t_start);
-  }
+  perfActive->numCycles++;
+  perfActive->microsCycles += (*ecmCfg.timeMicrosDelta)(t_start);
 }
 
 void ecmProcessSetTrigger(void) { processTrigger = true; }

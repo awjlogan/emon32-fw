@@ -219,7 +219,6 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
   ecmCfg->downsample      = DOWNSAMPLE_DSP;
   ecmCfg->reportCycles    = pCfg->baseCfg.reportCycles;
   ecmCfg->mainsFreq       = pCfg->baseCfg.mainsFreq;
-  ecmCfg->sampleRateHz    = (SAMPLE_RATE / OVERSAMPLING_RATIO);
   ecmCfg->samplePeriod    = timerADCPeriod();
   ecmCfg->timeMicros      = &timerMicros;
   ecmCfg->timeMicrosDelta = &timerMicrosDelta;

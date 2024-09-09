@@ -50,9 +50,12 @@ static void printReport(int reportNum, int64_t time, ECMDataset_t *pDataset);
  */
 static void voltageToWave(double vRMS, wave_t *w);
 
+static uint32_t time = 0;
+static uint32_t timeMicros(void) { return time; }
+static uint32_t timeMicrosDelta(uint32_t timePrev) { return time - timePrev; }
+
 int main(int argc, char *argv[]) {
-  int64_t time      = 0;
-  int     reportNum = 0;
+  int reportNum = 0;
 
   FILE        *fptr;
   ECMDataset_t dataset;
@@ -96,10 +99,12 @@ int main(int argc, char *argv[]) {
   smpRaw[1] = ecmDataBuffer();
   ecmDataBufferSwap();
 
-  pEcmCfg->downsample   = 1u;
-  pEcmCfg->reportCycles = (unsigned int)(REPORT_TIME * MAINS_FREQ);
-  pEcmCfg->mainsFreq    = 50;
-  pEcmCfg->sampleRateHz = (SAMPLE_RATE / 2);
+  pEcmCfg->downsample      = 1u;
+  pEcmCfg->reportCycles    = (unsigned int)(REPORT_TIME * MAINS_FREQ);
+  pEcmCfg->mainsFreq       = 50;
+  pEcmCfg->samplePeriod    = 13;
+  pEcmCfg->timeMicros      = &timeMicros;
+  pEcmCfg->timeMicrosDelta = &timeMicrosDelta;
 
   for (int i = 0; i < NUM_V; i++) {
     pEcmCfg->vCfg[i].voltageCalRaw = 100.0f;
@@ -114,7 +119,6 @@ int main(int argc, char *argv[]) {
   }
 
   ecmConfigInit();
-  printf("%f\r\n", pEcmCfg->vCfg[0].voltageCal);
 
   printf("---- emon32 CM test ----\n\n");
 
@@ -226,6 +230,7 @@ int main(int argc, char *argv[]) {
       reportNum++;
     }
   }
+  ecmFlush();
 
   printf("\n\n    - 180 out of phase, power factor = -1\n\n");
   wave[NUM_V].phi = M_PI;

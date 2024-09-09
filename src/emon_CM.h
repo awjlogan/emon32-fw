@@ -80,7 +80,6 @@ typedef struct ECMCfg_ {
 
   bool    downsample;    /* DSP enabled */
   int     reportCycles;  /* Number of cycles before reporting */
-  int     sampleRateHz;  /* Sample rate in Hz (after any downsampling)*/
   int     mainsFreq;     /* Mains frequency */
   int     samplePeriod;  /* Sampling period for each sample */
   CTCfg_t ctCfg[NUM_CT]; /* CT Configuration */
@@ -97,7 +96,6 @@ typedef struct DataCT_ {
 } DataCT_t;
 
 typedef struct ECMDataset_ {
-  float    calcTime;
   float    wallTime;
   float    rmsV[NUM_V];
   DataCT_t CT[NUM_CT];
