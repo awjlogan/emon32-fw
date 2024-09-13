@@ -69,7 +69,8 @@ typedef struct CTCfgUnpacked_ {
   float ctCal;
   float ctCalRaw;
   bool  active;
-  int   vChan;
+  int   vChan1;
+  int   vChan2;
 } CTCfg_t;
 
 typedef struct ECMCfg_ {

@@ -515,8 +515,9 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
   for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++) {
     if (channelActive[idxCT + NUM_V]) {
       int64_t thisV =
-          sampleRingBuffer[idxInject].smpV[ecmCfg.ctCfg[idxCT].vChan];
-      int64_t lastV = sampleRingBuffer[idxLast].smpV[ecmCfg.ctCfg[idxCT].vChan];
+          sampleRingBuffer[idxInject].smpV[ecmCfg.ctCfg[idxCT].vChan1];
+      int64_t lastV =
+          sampleRingBuffer[idxLast].smpV[ecmCfg.ctCfg[idxCT].vChan1];
       int64_t thisCT = sampleRingBuffer[idxInject].smpCT[idxCT];
 
       accumCollecting->processCT[idxCT].sumPA += thisCT * lastV;
@@ -615,7 +616,7 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
 
   for (int idxCT = 0; idxCT < NUM_CT; idxCT++) {
     if (channelActive[idxCT + NUM_V]) {
-      int idxV = ecmCfg.ctCfg[idxCT].vChan;
+      int idxV = ecmCfg.ctCfg[idxCT].vChan1;
 
       // RMS Current
       rms.cal               = ecmCfg.ctCfg[idxCT].ctCal;

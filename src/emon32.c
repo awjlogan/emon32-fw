@@ -237,7 +237,8 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
     ecmCfg->ctCfg[i].phCal    = pCfg->ctCfg[i].phase;
     ecmCfg->ctCfg[i].ctCalRaw = pCfg->ctCfg[i].ctCal;
     ecmCfg->ctCfg[i].active   = pCfg->ctCfg[i].ctActive;
-    ecmCfg->ctCfg[i].vChan    = pCfg->ctCfg[i].vChan;
+    ecmCfg->ctCfg[i].vChan1   = pCfg->ctCfg[i].vChan1;
+    ecmCfg->ctCfg[i].vChan2   = pCfg->ctCfg[i].vChan2;
   }
 
   ecmConfigInit();

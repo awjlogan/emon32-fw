@@ -45,9 +45,10 @@ typedef struct __attribute__((__packed__)) VoltageCfg_ {
 typedef struct __attribute__((__packed__)) CTCfg_ {
   float   ctCal; /* Conversion to real I value */
   float   phase; /* Phase angle, recalculated to fixed point */
-  uint8_t vChan;
+  uint8_t vChan1;
   bool    ctActive;
-  uint8_t res0[2];
+  uint8_t vChan2;
+  uint8_t res0;
 } CTCfgPacked_t;
 
 typedef struct __attribute__((__packed__)) Emon32Config_ {

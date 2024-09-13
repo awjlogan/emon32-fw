@@ -39,7 +39,7 @@ typedef enum {
 static void     configDefault(void);
 static void     configInitialiseNVM(void);
 static int      configTimeToCycles(const float time, const int mainsFreq);
-static void     configureAnalog(void);
+static bool     configureAnalog(void);
 static void     configurePulse(void);
 static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
@@ -85,7 +85,8 @@ static void configDefault(void) {
   for (int idxCT = 0u; idxCT < NUM_CT; idxCT++) {
     config.ctCfg[idxCT].ctCal    = 100.0f;
     config.ctCfg[idxCT].phase    = 4.2f;
-    config.ctCfg[idxCT].vChan    = 0;
+    config.ctCfg[idxCT].vChan1   = 0;
+    config.ctCfg[idxCT].vChan2   = 0;
     config.ctCfg[idxCT].ctActive = (idxCT < NUM_CT_ACTIVE_DEF);
   }
 
@@ -118,65 +119,111 @@ static void configInitialiseNVM(void) {
   dbgPuts("Done!\r\n");
 }
 
-/*! @brief Configure an analog channel. */
-static void configureAnalog(void) {
-  /* String format: k<x> <yy.y> <zz.z>
+static bool configureAnalog(void) {
+  /* String format: k<x> <a> <y.y> <z.z> v1 v2
    * Find space delimiters, then convert to null and a->i/f
    */
-  int   ch       = 0;
-  int   posCalib = 0;
-  float cal      = 0.0f;
-  int   posPhase = 0;
+  int       ch        = 0;
+  bool      active    = false;
+  float     cal       = 0.0f;
+  int       vCh       = 0;
+  int       posActive = 0;
+  int       posCalib  = 0;
+  int       posPhase  = 0;
+  int       posV1     = 0;
+  int       posV2     = 0;
+  ECMCfg_t *ecmCfg    = 0;
 
   for (int i = 0; i < IN_BUFFER_W; i++) {
+    if (0 == inBuffer[i]) {
+      break;
+    }
     if (' ' == inBuffer[i]) {
       inBuffer[i] = 0;
-      if (0 == posCalib) {
+      if (0 == posActive) {
+        posActive = i + 1u;
+      } else if (0 == posCalib) {
         posCalib = i + 1u;
-      } else {
+      } else if (0 == posPhase) {
         posPhase = i + 1u;
+      } else if (0 == posV1) {
+        posV1 = i + 1u;
+      } else if (0 == posV2) {
+        posV2 = i + 1u;
         break;
       }
     }
   }
 
-  /* Didn't find a space, so exit early */
-  if (0 == posCalib) {
-    return;
+  /* Voltage channels are [1..3], CTs are [4..] but 0 indexed internally. All
+   * fields must be present for a given channel type.
+   */
+  ch = utilAtoi(inBuffer + 1u, ITOA_BASE10) - 1;
+  if ((ch < 0) || (ch > (VCT_TOTAL - 1))) {
+    return false;
   }
 
-  /* Voltage channels are [1..3], CTs are [4..] but 0 indexed internally */
-  ch  = utilAtoi(inBuffer + 1u, ITOA_BASE10) - 1;
-  cal = utilAtof(inBuffer + posCalib);
+  if ((0 == posCalib) || (0 == posActive)) {
+    return -1;
+  }
+  if (ch >= NUM_V) {
+    if ((0 == posPhase) || (0 == posV1) || (0 == posV2)) {
+      return false;
+    }
+  }
+
+  ecmCfg = ecmConfigGet();
+  EMON32_ASSERT(ecmCfg);
+
+  active = (bool)utilAtoi(inBuffer + posActive, ITOA_BASE10);
+  cal    = utilAtof(inBuffer + posCalib);
 
   if (NUM_V > ch) {
+    config.voltageCfg[ch].vActive    = active;
     config.voltageCfg[ch].voltageCal = cal;
-    ecmConfigChannel(ch);
+    ecmCfg->vCfg[ch].vActive         = active;
+    ecmCfg->vCfg[ch].voltageCalRaw   = cal;
+
     printf_("> V%d calibration set to: ", (ch + 1));
     putFloat(config.voltageCfg[ch].voltageCal);
     dbgPuts("\r\n");
-    return;
-  } else {
-    config.ctCfg[ch - NUM_V].ctCal = cal;
+
     ecmConfigChannel(ch);
-    printf_("> CT%d calibration set to: ", (ch - NUM_V + 1));
-    putFloat(config.ctCfg[ch - NUM_V].ctCal);
-    dbgPuts("\r\n");
+    return true;
   }
 
-  /* Didn't find a space for value "z", so exit early */
-  if (0 == posPhase) {
-    return;
-  }
+  /* CT configuration */
+  ch -= NUM_V;
+  config.ctCfg[ch].ctActive = active;
+  ecmCfg->ctCfg[ch].active  = active;
 
-  cal                            = utilAtof(inBuffer + posPhase);
-  config.ctCfg[ch - NUM_V].phase = cal;
-  printf_("> CT%d phase set to: ", (ch - NUM_V + 1));
-  putFloat(config.ctCfg[ch - NUM_V].phase);
+  config.ctCfg[ch].ctCal     = cal;
+  ecmCfg->ctCfg[ch].ctCalRaw = cal;
+  printf_("> CT%d calibration set to: ", (ch + 1));
+  putFloat(config.ctCfg[ch].ctCal);
   dbgPuts("\r\n");
+
+  cal                     = utilAtof(inBuffer + posPhase);
+  config.ctCfg[ch].phase  = cal;
+  ecmCfg->ctCfg[ch].phCal = cal;
+  printf_("> CT%d phase set to: ", (ch + 1));
+  putFloat(config.ctCfg[ch].phase);
+  dbgPuts("\r\n");
+
+  vCh                      = utilAtoi(inBuffer + posV1, ITOA_BASE10);
+  config.ctCfg[ch].vChan1  = vCh - 1;
+  ecmCfg->ctCfg[ch].vChan1 = vCh - 1;
+  printf_("> CT%d voltage channel 1 set to: %d\r\n", (ch + 1), vCh);
+
+  vCh                      = utilAtoi(inBuffer + posV2, ITOA_BASE10);
+  config.ctCfg[ch].vChan2  = vCh - 1;
+  ecmCfg->ctCfg[ch].vChan2 = vCh - 1;
+  printf_("> CT%d voltage channel 1 set to: %d\r\n", (ch + 1), vCh);
+
+  ecmConfigChannel(ch);
+  return true;
 }
 
-/*! @brief Configure a pulse channel. */
 static void configurePulse(void) {
   /* String format in inBuffer:
    *      [1] -> ch;
@@ -286,7 +333,6 @@ uint32_t getUniqueID(int idx) {
   return *(volatile uint32_t *)id_addr_lut[idx];
 }
 
-/*! @brief Print the emon32's configuration settings */
 static void printSettings(void) {
   dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
   printf_("Mains frequency (Hz)       %d\r\n", config.baseCfg.mainsFreq);
@@ -350,7 +396,7 @@ static void printSettings(void) {
     putFloat(config.ctCfg[i].ctCal);
     dbgPuts("      | ");
     putFloat(config.ctCfg[i].phase);
-    printf_("  | %d    |      |\r\n", config.ctCfg[i].vChan);
+    printf_("  | %d    |      |\r\n", config.ctCfg[i].vChan1);
   }
   dbgPuts("\r\n");
 
@@ -501,11 +547,14 @@ void configProcessCmd(void) {
       " - e           : enter bootloader\r\n"
       " - g<n>        : set network group (default = 210)\r\n"
       " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
-      " - k<x> <y.y> <z.z>\r\n"
-      "   - Calibrate an analogue input\r\n"
-      "   - x:        : channel (0-2 -> V; 3... -> CT)\r\n"
+      " - k<x> <a> <y.y> <z.z> v1 v2\r\n"
+      "   - Configure an analogue input\r\n"
+      "   - x:        : channel (1-3 -> V; 4... -> CT)\r\n"
+      "   - a:        : channel active. a = 0: DISABLED, a = 1: ENABLED\r\n"
       "   - y.y       : V/CT calibration constant\r\n"
       "   - z.z       : CT phase calibration value\r\n"
+      "   - v1        : CT voltage channel 1\r\n"
+      "   - v2        : CT voltage channel 2\r\n"
       " - l           : list settings\r\n"
       " - m<w> <x> <y> <z>\r\n"
       "   - Pulse counting.\r\n"
@@ -605,17 +654,15 @@ void configProcessCmd(void) {
     }
     break;
   case 'k':
-    /* Configure analog channel */
-    configureAnalog();
-    unsavedChange = true;
-    emon32EventSet(EVT_CONFIG_CHANGED);
+    if (configureAnalog()) {
+      unsavedChange = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
+    }
     break;
   case 'l':
-    /* Print settings */
     printSettings();
     break;
   case 'm':
-    /* Configure pulse channel */
     configurePulse();
     unsavedChange = true;
     emon32EventSet(EVT_CONFIG_CHANGED);
@@ -631,7 +678,6 @@ void configProcessCmd(void) {
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
   case 'r':
-    /* Restore defaults */
     configDefault();
 
     dbgPuts("> Restored default values.\r\n");
