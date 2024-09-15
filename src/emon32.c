@@ -173,25 +173,6 @@ static RFMOpt_t *dataTxConfigure(const Emon32Config_t *pCfg) {
       rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq);
     }
   }
-  /* REVISIT : dedicated UARTs for debug and data. */
-  else {
-    UART_Cfg_t uart_data_cfg;
-    uart_data_cfg.sercom    = SERCOM_UART_DATA;
-    uart_data_cfg.baud      = UART_DATA_BAUD;
-    uart_data_cfg.apbc_mask = SERCOM_UART_DATA_APBCMASK;
-    uart_data_cfg.gclk_id   = SERCOM_UART_DATA_GCLK_ID;
-    uart_data_cfg.gclk_gen  = 3u;
-    uart_data_cfg.pad_tx    = UART_DATA_PAD_TX;
-    uart_data_cfg.pad_rx    = UART_DATA_PAD_RX;
-    uart_data_cfg.port_grp  = GRP_SERCOM_UART_DATA;
-    uart_data_cfg.pin_tx    = PIN_UART_DATA_TX;
-    uart_data_cfg.pin_rx    = PIN_UART_DATA_RX;
-    uart_data_cfg.pmux      = PMUX_UART_DATA;
-    /*
-     * sercomSetupUART(&uart_data_cfg);
-     */
-    (void)uart_data_cfg;
-  }
   return rfmOpt;
 }
 
@@ -418,9 +399,8 @@ static void transmitData(const Emon32Dataset_t *pSrc,
     PackedData_t packedData = {0};
     dataPackPacked(pSrc, &packedData);
     if (sercomExtIntfEnabled()) {
-      /* Try to send in "clean" air. If failed, retry on
-       * next loop. Should not reach RFM_FAILED at all.
-       */
+      /* Try to send in "clean" air. If failed, retry on next loop. Should not
+       * reach RFM_FAILED at all. */
       RFMSend_t res = rfmSendReady(5u);
       if (RFM_SUCCESS == res) {
         rfmSend(&packedData);
@@ -430,14 +410,7 @@ static void transmitData(const Emon32Dataset_t *pSrc,
       putsDbgNonBlocking(txBuffer, pktLength);
     }
   } else {
-    uartPutsNonBlocking(DMA_CHAN_UART_DATA, txBuffer, pktLength);
-
-    /* Only echo to debug UART if it is not the same as the data UART, or the
-     * USB connection is enabled.
-     */
-    if ((SERCOM_UART_DATA != SERCOM_UART_DBG) || usbCDCIsConnected()) {
-      putsDbgNonBlocking(txBuffer, pktLength);
-    }
+    putsDbgNonBlocking(txBuffer, pktLength);
   }
 }
 
@@ -470,13 +443,6 @@ int main(void) {
   ucSetup();
   uiLedOn(LED_STATUS);
   ssd1306Setup();
-
-  /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
-  uartConfigureDMA();
-  uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
-  uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
-  NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
-
   configFirmwareBoardInfo();
 
   /* Load stored values (configuration and accumulated energy) from

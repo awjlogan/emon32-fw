@@ -118,6 +118,12 @@ void sercomSetup(void) {
                               DMAC_CHCTRLB_TRIGACT_BEAT;
   sercomSetupUART(&uart_dbg_cfg);
 
+  /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
+  uartConfigureDMA();
+  uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
+  uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
+  NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+
   /*****************
    * I2C Setup
    ******************/
