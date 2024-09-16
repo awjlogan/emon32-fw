@@ -3,7 +3,6 @@
 
 #ifndef HOSTED
 
-#include "printf.h"
 #include "qfplib-m0-full.h"
 
 #else

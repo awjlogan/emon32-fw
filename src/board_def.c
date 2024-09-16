@@ -33,3 +33,11 @@ const uint8_t pinsADC[][2] = {
     {GRP_ADC_CT10, PIN_ADC_CT10},     {GRP_ADC_CT11, PIN_ADC_CT11},
     {GRP_ADC_AIN, PIN_ADC_AIN},       {GRP_ADC_VCAL_H, PIN_ADC_VCAL_H},
     {GRP_ADC_VCAL_L, PIN_ADC_VCAL_L}, {0xFF, 0}};
+
+/* Remapping for analog inputs. P to L converts a physical pin (in order from
+ * the first V input, this does *not* match the actual pin numbers) to a logical
+ * pin. L to P converts a logical pin to a physical (in order) pin. */
+const uint_fast8_t ainRemapPtoL[VCT_TOTAL] = {0, 1, 2,  3,  4,  5,  6, 7,
+                                              8, 9, 10, 11, 12, 13, 14};
+const uint_fast8_t ainRemapLtoP[VCT_TOTAL] = {0, 1, 2,  3,  4,  5,  6, 7,
+                                              8, 9, 10, 11, 12, 13, 14};

@@ -31,6 +31,8 @@ typedef struct wave_ {
  */
 static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w);
 
+static void dynamicRun(int reports, bool prtReports);
+
 /*! @brief Generates a Q11 [-1024, 1023] wave with configurable parameters
  *  @param [in] w       : pointer to wave information
  *  @param [in] tMicros : time in microseconds
@@ -51,17 +53,47 @@ static void printReport(int reportNum, int64_t time, ECMDataset_t *pDataset);
 static void voltageToWave(double vRMS, wave_t *w);
 
 static uint32_t time = 0;
+ECM_STATUS_t    status;
+SampleSet_t     smpProc;
+unsigned int    smpIdx = 0;
+ECMDataset_t    dataset;
+
+volatile RawSampleSetPacked_t *volatile smpRaw[2];
+wave_t wave[VCT_TOTAL];
+
 static uint32_t timeMicros(void) { return time; }
 static uint32_t timeMicrosDelta(uint32_t timePrev) { return time - timePrev; }
 
-int main(int argc, char *argv[]) {
+static void dynamicRun(int reports, bool prtReport) {
   int reportNum = 0;
 
-  FILE        *fptr;
-  ECMDataset_t dataset;
-  ECMCfg_t    *pEcmCfg;
-  ECM_STATUS_t status;
-  wave_t       wave[VCT_TOTAL];
+  while (reportNum < reports) {
+
+    for (int j = 0; j < 2; j++) {
+      for (int i = 0; i < VCT_TOTAL; i++) {
+        smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
+        time += SMP_TICK;
+      }
+    }
+    smpIdx = !smpIdx;
+    ecmDataBufferSwap();
+    status = ecmInjectSample();
+
+    if (ECM_REPORT_COMPLETE == status) {
+      ecmProcessSet(&dataset);
+      if (prtReport) {
+        printReport(reportNum, time, &dataset);
+      }
+      reportNum++;
+    }
+  }
+  ecmFlush();
+}
+
+int main(int argc, char *argv[]) {
+
+  FILE     *fptr;
+  ECMCfg_t *pEcmCfg;
 
   /* Copy and fold the half band coefficients */
   const int lutDepth = (numCoeffUnique - 1) * 2;
@@ -70,10 +102,6 @@ int main(int argc, char *argv[]) {
     coeffLut[i]                  = firCoeffs[i];
     coeffLut[(lutDepth - 1 - i)] = firCoeffs[i];
   }
-
-  volatile RawSampleSetPacked_t *volatile smpRaw[2];
-  SampleSet_t  smpProc;
-  unsigned int smpIdx = 0;
 
   /* Set all waves to 50 Hz, all CTs to 5 deg offset. The maximum amplitude
    * corresponds to 1.024 V at the emon32 input.
@@ -115,7 +143,8 @@ int main(int argc, char *argv[]) {
     pEcmCfg->ctCfg[i].active   = (i < 2);
     pEcmCfg->ctCfg[i].ctCalRaw = 20.0f;
     pEcmCfg->ctCfg[i].phCal    = 4.2f;
-    pEcmCfg->ctCfg[i].vChan    = 0;
+    pEcmCfg->ctCfg[i].vChan1   = 0;
+    pEcmCfg->ctCfg[i].vChan2   = 0;
   }
 
   ecmConfigInit();
@@ -187,75 +216,28 @@ int main(int argc, char *argv[]) {
    * and generate the wave for each channel at each point.
    */
   printf("  Dynamic test...\n\n");
-  printf("    - In phase, PF = 1\n\n");
-  while (reportNum < 4) {
-
-    for (int j = 0; j < 2; j++) {
-      for (int i = 0; i < VCT_TOTAL; i++) {
-        smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
-        time += SMP_TICK;
-      }
-    }
-    smpIdx = !smpIdx;
-    ecmDataBufferSwap();
-    status = ecmInjectSample();
-
-    if (ECM_REPORT_COMPLETE == status) {
-      ecmProcessSet(&dataset);
-      printReport(reportNum, time, &dataset);
-      reportNum++;
-    }
+  printf("    - In phase, PF = 1\n");
+  dynamicRun(4, false);
+  if ((dataset.CT[0].pf > 1.01f) || (dataset.CT[0].pf < 0.99f)) {
+    printf("Gold: %.2f Test: %.2f\n", 1.00f, dataset.CT[0].pf);
+    assert(0);
   }
-  ecmFlush();
 
-  printf("\n\n    - 90 out of phase, power factor = 0\n\n");
+  printf("\n    - 90 out of phase, power factor = 0\n");
   wave[NUM_V].phi = M_PI / 2;
-  reportNum       = 0;
   time            = 0;
-  while (reportNum < 4) {
+  dynamicRun(4, false);
 
-    for (int j = 0; j < 2; j++) {
-      for (int i = 0; i < VCT_TOTAL; i++) {
-        smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
-        time += SMP_TICK;
-      }
-    }
-    smpIdx = !smpIdx;
-    ecmDataBufferSwap();
-    status = ecmInjectSample();
-
-    if (ECM_REPORT_COMPLETE == status) {
-      ecmProcessSet(&dataset);
-      printReport(reportNum, time, &dataset);
-      reportNum++;
-    }
-  }
-  ecmFlush();
-
-  printf("\n\n    - 180 out of phase, power factor = -1\n\n");
+  printf("\n    - 180 out of phase, power factor = -1\n");
   wave[NUM_V].phi = M_PI;
-  reportNum       = 0;
   time            = 0;
-  while (reportNum < 4) {
-
-    for (int j = 0; j < 2; j++) {
-      for (int i = 0; i < VCT_TOTAL; i++) {
-        smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
-        time += SMP_TICK;
-      }
-    }
-    smpIdx = !smpIdx;
-    ecmDataBufferSwap();
-    status = ecmInjectSample();
-
-    if (ECM_REPORT_COMPLETE == status) {
-      ecmProcessSet(&dataset);
-      printReport(reportNum, time, &dataset);
-      reportNum++;
-    }
+  dynamicRun(4, false);
+  if ((dataset.CT[0].pf < -1.01f) || (dataset.CT[0].pf > -0.99f)) {
+    printf("Gold: %.2f Test: %.2f\n", 1.00f, dataset.CT[0].pf);
+    assert(0);
   }
 
-  printf("\r\n  Finished!\n\n");
+  printf("\n  Finished!\n\n");
 }
 
 static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {

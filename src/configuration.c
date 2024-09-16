@@ -141,15 +141,15 @@ static bool configureAnalog(void) {
     if (' ' == inBuffer[i]) {
       inBuffer[i] = 0;
       if (0 == posActive) {
-        posActive = i + 1u;
+        posActive = i + 1;
       } else if (0 == posCalib) {
-        posCalib = i + 1u;
+        posCalib = i + 1;
       } else if (0 == posPhase) {
-        posPhase = i + 1u;
+        posPhase = i + 1;
       } else if (0 == posV1) {
-        posV1 = i + 1u;
+        posV1 = i + 1;
       } else if (0 == posV2) {
-        posV2 = i + 1u;
+        posV2 = i + 1;
         break;
       }
     }
@@ -396,7 +396,8 @@ static void printSettings(void) {
     putFloat(config.ctCfg[i].ctCal);
     dbgPuts("      | ");
     putFloat(config.ctCfg[i].phase);
-    printf_("  | %d    |      |\r\n", config.ctCfg[i].vChan1);
+    printf_("  | %d    | %d    |\r\n", config.ctCfg[i].vChan1,
+            config.ctCfg[i].vChan2);
   }
   dbgPuts("\r\n");
 
