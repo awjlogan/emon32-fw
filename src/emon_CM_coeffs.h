@@ -2,8 +2,8 @@
 
 #include <stdint.h>
 
-#define DOWNSAMPLE_TAPS 19u
+#define DOWNSAMPLE_TAPS 19
 
-static const unsigned int downsample_taps = DOWNSAMPLE_TAPS;
-static const unsigned int numCoeffUnique  = 6u;
-static const int16_t      firCoeffs[6] = {92, -279, 957, -2670, 10113, 16339};
+static const int     downsample_taps = DOWNSAMPLE_TAPS;
+static const int     numCoeffUnique  = 6;
+static const int16_t firCoeffs[6]    = {92, -279, 957, -2670, 10113, 16339};

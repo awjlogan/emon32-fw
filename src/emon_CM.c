@@ -405,8 +405,7 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
      *
      * b_0 | b_2 | .. | b_2 | b_0
      */
-    static unsigned int idxInj            = 0;
-    int32_t             intRes[VCT_TOTAL] = {0};
+    static unsigned int idxInj = 0;
 
     const unsigned int downsampleTaps = DOWNSAMPLE_TAPS;
     const unsigned int idxInjPrev =
@@ -428,27 +427,20 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
     if (idxMid >= downsampleTaps)
       idxMid -= downsampleTaps;
 
-    for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++) {
-      intRes[idxChannel] += coeffMid * dspBuffer[idxMid].smp[idxChannel];
-    }
-
     /* Loop over the FIR coefficients, sub loop through channels. The filter
      * is folded so the symmetric FIR coefficients are used for both samples.
      */
+    int          idxSmp[numCoeffUnique - 1][2];
     unsigned int idxSmpStart = idxInj;
     unsigned int idxSmpEnd =
         ((downsampleTaps - 1u) == idxInj) ? 0 : (idxInj + 1u);
     if (idxSmpEnd >= downsampleTaps)
       idxSmpEnd -= downsampleTaps;
 
-    for (unsigned int idxCoeff = 0; idxCoeff < (numCoeffUnique - 1u);
-         idxCoeff++) {
-      const q15_t coeff = firCoeffs[idxCoeff];
-      for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++) {
-        intRes[idxChannel] += coeff * (dspBuffer[idxSmpStart].smp[idxChannel] +
-                                       dspBuffer[idxSmpEnd].smp[idxChannel]);
-      }
+    idxSmp[0][0] = idxSmpStart;
+    idxSmp[0][1] = idxSmpEnd;
 
+    for (int i = 1; i < (numCoeffUnique - 1); i++) {
       /* Converge toward the middle, check for over/underflow */
       idxSmpStart -= 2u;
       if (idxSmpStart > downsampleTaps)
@@ -457,19 +449,30 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
       idxSmpEnd += 2u;
       if (idxSmpEnd >= downsampleTaps)
         idxSmpEnd -= downsampleTaps;
+
+      idxSmp[i][0] = idxSmpStart;
+      idxSmp[i][1] = idxSmpEnd;
     }
 
-    /* Truncate with rounding to nearest LSB and place into field. 0 if
-     * the channel is not in use.
-     */
-    for (unsigned int idxChannel = 0; idxChannel < VCT_TOTAL; idxChannel++) {
-      const q15_t resTrunc =
-          channelActive[idxChannel] ? __STRUNCATE(intRes[idxChannel]) : 0;
+    for (int ch = 0; ch < VCT_TOTAL; ch++) {
+      q15_t result;
+      if (channelActive[ch]) {
+        int32_t intRes = coeffMid * dspBuffer[idxMid].smp[ch];
 
-      if (idxChannel < NUM_V) {
-        pDst->smpV[idxChannel] = resTrunc;
+        for (int fir = 0; fir < (numCoeffUnique - 1); fir++) {
+          const q15_t coeff = firCoeffs[fir];
+          intRes += coeff * (dspBuffer[idxSmp[fir][0]].smp[ch] +
+                             dspBuffer[idxSmp[fir][1]].smp[ch]);
+        }
+        result = __STRUNCATE(intRes);
+
       } else {
-        pDst->smpCT[idxChannel - NUM_V] = resTrunc;
+        result = 0;
+      }
+      if (ch < NUM_V) {
+        pDst->smpV[ch] = result;
+      } else {
+        pDst->smpCT[ch - NUM_V] = result;
       }
     }
 
