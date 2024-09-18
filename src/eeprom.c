@@ -49,21 +49,22 @@ typedef struct wrLocal_ {
 } wrLocal_t;
 
 /* FUNCTIONS */
-static Address_t     calcAddress(const unsigned int addrFull);
-static int           nextValidByte(const uint8_t currentValid);
-static void          wlFindLast();
-static I2CM_Status_t writeBytes(wrLocal_t *wr, unsigned int n);
+static Address_t        calcAddress(const unsigned int addrFull);
+static int              nextValidByte(const uint8_t currentValid);
+static eepromWLStatus_t wlFindLast();
+static I2CM_Status_t    writeBytes(wrLocal_t *wr, unsigned int n);
 
 /* Local values */
 static int eepromSizeBytes = EEPROM_SIZE;
 
 /* Precalculate wear limiting addresses. */
-static const int wlBlkCnt = (EEPROM_PAGE_SIZE - EEPROM_WL_OFFSET) / WL_PKT_SIZE;
+static const int wlBlkCnt  = (EEPROM_SIZE - EEPROM_WL_OFFSET) / WL_PKT_SIZE;
 static const int wlBlkSize = WL_PKT_SIZE;
 
-static int wlCurrentValid = 0; /* Current valid byte for wear levelling */
-static int wlIdxNxtWr     = 0; /* Index of the next wear levelled write */
-static int wlData_n       = 0; /* Length of data to be stored in the WL area */
+static int     wlCurrentValid = 0; /* Current valid byte for wear levelling */
+static int     wlIdxNxtWr     = 0; /* Index of the next wear levelled write */
+static int     wlData_n = 0; /* Length of data to be stored in the WL area */
+static uint8_t wlData[WL_PKT_SIZE];
 
 /*! @brief Calculates the LSB and MSB address bytes
  *  @param [in] addrFull : full address of the EEPROM
@@ -112,27 +113,65 @@ static int nextValidByte(const uint8_t currentValid) {
 
 /*! @brief Find the index of the last valid write to a wear levelled block
  */
-static void wlFindLast(void) {
+static eepromWLStatus_t wlFindLast(void) {
   /* Step through from the base address in (data) sized steps. The first
    * byte that is different to the 0-th byte is the oldest block. If all
-   * blocks are the same, then the 0-th index is the next to be written.
+   * blocks are the same, then the 0-th index is the next to be written. Get the
+   * checksum to ensure data integrity.
    */
 
-  WLHeader_t headerFirst = {0};
+  WLHeader_t       wlHeader = {0};
+  uint16_t         crcData;
+  int              crcCheckCount = 0;
+  eepromWLStatus_t status        = EEPROM_WL_OK;
 
   wlIdxNxtWr = 0;
-  eepromRead(EEPROM_WL_OFFSET, &headerFirst, 4u);
+  eepromRead(EEPROM_WL_OFFSET, &wlHeader, 4u);
 
   for (unsigned int idxBlk = 1u; idxBlk < wlBlkCnt; idxBlk++) {
     int        addr = EEPROM_WL_OFFSET + (idxBlk * wlBlkSize);
-    WLHeader_t header;
+    WLHeader_t headerNxt;
 
-    eepromRead(addr, &header, 4u);
-    if (headerFirst.valid != header.valid) {
+    eepromRead(addr, &headerNxt, 4u);
+    if (wlHeader.valid != headerNxt.valid) {
       wlIdxNxtWr = idxBlk;
       break;
     }
   }
+
+  /* If calculated and stored CRC values do not match, go to the next index
+   * (that is, an older entry) and try again. If no CRCs match, then revert to
+   * index 0. */
+  do {
+    int blkAddr = EEPROM_WL_OFFSET + (wlIdxNxtWr * wlBlkSize);
+
+    /* REVISIT Short delay needed here for reliable read. Can this be removed,
+     * or done by polling the I2C? */
+    timerDelay_us(50);
+    eepromRead(blkAddr, &wlHeader, 4u);
+    eepromRead(blkAddr + 4, wlData, wlData_n);
+    crcData = calcCRC16_ccitt(wlData, wlData_n);
+    if (wlHeader.crc16_ccitt != crcData) {
+      status = EEPROM_WL_CRC_BAD;
+      wlIdxNxtWr++;
+      if (wlIdxNxtWr == wlBlkCnt) {
+        wlIdxNxtWr = 0;
+      }
+    } else {
+      return status;
+    }
+
+    /* If all blocks are bad, then reset the entire accumulator space. */
+    if (crcCheckCount++ == wlBlkCnt) {
+      eepromWLClear();
+      wlIdxNxtWr = 0;
+      status     = EEPROM_WL_CRC_ALL_BAD;
+      break;
+    }
+
+  } while ((wlHeader.crc16_ccitt != crcData));
+
+  return status;
 }
 
 /*! @brief Send n bytes over I2C
@@ -283,16 +322,17 @@ int eepromRead(unsigned int addr, void *pDst, unsigned int n) {
   return 0;
 }
 
-void eepromReadWL(void *pPktRd) {
+eepromWLStatus_t eepromReadWL(void *pPktRd) {
   /* Check for correct indexing, find it not yet set. Read into struct from
    * correct location.
    */
-  int          idxRd;
-  unsigned int addrRd;
-  WLHeader_t   header;
+  int              idxRd;
+  unsigned int     addrRd;
+  WLHeader_t       header;
+  eepromWLStatus_t status = EEPROM_WL_OK;
 
   if (-1 == wlIdxNxtWr)
-    wlFindLast();
+    status = wlFindLast();
 
   idxRd = wlIdxNxtWr - 1u;
   if (idxRd < 0) {
@@ -303,9 +343,27 @@ void eepromReadWL(void *pPktRd) {
 
   addrRd += 4;
   eepromRead(addrRd, pPktRd, wlData_n);
+
+  return status;
 }
 
-void eepromResetWL(int len) {
+void eepromWLClear(void) {
+  WLHeader_t wlHeader;
+
+  eepromInitBlock(EEPROM_WL_OFFSET, 0, (EEPROM_SIZE - EEPROM_WL_OFFSET));
+
+  memset(wlData, 0, WL_PKT_SIZE);
+  wlHeader.valid       = 0;
+  wlHeader.res0        = 0;
+  wlHeader.crc16_ccitt = calcCRC16_ccitt(wlData, wlData_n);
+
+  for (int i = 0; i < wlBlkCnt; i++) {
+    int addr = EEPROM_WL_OFFSET + (i * wlBlkSize);
+    eepromWrite(addr, &wlHeader, 4);
+  }
+}
+
+void eepromWLReset(int len) {
   EMON32_ASSERT(len && (len <= wlBlkSize));
 
   wlIdxNxtWr = -1;
@@ -317,8 +375,9 @@ eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc,
   EMON32_ASSERT((addr % 16 == 0));
 
   /* Make byte count and address static to allow re-entrant writes */
-  static wrLocal_t wrLocal;
-  I2CM_Status_t    wr_stat;
+  static wrLocal_t    wrLocal;
+  static unsigned int tLastWrite_us;
+  I2CM_Status_t       wr_stat;
 
   /* If all parameters are 0, then this is a continuation from ISR */
   const bool continueBlock = (0 == addr) && (0 == pSrc) && (0 == n);
@@ -344,6 +403,11 @@ eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc,
     }
   }
 
+  /* Hold off write if too close to the last one. */
+  while (timerMicrosDelta(tLastWrite_us) < EEPROM_WR_TIME)
+    ;
+
+  tLastWrite_us = timerMicros();
   /* Write any whole pages */
   while (wrLocal.n_residual > EEPROM_PAGE_SIZE) {
     wr_stat = writeBytes(&wrLocal, EEPROM_PAGE_SIZE);

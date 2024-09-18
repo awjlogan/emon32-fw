@@ -2,7 +2,8 @@
 
 typedef enum eepromWLStatus_ {
   EEPROM_WL_OK,
-  EEPROM_WL_BAD_CRC
+  EEPROM_WL_CRC_BAD,
+  EEPROM_WL_CRC_ALL_BAD
 } eepromWLStatus_t;
 
 typedef enum eepromWrStatus_ {
@@ -47,15 +48,18 @@ int eepromRead(unsigned int addr, void *pDst, unsigned int n);
 /*! @brief Read data from EEPROM with wear leveling
  *  @param [out] pPktRd : pointer to read packet
  */
-void eepromReadWL(void *pPktRd);
+eepromWLStatus_t eepromReadWL(void *pPktRd);
+
+/*! @brief Do any required setup of the EEPROM */
+void eepromSetup(const unsigned int wlOffset);
+
+/*! @brief Wipe all data from the wear limiting block and reset headers */
+void eepromWLClear(void);
 
 /*! @brief Reset the wear limited next write index
  *  @param [in] len : length (in bytes) of data in WL area
  */
-void eepromResetWL(int len);
-
-/*! @brief Do any required setup of the EEPROM */
-void eepromSetup(const unsigned int wlOffset);
+void eepromWLReset(int len);
 
 /*! @brief Save data asynchronously to EEPROM
  *  @detail All writes are contiguous from the base. The implementation should

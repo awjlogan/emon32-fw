@@ -80,16 +80,25 @@ static void cumulativeNVMLoad(Emon32Cumulative_t *pPkt,
                               Emon32Dataset_t    *pData) {
   EMON32_ASSERT(pPkt);
   EMON32_ASSERT(pData);
+  eepromWLStatus_t wlStatus = EEPROM_WL_OK;
 
-  eepromResetWL(sizeof(*pPkt));
-  eepromReadWL(pPkt);
+  eepromWLReset(sizeof(*pPkt));
+  wlStatus = eepromReadWL(pPkt);
 
-  for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++) {
-    pData->pECM->CT[idxCT].wattHour = pPkt->wattHour[idxCT];
-  }
+  if ((EEPROM_WL_OK == wlStatus) || (EEPROM_WL_CRC_BAD == wlStatus)) {
+    if (EEPROM_WL_CRC_BAD == wlStatus) {
+      dbgPuts("> Accumulator possibly corrupt. Reverted to older value.\r\n");
+    }
 
-  for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++) {
-    pData->pulseCnt[idxPulse] = pPkt->pulseCnt[idxPulse];
+    for (unsigned int idxCT = 0; idxCT < NUM_CT; idxCT++) {
+      pData->pECM->CT[idxCT].wattHour = pPkt->wattHour[idxCT];
+    }
+
+    for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++) {
+      pData->pulseCnt[idxPulse] = pPkt->pulseCnt[idxPulse];
+    }
+  } else {
+    dbgPuts("> All accumulators corrupt, all reset.\r\n");
   }
 }
 
@@ -494,8 +503,8 @@ int main(void) {
         /* REVISIT : may need to make this asynchronous as it will take 240 ms
          * (worst case) to clear the whole EEPROM area.
          */
-        eepromInitBlock(EEPROM_WL_OFFSET, 0, (EEPROM_SIZE - EEPROM_WL_OFFSET));
-        eepromResetWL(sizeof(nvmCumulative));
+        eepromWLClear();
+        eepromWLReset(sizeof(nvmCumulative));
         for (int i = 0; i < NUM_CT; i++) {
           ecmDataset.CT[i].residualEnergy = 0.0f;
         }
