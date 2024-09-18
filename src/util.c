@@ -1,3 +1,4 @@
+#include <stdbool.h>
 #include <stdio.h>
 
 #include "util.h"
@@ -25,7 +26,7 @@ unsigned int utilStrlen(const char *pBuf) {
 
 unsigned int utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base) {
   unsigned int charCnt    = 0;
-  unsigned int isNegative = 0;
+  bool         isNegative = false;
   char *const  pBase      = pBuf;
 
   /* Handle 0 explicitly */
@@ -38,7 +39,7 @@ unsigned int utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base) {
   /* Base 10 can be signed, and has a divide in */
   if (ITOA_BASE10 == base) {
     if (val < 0) {
-      isNegative = 1u;
+      isNegative = true;
       val        = -val;
     }
 
@@ -48,7 +49,7 @@ unsigned int utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base) {
       charCnt++;
     }
 
-    if (0 != isNegative) {
+    if (isNegative) {
       *pBuf++ = '-';
       charCnt++;
     }
@@ -72,13 +73,13 @@ unsigned int utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base) {
 }
 
 int32_t utilAtoi(char *pBuf, ITOA_BASE_t base) {
-  unsigned int isNegative = 0u;
+  bool         isNegative = false;
   unsigned int len;
   unsigned int mulCnt = 1;
   int32_t      val    = 0;
 
   if ('-' == *pBuf) {
-    isNegative = 1u;
+    isNegative = true;
     pBuf++;
   }
 
@@ -91,7 +92,7 @@ int32_t utilAtoi(char *pBuf, ITOA_BASE_t base) {
       val += ((*pBuf++) - '0') * mulCnt;
       mulCnt *= 10;
     }
-    if (1u == isNegative) {
+    if (isNegative) {
       val = -val;
     }
   } else {
@@ -111,14 +112,14 @@ int32_t utilAtoi(char *pBuf, ITOA_BASE_t base) {
 
 unsigned int utilFtoa(char *pBuf, float val) {
   unsigned int charCnt    = 0;
-  unsigned int isNegative = 0;
+  bool         isNegative = false;
   char *const  pBase      = pBuf;
 
   uint16_t decimals;
   int      units;
 
   if (val < 0.0f) {
-    isNegative = 1u;
+    isNegative = true;
     val        = qfp_fmul(val, -1.0f);
   }
   decimals = qfp_float2int(qfp_fmul(val, 100.0f)) % 100;
@@ -141,7 +142,7 @@ unsigned int utilFtoa(char *pBuf, float val) {
     charCnt++;
   }
 
-  if (0 != isNegative) {
+  if (isNegative) {
     *pBuf++ = '-';
     charCnt++;
   }
@@ -150,14 +151,14 @@ unsigned int utilFtoa(char *pBuf, float val) {
 }
 
 float utilAtof(char *pBuf) {
-  unsigned int isNegative = 0u;
+  bool         isNegative = false;
   unsigned int len        = 0;
   unsigned int mulCnt     = 1u;
   unsigned int fraction   = 0u;
   float        val        = 0.0f;
 
   if ('-' == *pBuf) {
-    isNegative = 1u;
+    isNegative = true;
     pBuf++;
   }
   len = utilStrlen(pBuf);

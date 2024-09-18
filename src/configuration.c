@@ -45,7 +45,7 @@ static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
 static void     printSettings(void);
-static void     putFloat(float val);
+static void     putFloat(float val, int flt_len);
 static char     waitForChar(void);
 static bool     zeroAccumulators(void);
 
@@ -185,7 +185,7 @@ static bool configureAnalog(void) {
     ecmCfg->vCfg[ch].voltageCalRaw   = cal;
 
     printf_("> V%d calibration set to: ", (ch + 1));
-    putFloat(config.voltageCfg[ch].voltageCal);
+    putFloat(config.voltageCfg[ch].voltageCal, 0);
     dbgPuts("\r\n");
 
     ecmConfigChannel(ch);
@@ -200,14 +200,14 @@ static bool configureAnalog(void) {
   config.ctCfg[ch].ctCal     = cal;
   ecmCfg->ctCfg[ch].ctCalRaw = cal;
   printf_("> CT%d calibration set to: ", (ch + 1));
-  putFloat(config.ctCfg[ch].ctCal);
+  putFloat(config.ctCfg[ch].ctCal, 0);
   dbgPuts("\r\n");
 
   cal                     = utilAtof(inBuffer + posPhase);
   config.ctCfg[ch].phase  = cal;
   ecmCfg->ctCfg[ch].phCal = cal;
   printf_("> CT%d phase set to: ", (ch + 1));
-  putFloat(config.ctCfg[ch].phase);
+  putFloat(config.ctCfg[ch].phase, 0);
   dbgPuts("\r\n");
 
   vCh                      = utilAtoi(inBuffer + posV1, ITOA_BASE10);
@@ -272,8 +272,8 @@ static void enterBootloader(void) {
       (volatile uint32_t *)(HMCRAMC0_ADDR + HMCRAMC0_SIZE - 4);
   // Key is uf2-samdx1/inc/uf2.h:DBL_TAP_MAGIC
   const uint32_t blsm_key = 0xF01669EF;
-  dbgPuts(
-      "> Enter bootloader? All unsaved changes will be lost. 'y' to proceed.");
+  dbgPuts("> Enter bootloader? All unsaved changes will be lost. 'y' to "
+          "proceed.\r\n");
   c = waitForChar();
   if ('y' == c) {
     *p_blsm = blsm_key;
@@ -337,7 +337,7 @@ static void printSettings(void) {
   dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
   printf_("Mains frequency (Hz)       %d\r\n", config.baseCfg.mainsFreq);
   dbgPuts("Data log time (s):         ");
-  putFloat(config.baseCfg.reportTime);
+  putFloat(config.baseCfg.reportTime, 0);
   printf_("\r\nMinimum accumulation (Wh): %d\r\n", config.baseCfg.whDeltaStore);
   dbgPuts("Data transmission:         ");
   if (DATATX_RFM69 == (TxType_t)config.dataTxCfg.txType) {
@@ -382,21 +382,21 @@ static void printSettings(void) {
     dbgPuts("\r\n\r\n");
   }
 
-  dbgPuts("| Channel | Active | Calibration | Phase | In 1 | In 2 |\r\n");
-  dbgPuts("+=========+========+=============+=======+======+======+\r\n");
+  dbgPuts("| Channel | Active | Calibration | Phase  | In 1 | In 2 |\r\n");
+  dbgPuts("+=========+========+=============+========+======+======+\r\n");
   for (int i = 0; i < NUM_V; i++) {
     printf_("|  V %2d   | %c      | ", (i + 1),
             (config.voltageCfg[i].vActive ? 'Y' : 'N'));
-    putFloat(config.voltageCfg[i].voltageCal);
-    dbgPuts("      |       |      |      |\r\n");
+    putFloat(config.voltageCfg[i].voltageCal, 6);
+    dbgPuts("      |        |      |      |\r\n");
   }
   for (int i = 0; i < NUM_CT; i++) {
     printf_("| CT %2d   | %c      | ", (i + 1),
             (config.ctCfg[i].ctActive ? 'Y' : 'N'));
-    putFloat(config.ctCfg[i].ctCal);
+    putFloat(config.ctCfg[i].ctCal, 6);
     dbgPuts("      | ");
-    putFloat(config.ctCfg[i].phase);
-    printf_("  | %d    | %d    |\r\n", config.ctCfg[i].vChan1,
+    putFloat(config.ctCfg[i].phase, 6);
+    printf_(" | %d    | %d    |\r\n", config.ctCfg[i].vChan1,
             config.ctCfg[i].vChan2);
   }
   dbgPuts("\r\n");
@@ -406,9 +406,18 @@ static void printSettings(void) {
   }
 }
 
-static void putFloat(float val) {
+static void putFloat(float val, int flt_len) {
   char strBuffer[16];
-  utilFtoa(strBuffer, val);
+  int  ftoalen = utilFtoa(strBuffer, val);
+
+  if (flt_len) {
+    int fillSpace = flt_len - ftoalen;
+
+    while (fillSpace--) {
+      dbgPuts(" ");
+    }
+  }
+
   dbgPuts(strBuffer);
 }
 
@@ -619,7 +628,7 @@ void configProcessCmd(void) {
           configTimeToCycles(newTime, config.baseCfg.mainsFreq));
 
       dbgPuts("> Data log report time set to: ");
-      putFloat(config.baseCfg.reportTime);
+      putFloat(config.baseCfg.reportTime, 0);
       dbgPuts("\r\n");
 
       unsavedChange = true;
