@@ -5,6 +5,15 @@
 
 #include "qfplib-m0-full.h"
 
+static bool isnumeric(const char c);
+
+static bool isnumeric(const char c) {
+  if (('0' <= c) && ('9' >= c)) {
+    return true;
+  }
+  return false;
+}
+
 void utilStrReverse(char *pBuf, unsigned int len) {
   char         tmp;
   unsigned int idxEnd = len - 1u;
@@ -72,11 +81,11 @@ unsigned int utilItoa(char *pBuf, int32_t val, ITOA_BASE_t base) {
   return charCnt;
 }
 
-int32_t utilAtoi(char *pBuf, ITOA_BASE_t base) {
+ConvInt_t utilAtoi(char *pBuf, ITOA_BASE_t base) {
   bool         isNegative = false;
   unsigned int len;
   unsigned int mulCnt = 1;
-  int32_t      val    = 0;
+  ConvInt_t    conv   = {false, 0};
 
   if ('-' == *pBuf) {
     isNegative = true;
@@ -89,25 +98,35 @@ int32_t utilAtoi(char *pBuf, ITOA_BASE_t base) {
 
   if (ITOA_BASE10 == base) {
     while (*pBuf) {
-      val += ((*pBuf++) - '0') * mulCnt;
+      if (!isnumeric(*pBuf))
+        return conv;
+      conv.val += ((*pBuf++) - '0') * mulCnt;
       mulCnt *= 10;
     }
     if (isNegative) {
-      val = -val;
+      conv.val = -conv.val;
     }
   } else {
     while (*pBuf) {
-      if ('a' <= *pBuf) {
-        val += ((*pBuf) - 'a' + 10u) * mulCnt;
+      if (('a' <= *pBuf) && ('f' >= *pBuf)) {
+        conv.val += ((*pBuf) - 'a' + 10u) * mulCnt;
+      } else if (isnumeric(*pBuf)) {
+        conv.val += ((*pBuf) - '0') * mulCnt;
       } else {
-        val += ((*pBuf) - '0') * mulCnt;
+        return conv;
       }
       pBuf++;
       mulCnt *= 16;
     }
   }
 
-  return val;
+  conv.valid = true;
+  return conv;
+}
+
+bool utilCharPrintable(const char c) {
+  /* Allow any printable character plus \r and \n */
+  return (((c >= 32) && (c <= 126)) || ('\r' == c) || ('\n' == c));
 }
 
 unsigned int utilFtoa(char *pBuf, float val) {
@@ -150,12 +169,12 @@ unsigned int utilFtoa(char *pBuf, float val) {
   return charCnt;
 }
 
-float utilAtof(char *pBuf) {
+ConvFloat_t utilAtof(char *pBuf) {
   bool         isNegative = false;
   unsigned int len        = 0;
   unsigned int mulCnt     = 1u;
   unsigned int fraction   = 0u;
-  float        val        = 0.0f;
+  ConvFloat_t  conv       = {false, 0.0f};
 
   if ('-' == *pBuf) {
     isNegative = true;
@@ -167,21 +186,26 @@ float utilAtof(char *pBuf) {
   while (*pBuf) {
     const char c = *pBuf++;
     /* Allow period/comma delimit, divide down if found */
-    if ('.' != c && ',' != c) {
+    if (('.' == c) || (',' == c)) {
+      fraction = mulCnt;
+    } else if (isnumeric(c)) {
       const float toAdd = qfp_uint2float((c - '0') * mulCnt);
-      val               = qfp_fadd(val, toAdd);
+      conv.val          = qfp_fadd(conv.val, toAdd);
       mulCnt *= 10;
     } else {
-      fraction = mulCnt;
+      /* Invalid character found */
+      return conv;
     }
   }
 
   if (0 != fraction) {
-    val = qfp_fdiv(val, qfp_uint2float(fraction));
+    conv.val = qfp_fdiv(conv.val, qfp_uint2float(fraction));
   }
 
   if (isNegative) {
-    val = qfp_fmul(val, -1.0f);
+    conv.val = qfp_fmul(conv.val, -1.0f);
   }
-  return val;
+
+  conv.valid = true;
+  return conv;
 }

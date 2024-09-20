@@ -268,8 +268,8 @@ void sercomSetupSPI(Pin_t sel) {
 void uartPutcBlocking(Sercom *sercom, char c) {
   while (!(sercom->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE))
     ;
-  sercom->USART.DATA.reg    = c;
-  sercom->USART.INTFLAG.reg = 0;
+  sercom->USART.DATA.reg = c;
+  sercom->USART.INTFLAG.reg |= SERCOM_USART_INTFLAG_DRE;
 }
 
 void uartPutsBlocking(Sercom *sercom, const char *s) {
@@ -297,7 +297,14 @@ void uartPutsNonBlocking(unsigned int dma_chan, const char *const s,
   dmacChannelEnable(dma_chan);
 }
 
-char uartGetc(const Sercom *sercom) { return sercom->USART.DATA.reg; }
+char uartGetc(Sercom *sercom) {
+  sercom->USART.INTFLAG.reg |= SERCOM_USART_INTFLAG_RXC;
+  return sercom->USART.DATA.reg;
+}
+
+bool uartGetcReady(const Sercom *sercom) {
+  return (bool)(sercom->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_RXC);
+}
 
 void uartInterruptEnable(Sercom *sercom, uint32_t interrupt) {
   sercom->USART.INTENSET.reg |= interrupt;
@@ -390,25 +397,4 @@ uint8_t spiSendByte(Sercom *sercom, const uint8_t b) {
   while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_RXC))
     ;
   return (uint8_t)sercom->SPI.DATA.reg;
-}
-
-/* =============================
- * Interrupt handlers
- * ============================= */
-
-void SERCOM_UART_INTERACTIVE_HANDLER {
-  /* Echo the received character to the TX channel, and send to the command
-   * stream. Echo to the console.
-   */
-  uint8_t rx_char = 0;
-
-  if (SERCOM_UART_INTERACTIVE->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_RXC) {
-    SERCOM_UART_INTERACTIVE->USART.INTFLAG.reg |= SERCOM_USART_INTFLAG_RXC;
-    rx_char = SERCOM_UART_INTERACTIVE->USART.DATA.reg;
-    configCmdChar(rx_char);
-
-    if (SERCOM_UART_INTERACTIVE->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE) {
-      SERCOM_UART_INTERACTIVE->USART.DATA.reg = rx_char;
-    }
-  }
 }

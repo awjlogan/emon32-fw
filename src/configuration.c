@@ -44,6 +44,7 @@ static void     configurePulse(void);
 static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
+static void     inBufferClear(int n);
 static void     printSettings(void);
 static void     putFloat(float val, int flt_len);
 static char     waitForChar(void);
@@ -123,16 +124,20 @@ static bool configureAnalog(void) {
   /* String format: k<x> <a> <y.y> <z.z> v1 v2
    * Find space delimiters, then convert to null and a->i/f
    */
-  int       ch        = 0;
-  bool      active    = false;
-  float     cal       = 0.0f;
-  int       vCh       = 0;
-  int       posActive = 0;
-  int       posCalib  = 0;
-  int       posPhase  = 0;
-  int       posV1     = 0;
-  int       posV2     = 0;
-  ECMCfg_t *ecmCfg    = 0;
+  ConvFloat_t convF     = {false, 0.0f};
+  ConvInt_t   convI     = {false, 0};
+  int         ch        = 0;
+  bool        active    = false;
+  float       calAmpl   = 0.0f;
+  float       calPhase  = 0.0f;
+  int         vCh1      = 0;
+  int         vCh2      = 0;
+  int         posActive = 0;
+  int         posCalib  = 0;
+  int         posPhase  = 0;
+  int         posV1     = 0;
+  int         posV2     = 0;
+  ECMCfg_t   *ecmCfg    = 0;
 
   for (int i = 0; i < IN_BUFFER_W; i++) {
     if (0 == inBuffer[i]) {
@@ -158,13 +163,18 @@ static bool configureAnalog(void) {
   /* Voltage channels are [1..3], CTs are [4..] but 0 indexed internally. All
    * fields must be present for a given channel type.
    */
-  ch = utilAtoi(inBuffer + 1u, ITOA_BASE10) - 1;
+  convI = utilAtoi(inBuffer + 1u, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+  ch = convI.val - 1;
+
   if ((ch < 0) || (ch > (VCT_TOTAL - 1))) {
     return false;
   }
 
   if ((0 == posCalib) || (0 == posActive)) {
-    return -1;
+    return false;
   }
   if (ch >= NUM_V) {
     if ((0 == posPhase) || (0 == posV1) || (0 == posV2)) {
@@ -175,14 +185,23 @@ static bool configureAnalog(void) {
   ecmCfg = ecmConfigGet();
   EMON32_ASSERT(ecmCfg);
 
-  active = (bool)utilAtoi(inBuffer + posActive, ITOA_BASE10);
-  cal    = utilAtof(inBuffer + posCalib);
+  convI = utilAtoi(inBuffer + posActive, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+  active = (bool)convI.val;
+
+  convF = utilAtof(inBuffer + posCalib);
+  if (!convF.valid) {
+    return false;
+  }
+  calAmpl = convF.val;
 
   if (NUM_V > ch) {
     config.voltageCfg[ch].vActive    = active;
-    config.voltageCfg[ch].voltageCal = cal;
+    config.voltageCfg[ch].voltageCal = calAmpl;
     ecmCfg->vCfg[ch].vActive         = active;
-    ecmCfg->vCfg[ch].voltageCalRaw   = cal;
+    ecmCfg->vCfg[ch].voltageCalRaw   = calAmpl;
 
     printf_("> V%d calibration set to: ", (ch + 1));
     putFloat(config.voltageCfg[ch].voltageCal, 0);
@@ -192,35 +211,50 @@ static bool configureAnalog(void) {
     return true;
   }
 
+  convF = utilAtof(inBuffer + posPhase);
+  if (!convF.valid) {
+    return false;
+  }
+  calPhase = convF.val;
+
+  convI = utilAtoi(inBuffer + posV1, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+  vCh1 = convI.val;
+
+  convI = utilAtoi(inBuffer + posV2, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+  vCh2 = convI.val;
+
   /* CT configuration */
   ch -= NUM_V;
   config.ctCfg[ch].ctActive = active;
   ecmCfg->ctCfg[ch].active  = active;
 
-  config.ctCfg[ch].ctCal     = cal;
-  ecmCfg->ctCfg[ch].ctCalRaw = cal;
+  config.ctCfg[ch].ctCal     = calAmpl;
+  ecmCfg->ctCfg[ch].ctCalRaw = calAmpl;
   printf_("> CT%d calibration set to: ", (ch + 1));
   putFloat(config.ctCfg[ch].ctCal, 0);
   dbgPuts("\r\n");
 
-  cal                     = utilAtof(inBuffer + posPhase);
-  config.ctCfg[ch].phase  = cal;
-  ecmCfg->ctCfg[ch].phCal = cal;
+  config.ctCfg[ch].phase  = calPhase;
+  ecmCfg->ctCfg[ch].phCal = calPhase;
   printf_("> CT%d phase set to: ", (ch + 1));
   putFloat(config.ctCfg[ch].phase, 0);
   dbgPuts("\r\n");
 
-  vCh                      = utilAtoi(inBuffer + posV1, ITOA_BASE10);
-  config.ctCfg[ch].vChan1  = vCh - 1;
-  ecmCfg->ctCfg[ch].vChan1 = vCh - 1;
-  printf_("> CT%d voltage channel 1 set to: %d\r\n", (ch + 1), vCh);
+  config.ctCfg[ch].vChan1  = vCh1 - 1;
+  ecmCfg->ctCfg[ch].vChan1 = vCh1 - 1;
+  printf_("> CT%d voltage channel 1 set to: %d\r\n", (ch + 1), vCh1);
 
-  vCh                      = utilAtoi(inBuffer + posV2, ITOA_BASE10);
-  config.ctCfg[ch].vChan2  = vCh - 1;
-  ecmCfg->ctCfg[ch].vChan2 = vCh - 1;
-  printf_("> CT%d voltage channel 1 set to: %d\r\n", (ch + 1), vCh);
+  config.ctCfg[ch].vChan2  = vCh2 - 1;
+  ecmCfg->ctCfg[ch].vChan2 = vCh2 - 1;
+  printf_("> CT%d voltage channel 1 set to: %d\r\n", (ch + 1), vCh2);
 
-  ecmConfigChannel(ch);
+  ecmConfigChannel(ch + NUM_V);
   return true;
 }
 
@@ -231,10 +265,38 @@ static void configurePulse(void) {
    *      [5] -> edge (rising, falling, both)
    *      [7] -> NULL: blank time
    */
-  const int ch      = (inBuffer[1] - 48u) - 1u;
-  const int active  = inBuffer[3] - 48u;
-  const int edgePos = 5u;
-  const int timePos = 7u;
+  ConvInt_t convI;
+  int       ch     = 0;
+  int       active = 0;
+  int       period = 0;
+  char      edge   = 0;
+
+  convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  if (!convI.valid) {
+    return;
+  }
+  ch = convI.val - 1;
+
+  if ((ch < 0) || (ch >= NUM_PULSECOUNT)) {
+    return;
+  }
+
+  convI = utilAtoi(inBuffer + 3, ITOA_BASE10);
+  if (!convI.valid) {
+    return;
+  }
+  active = (bool)convI.val;
+
+  convI = utilAtoi((inBuffer + 7), ITOA_BASE10);
+  if (!convI.valid) {
+    return;
+  }
+  period = convI.val;
+
+  edge = inBuffer[5];
+  if (!(('r' == edge) || ('f' == edge) || ('b' == edge))) {
+    return;
+  }
 
   /* If inactive, clear active flag, no decode for the rest */
   if (0 == active) {
@@ -244,7 +306,7 @@ static void configurePulse(void) {
   } else {
     config.pulseCfg[ch].pulseActive = true;
     printf_("> Pulse channel %d: ", (ch + 1u));
-    switch (inBuffer[edgePos]) {
+    switch (edge) {
     case 'r':
       dbgPuts("Rising, ");
       config.pulseCfg[ch].edge = 0u;
@@ -258,7 +320,7 @@ static void configurePulse(void) {
       config.pulseCfg[ch].edge = 2u;
       break;
     }
-    config.pulseCfg[ch].period = utilAtoi((inBuffer + timePos), ITOA_BASE10);
+    config.pulseCfg[ch].period = period;
     printf_("%d ms\r\n", config.pulseCfg[ch].period);
   }
 }
@@ -331,6 +393,11 @@ uint32_t getUniqueID(int idx) {
   const uint32_t id_addr_lut[4] = {0x0080A00C, 0x0080A040, 0x0080A044,
                                    0x0080A048};
   return *(volatile uint32_t *)id_addr_lut[idx];
+}
+
+static void inBufferClear(int n) {
+  inBufferIdx = 0;
+  (void)memset(inBuffer, 0, n);
 }
 
 static void printSettings(void) {
@@ -472,10 +539,15 @@ static bool zeroAccumulators(void) {
 }
 
 void configCmdChar(const uint8_t c) {
-  if ('\n' == c) {
+  if (('\r' == c) || ('\n' == c)) {
     emon32EventSet(EVT_PROCESS_CMD);
-  } else if (inBufferIdx < IN_BUFFER_W) {
+  } else if ('\b' == c) {
+    dbgPuts("\b \b");
+  } else if ((inBufferIdx < IN_BUFFER_W) && utilCharPrintable(c)) {
     inBuffer[inBufferIdx++] = c;
+  } else {
+    inBufferClear(IN_BUFFER_W);
+    dbgPuts("\a\r\n");
   }
 }
 
@@ -542,7 +614,8 @@ void configLoadFromNVM(void) {
 void configProcessCmd(void) {
   unsigned int arglen    = 0;
   unsigned int termFound = 0;
-  float        newTime   = 0.0f;
+  ConvFloat_t  newTime   = {false, 0.0f};
+  ConvInt_t    convI     = {false, 0};
 
   /* Help text - serves as documentation interally as well */
   const char helpText[] =
@@ -608,7 +681,12 @@ void configProcessCmd(void) {
      * Format: c0 | c1
      */
     if (2u == arglen) {
-      config.baseCfg.logToSerial = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      if (!convI.valid) {
+        break;
+      }
+
+      config.baseCfg.logToSerial = (bool)convI.val;
 
       printf_("> Log to serial: %c\r\n",
               config.baseCfg.logToSerial ? 'Y' : 'N');
@@ -620,12 +698,16 @@ void configProcessCmd(void) {
   case 'd':
     /* Set the datalog period (s) in range 0.5 <= t <= 600 */
     newTime = utilAtof(inBuffer + 1);
-    if ((newTime < 0.5f) || (newTime > 600.0f)) {
+    if (!newTime.valid) {
+      break;
+    }
+
+    if ((newTime.val < 0.5f) || (newTime.val > 600.0f)) {
       dbgPuts("> Log report time out of range.\r\n");
     } else {
-      config.baseCfg.reportTime = newTime;
+      config.baseCfg.reportTime = newTime.val;
       ecmConfigReportCycles(
-          configTimeToCycles(newTime, config.baseCfg.mainsFreq));
+          configTimeToCycles(newTime.val, config.baseCfg.mainsFreq));
 
       dbgPuts("> Data log report time set to: ");
       putFloat(config.baseCfg.reportTime, 0);
@@ -644,7 +726,16 @@ void configProcessCmd(void) {
      * Format: f50 | f60
      */
     if (3u == arglen) {
-      config.baseCfg.mainsFreq = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      if (!convI.valid) {
+        break;
+      }
+
+      if (!((50 == convI.val) || (60 == convI.val))) {
+        break;
+      }
+
+      config.baseCfg.mainsFreq = convI.val;
 
       printf_("> Mains frequency set to: %d\r\n", config.baseCfg.mainsFreq);
 
@@ -655,7 +746,12 @@ void configProcessCmd(void) {
     break;
   case 'j':
     if (2u == arglen) {
-      config.baseCfg.useJson = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+      if (!convI.valid) {
+        break;
+      }
+
+      config.baseCfg.useJson = (bool)convI.val;
 
       printf_("> Use JSON: %c\r\n", config.baseCfg.useJson ? 'Y' : 'N');
 
@@ -723,7 +819,12 @@ void configProcessCmd(void) {
     break;
   case 'w':
     /* Set the Wh delta between saving accumulators */
-    config.baseCfg.whDeltaStore = utilAtoi(inBuffer + 1, ITOA_BASE10);
+    convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+    if (!convI.valid) {
+      break;
+    }
+
+    config.baseCfg.whDeltaStore = convI.val;
 
     printf_("> Energy delta set to: %d\r\n", config.baseCfg.whDeltaStore);
 
@@ -738,11 +839,27 @@ void configProcessCmd(void) {
     break;
   }
 
-  /* Clear buffer and reset pointer */
-  inBufferIdx = 0;
-  (void)memset(inBuffer, 0, IN_BUFFER_W);
+  inBufferClear(arglen + 1);
 }
 
 int configTimeToCycles(const float time, const int mainsFreq) {
   return qfp_float2uint(qfp_fmul(time, qfp_int2float(mainsFreq)));
+}
+
+/* =======================
+ * UART Interrupt handler
+ * ======================= */
+
+void SERCOM_UART_INTERACTIVE_HANDLER {
+  /* Echo the received character to the TX channel, and send to the command
+   * stream.
+   */
+  if (uartGetcReady(SERCOM_UART_INTERACTIVE)) {
+    uint8_t rx_char = uartGetc(SERCOM_UART_INTERACTIVE);
+    configCmdChar(rx_char);
+
+    if (utilCharPrintable(rx_char)) {
+      uartPutcBlocking(SERCOM_UART_INTERACTIVE, rx_char);
+    }
+  }
 }

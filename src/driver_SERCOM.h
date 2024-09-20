@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 
 #include "driver_DMAC.h"
@@ -135,7 +136,12 @@ void uartConfigureDMA(void);
  *         INTFLAG.RXC bit it set.
  *  @param [in] sercom : SERCOM instance
  */
-char uartGetc(const Sercom *sercom);
+char uartGetc(Sercom *sercom);
+
+/*! @brief Indicate if a byte is waiting in the USART data buffer.
+ *  @return : true if waiting, false otherwise
+ */
+bool uartGetcReady(const Sercom *sercom);
 
 /*! @brief Clear the interrupt status for the UART instance
  *  @param [in] sercom : SERCOM instance
@@ -179,9 +185,3 @@ void uartPutsBlocking(Sercom *sercom, const char *s);
  */
 void uartPutsNonBlocking(unsigned int dma_chan, const char *const s,
                          uint16_t len);
-
-/*! @brief Set up a UART SERCOM to be an interactive device. Characters will
- *         be echoed to the RX channel, and passed to a callback function.
- *  @param [in] sercom : pointer to the SERCOM instance§
- */
-void uartSetInteractive(Sercom *sercom);
