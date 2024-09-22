@@ -15,8 +15,7 @@ Issues can be reported:
 
 Please include as much information as possible (run the `v` command on the serial link), including at least:
 
-- The emon32 hardware that you using (board name and revision, and serial number)
-- The firmware version
+- The emon32 hardware that you using and the emon32-fw version (run the 'v' command on the serial link)
 - All settings (run the `l` command on the serial link)
 - A full description, including a reproduction if possible, of the issue
 
@@ -61,10 +60,6 @@ It is available on:
 - Raspberry Pi:
   - GPIO 14 (UART TX _from_ Raspberry Pi)
   - GPIO 15 (UART RX _to_ the Raspberry Pi)
-- Debug pins:
-  - 2 (UART TX _from_ Raspberry Pi)
-  - 1 (UART RX _to_ the Raspberry Pi)
-- Test harness pads (only when TEST_SENSE is LOW)
 
 ### Run time configuration
 
@@ -75,18 +70,12 @@ The _emon32_ firmware is compatible with the OpenEnergyMonitor [emonPi2 configur
 
 The following options are added:
 
-|Command    |Definition                                             |
-|-----------|-------------------------------------------------------|
-|o&lt;_x_&gt; |Auto calibrate CT lead for channel _x_               |
-|t          |Trigger a data set processing event                    |
-|v          |Print firmware and board information                   |
-|w&lt;_n_&gt; |Minimum energy difference, _n_ Wh, before saving     |
-
-The following options are deprecated:
-
-|Command        |Definition                                             |
-|---------------|-------------------------------------------------------|
-|a&lt;_x.x_&gt; |Assumed voltage if no AC detected                      |
+|Command      |Definition                                             |
+|-------------|-------------------------------------------------------|
+|o&lt;_x_&gt; |Auto calibrate CT lead for channel _x_                 |
+|t            |Trigger a data set processing event                    |
+|v            |Print firmware and board information                   |
+|w&lt;_n_&gt; |Minimum energy difference, _n_ Wh, before saving       |
 
 ### Data acquisition
 

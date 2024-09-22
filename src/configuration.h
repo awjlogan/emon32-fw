@@ -16,7 +16,8 @@ typedef struct __attribute__((__packed__)) BaseCfg_ {
   uint8_t  dataGrp;      /* Transmission group - default 210 */
   bool     logToSerial;  /* Log data to serial output */
   bool     useJson;      /* JSON format for serial output */
-  uint8_t  res0[11];
+  uint8_t  assumedVrms;  /* Assumed RMS voltage if not present */
+  uint8_t  res0[10];
   float    reportTime; /* Time between reports */
 } BaseCfg_t;
 

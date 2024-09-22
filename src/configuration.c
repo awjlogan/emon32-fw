@@ -40,7 +40,11 @@ static void     configDefault(void);
 static void     configInitialiseNVM(void);
 static int      configTimeToCycles(const float time, const int mainsFreq);
 static bool     configureAnalog(void);
+static bool     configureAssumed(void);
+static bool     configureDatalog(void);
 static void     configurePulse(void);
+static bool     configureSerialLog(void);
+static bool     configureWhDelta(void);
 static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
@@ -169,7 +173,7 @@ static bool configureAnalog(void) {
   }
   ch = convI.val - 1;
 
-  if ((ch < 0) || (ch > (VCT_TOTAL - 1))) {
+  if ((ch < 0) || (ch >= VCT_TOTAL)) {
     return false;
   }
 
@@ -229,6 +233,10 @@ static bool configureAnalog(void) {
   }
   vCh2 = convI.val;
 
+  if ((vCh1 < 1) || (vCh1 > NUM_V) || (vCh2 < 1) || (vCh2 > NUM_V)) {
+    return false;
+  }
+
   /* CT configuration */
   ch -= NUM_V;
   config.ctCfg[ch].ctActive = active;
@@ -256,6 +264,37 @@ static bool configureAnalog(void) {
 
   ecmConfigChannel(ch + NUM_V);
   return true;
+}
+
+static bool configureAssumed(void) {
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  if (convI.valid) {
+    ECMCfg_t *pEcmCfg          = ecmConfigGet();
+    pEcmCfg->assumedVrms       = convI.val;
+    config.baseCfg.assumedVrms = convI.val;
+    return true;
+  }
+  return false;
+}
+
+static bool configureDatalog(void) {
+  ConvFloat_t convF = utilAtof(inBuffer + 1);
+  /* Set the datalog period (s) in range 0.5 <= t <= 600 */
+  if (convF.valid) {
+    if ((convF.val < 0.5f) || (convF.val > 600.0f)) {
+      dbgPuts("> Log report time out of range.\r\n");
+    } else {
+      config.baseCfg.reportTime = convF.val;
+      ecmConfigReportCycles(
+          configTimeToCycles(convF.val, config.baseCfg.mainsFreq));
+
+      dbgPuts("> Data log report time set to: ");
+      putFloat(config.baseCfg.reportTime, 0);
+      dbgPuts("\r\n");
+      return true;
+    }
+  }
+  return false;
 }
 
 static void configurePulse(void) {
@@ -325,7 +364,31 @@ static void configurePulse(void) {
   }
 }
 
-/*! @brief Enter the bootloader, confirmation required */
+static bool configureSerialLog(void) {
+  /* Log to serial output, default TRUE
+   * Format: c0 | c1
+   */
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
+  if (convI.valid) {
+    config.baseCfg.logToSerial = (bool)convI.val;
+    printf_("> Log to serial: %c\r\n", config.baseCfg.logToSerial ? 'Y' : 'N');
+    return true;
+  }
+  return false;
+}
+
+static bool configureWhDelta(void) {
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
+  if (convI.valid) {
+    config.baseCfg.whDeltaStore = convI.val;
+    printf_("> Energy delta set to: %d\r\n", config.baseCfg.whDeltaStore);
+    return true;
+  }
+  return false;
+}
+
 static void enterBootloader(void) {
   /* Linker reserves 4 bytes at the bottom of the stack and write the UF2
    * bootloader key followed by reset. Will enter bootloader upon reset. */
@@ -449,22 +512,24 @@ static void printSettings(void) {
     dbgPuts("\r\n\r\n");
   }
 
-  dbgPuts("| Channel | Active | Calibration | Phase  | In 1 | In 2 |\r\n");
-  dbgPuts("+=========+========+=============+========+======+======+\r\n");
+  dbgPuts(
+      "| Ref | Channel | Active | Calibration | Phase  | In 1 | In 2 |\r\n");
+  dbgPuts(
+      "+=====+=========+========+=============+========+======+======+\r\n");
   for (int i = 0; i < NUM_V; i++) {
-    printf_("|  V %2d   | %c      | ", (i + 1),
+    printf_("| %2d  |  V %2d   | %c      | ", (i + 1), (i + 1),
             (config.voltageCfg[i].vActive ? 'Y' : 'N'));
     putFloat(config.voltageCfg[i].voltageCal, 6);
     dbgPuts("      |        |      |      |\r\n");
   }
   for (int i = 0; i < NUM_CT; i++) {
-    printf_("| CT %2d   | %c      | ", (i + 1),
+    printf_("| %2d  | CT %2d   | %c      | ", (i + 1 + NUM_V), (i + 1),
             (config.ctCfg[i].ctActive ? 'Y' : 'N'));
     putFloat(config.ctCfg[i].ctCal, 6);
     dbgPuts("      | ");
     putFloat(config.ctCfg[i].phase, 6);
-    printf_(" | %d    | %d    |\r\n", config.ctCfg[i].vChan1,
-            config.ctCfg[i].vChan2);
+    printf_(" | %d    | %d    |\r\n", (config.ctCfg[i].vChan1 + 1),
+            (config.ctCfg[i].vChan2 + 1));
   }
   dbgPuts("\r\n");
 
@@ -613,8 +678,7 @@ void configLoadFromNVM(void) {
 
 void configProcessCmd(void) {
   unsigned int arglen    = 0;
-  unsigned int termFound = 0;
-  ConvFloat_t  newTime   = {false, 0.0f};
+  bool         termFound = false;
   ConvInt_t    convI     = {false, 0};
 
   /* Help text - serves as documentation interally as well */
@@ -622,8 +686,9 @@ void configProcessCmd(void) {
       "\r\n"
       "emon32 information and configuration commands\r\n\r\n"
       " - ?           : show this text again\r\n"
-      " - b<n>        : set RF band. n = 4 -> 433 MHz, 8 -> 868 MHz, 9 -> 915 "
-      "MHz\r\n"
+      " - a<n>        : set the assumed RMS voltage as integer\r\n"
+      " - b<n>        : set RF band. n = 4 -> 433 MHz, 8 -> 868 MHz, 9 -> "
+      "915 MHz\r\n"
       " - c<n>        : log to serial output. n = 0: OFF, n = 1: ON\r\n"
       " - d<x.x>      : data log period (s)\r\n"
       " - f<n>        : line frequency (Hz)\r\n"
@@ -655,18 +720,15 @@ void configProcessCmd(void) {
       " - z           : zero energy accumulators\r\n\r\n";
 
   /* Convert \r or \n to 0, and get the length until then. */
-  while (arglen < IN_BUFFER_W) {
-    const uint8_t c = inBuffer[arglen];
-    if (('\r' == c) || ('\n' == c)) {
-      inBuffer[arglen] = 0;
-      termFound        = 1u;
+  while (!termFound && (arglen < IN_BUFFER_W)) {
+    if (0 == inBuffer[arglen]) {
+      termFound = true;
       break;
     }
     arglen++;
   }
 
-  /* Early exit if no terminator found */
-  if (0 == termFound) {
+  if (!termFound) {
     return;
   }
 
@@ -676,43 +738,20 @@ void configProcessCmd(void) {
     /* Print help text */
     dbgPuts(helpText);
     break;
+  case 'a':
+    if (configureAssumed()) {
+      unsavedChange = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
+    }
+    break;
   case 'c':
-    /* Log to serial output, default TRUE
-     * Format: c0 | c1
-     */
-    if (2u == arglen) {
-      convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
-      if (!convI.valid) {
-        break;
-      }
-
-      config.baseCfg.logToSerial = (bool)convI.val;
-
-      printf_("> Log to serial: %c\r\n",
-              config.baseCfg.logToSerial ? 'Y' : 'N');
-
+    if (configureSerialLog()) {
       unsavedChange = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;
   case 'd':
-    /* Set the datalog period (s) in range 0.5 <= t <= 600 */
-    newTime = utilAtof(inBuffer + 1);
-    if (!newTime.valid) {
-      break;
-    }
-
-    if ((newTime.val < 0.5f) || (newTime.val > 600.0f)) {
-      dbgPuts("> Log report time out of range.\r\n");
-    } else {
-      config.baseCfg.reportTime = newTime.val;
-      ecmConfigReportCycles(
-          configTimeToCycles(newTime.val, config.baseCfg.mainsFreq));
-
-      dbgPuts("> Data log report time set to: ");
-      putFloat(config.baseCfg.reportTime, 0);
-      dbgPuts("\r\n");
-
+    if (configureDatalog()) {
       unsavedChange = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
@@ -814,25 +853,15 @@ void configProcessCmd(void) {
     emon32EventSet(EVT_ECM_TRIG);
     break;
   case 'v':
-    /* Print firmware and board information */
     configFirmwareBoardInfo();
     break;
   case 'w':
-    /* Set the Wh delta between saving accumulators */
-    convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
-    if (!convI.valid) {
-      break;
+    if (configureWhDelta()) {
+      unsavedChange = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
     }
-
-    config.baseCfg.whDeltaStore = convI.val;
-
-    printf_("> Energy delta set to: %d\r\n", config.baseCfg.whDeltaStore);
-
-    unsavedChange = true;
-    emon32EventSet(EVT_CONFIG_CHANGED);
     break;
   case 'z':
-    /* Clear accumulator space */
     if (zeroAccumulators()) {
       emon32EventSet(EVT_CLEAR_ACCUM);
     }
