@@ -15,6 +15,7 @@
 #define REPORT_V    1 /* Number of V channels to report */
 #define SMP_TICK    1000000u / SAMPLE_RATE / (VCT_TOTAL)
 #define TEST_TIME   100E6 /* Time to run in microseconds */
+#define VRMS_GOLD   232.62f
 
 typedef struct wave_ {
   double omega;  /* Angular velocity */
@@ -147,6 +148,10 @@ int main(int argc, char *argv[]) {
     pEcmCfg->ctCfg[i].vChan2   = 0;
   }
 
+  pEcmCfg->correction.valid  = true;
+  pEcmCfg->correction.offset = 0;
+  pEcmCfg->correction.gain   = (1 << 11);
+
   ecmConfigInit();
 
   printf("---- emon32 CM test ----\n\n");
@@ -164,8 +169,8 @@ int main(int argc, char *argv[]) {
 
   /* Print out test information */
   printf("  Test configuration:\n");
-  printf("    - Number of V     : %d\n", NUM_V),
-      printf("    - Number of CT    : %d\n", NUM_CT);
+  printf("    - Number of V     : %d\n", NUM_V);
+  printf("    - Number of CT    : %d\n", NUM_CT);
   printf("    - Mains frequency : %.0f Hz\n", MAINS_FREQ);
   printf("    - DSP enabled     : %s\n", pEcmCfg->downsample ? "Yes" : "No");
   printf("    - Report time     : %.2f s\n", REPORT_TIME);
@@ -198,7 +203,7 @@ int main(int argc, char *argv[]) {
       printf("smpProc.smpV[0]: %d\n", smpProc.smpV[0]);
 
       printf("Gold: %d Test: %d\n", coeffLut[0], smpProc.smpV[0]);
-      assert(0);
+      return 1;
     }
 
     for (unsigned int i = 0; i < VCT_TOTAL; i++) {
@@ -207,7 +212,11 @@ int main(int argc, char *argv[]) {
     }
     for (unsigned int idxCoeff = 0; idxCoeff < 9u; idxCoeff++) {
       ecmFilterSample(&smpProc);
-      assert(coeffLut[idxCoeff + 1u] == smpProc.smpV[0]);
+      if (!(coeffLut[idxCoeff + 1u] == smpProc.smpV[0])) {
+        printf("\nGold: %d Test: %d\n", coeffLut[idxCoeff + 1u],
+               smpProc.smpV[0]);
+        return 1;
+      }
     }
     printf("Complete\n\n");
   }
@@ -216,28 +225,37 @@ int main(int argc, char *argv[]) {
    * and generate the wave for each channel at each point.
    */
   printf("  Dynamic test...\n\n");
-  printf("    - In phase, PF = 1\n");
+  printf("    - Phase 0°, PF = 1 ... ");
   dynamicRun(4, false);
   if ((dataset.CT[0].pf > 1.01f) || (dataset.CT[0].pf < 0.99f)) {
-    printf("Gold: %.2f Test: %.2f\n", 1.00f, dataset.CT[0].pf);
-    assert(0);
+    printf("\nPF Gold: %.2f Test: %.2f\n", 1.00f, dataset.CT[0].pf);
+    return 1;
   }
+  if ((dataset.rmsV[0] > (VRMS_GOLD + 1.0f)) ||
+      (dataset.rmsV[0] < (VRMS_GOLD - 1.0f))) {
+    printf("\nVrms Gold: %.2f Test: %.2f\n", VRMS_GOLD, dataset.rmsV[0]);
+    return 1;
+  }
+  printf("Done!\n");
 
-  printf("\n    - 90 out of phase, power factor = 0\n");
+  printf("    - Phase 90°, PF = 0 ... ");
   wave[NUM_V].phi = M_PI / 2;
   time            = 0;
   dynamicRun(4, false);
+  printf("Done!\n");
 
-  printf("\n    - 180 out of phase, power factor = -1\n");
+  printf("    - Phase 180°, PF = -1 ... ");
   wave[NUM_V].phi = M_PI;
   time            = 0;
   dynamicRun(4, false);
   if ((dataset.CT[0].pf < -1.01f) || (dataset.CT[0].pf > -0.99f)) {
     printf("Gold: %.2f Test: %.2f\n", 1.00f, dataset.CT[0].pf);
-    assert(0);
+    return 1;
   }
+  printf("Done!\n");
 
   printf("\n  Finished!\n\n");
+  return 0;
 }
 
 static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {

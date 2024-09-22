@@ -8,6 +8,10 @@
 #include "emon_CM.h"
 #include "qfplib-m0-full.h"
 
+static int16_t correctionGain;
+static int16_t correctionOffset;
+static bool    correctionValid;
+
 static void    adcCalibrate(void);
 static int16_t adcCalibrateSmp(int pin);
 static void    adcConfigureDMAC(void);
@@ -78,8 +82,9 @@ static void adcCalibrate(void) {
   /* Registers are 12 bit, shift 16 bit offet intermediate offset 4. The gain
    * value is in Q1.11 format already.
    */
-  ADC->OFFSETCORR.reg = (int16_t)offset >> 4;
-  ADC->GAINCORR.reg   = (int16_t)gain;
+  correctionOffset = (int16_t)offset >> 4;
+  correctionGain   = (int16_t)gain;
+  correctionValid  = true;
 }
 
 static int16_t adcCalibrateSmp(int pin) {
@@ -133,6 +138,10 @@ static void adcConfigureDMAC(void) {
   dmacDesc[1]->DESCADDR.reg = (uint32_t)dmacDesc[0];
 }
 
+int16_t adcCorrectionGain(void) { return correctionGain; }
+int16_t adcCorrectionOffset(void) { return correctionOffset; }
+bool    adcCorrectionValid(void) { return correctionValid; }
+
 void adcDMACStart(void) {
   dmacChannelEnable(DMA_CHAN_ADC0);
 
@@ -173,8 +182,8 @@ void adcSetup(void) {
   /* Differential mode, /4 prescale of F_PERIPH, right aligned, enable
    * averaging. Requires synchronisation after write (33.6.15)
    */
-  ADC->CTRLB.reg = ADC_CTRLB_PRESCALER_DIV4 | ADC_CTRLB_DIFFMODE |
-                   ADC_CTRLB_CORREN | ADC_CTRLB_RESSEL_12BIT;
+  ADC->CTRLB.reg =
+      ADC_CTRLB_PRESCALER_DIV4 | ADC_CTRLB_DIFFMODE | ADC_CTRLB_RESSEL_12BIT;
   adcSync();
 
   /* Setup 3 us conversion time - allows up to ~333 ksps @ 1 MHz CLK

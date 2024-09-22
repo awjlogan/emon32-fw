@@ -213,6 +213,14 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
   ecmCfg->timeMicros      = &timerMicros;
   ecmCfg->timeMicrosDelta = &timerMicrosDelta;
 
+  if (adcCorrectionValid()) {
+    ecmCfg->correction.valid  = true;
+    ecmCfg->correction.gain   = adcCorrectionGain();
+    ecmCfg->correction.offset = adcCorrectionOffset();
+  } else {
+    ecmCfg->correction.valid = false;
+  }
+
   if (ZEROX_HW_SPT) {
     ecmCfg->zx_hw_stat = &eicZeroXStat;
     ecmCfg->zx_hw_clr  = &eicZeroXClr;

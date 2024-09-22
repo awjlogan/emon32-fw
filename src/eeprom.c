@@ -284,11 +284,8 @@ void eepromInitConfig(const void *pSrc, const unsigned int n) {
   const uint8_t *p = (uint8_t *)pSrc;
 
   eepromWrite(0, p, n);
-  timerDelay_us(EEPROM_WR_TIME);
-
-  while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0)) {
-    timerDelay_us(EEPROM_WR_TIME);
-  }
+  while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
+    ;
 }
 
 int eepromRead(unsigned int addr, void *pDst, unsigned int n) {

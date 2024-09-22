@@ -56,6 +56,12 @@ typedef struct SampleSet_ {
   q15_t smpCT[NUM_CT];
 } SampleSet_t;
 
+typedef struct GainOffset_ {
+  bool    valid;
+  int16_t gain;
+  int16_t offset;
+} GainOffset_t;
+
 typedef struct VCfg_ {
   float voltageCal;
   float voltageCalRaw;
@@ -79,10 +85,14 @@ typedef struct ECMCfg_ {
   uint32_t (*timeMicros)(void);          /* Time in microseconds now */
   uint32_t (*timeMicrosDelta)(uint32_t); /* Time delta in microseconds */
 
-  bool    downsample;    /* DSP enabled */
-  int     reportCycles;  /* Number of cycles before reporting */
-  int     mainsFreq;     /* Mains frequency */
-  int     samplePeriod;  /* Sampling period for each sample */
+  bool downsample;   /* DSP enabled */
+  int  reportCycles; /* Number of cycles before reporting */
+  int  mainsFreq;    /* Mains frequency */
+  int  samplePeriod; /* Sampling period for each sample */
+  int  assumedVrms;  /* Assume RMS voltage if not found */
+
+  GainOffset_t correction; /* Gain and offset correction */
+
   CTCfg_t ctCfg[NUM_CT]; /* CT Configuration */
   VCfg_t  vCfg[NUM_V];   /* Voltage configuration */
 } ECMCfg_t;
