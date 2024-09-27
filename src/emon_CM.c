@@ -147,7 +147,7 @@ static float        calcRMS(CalcRMS_t *pSrc) RAMFUNC;
 static bool         zeroCrossingSW(q15_t smpV) RAMFUNC;
 
 static void  accumSwapClear(void);
-static float calibrationAmplitude(float cal, float fixed);
+static float calibrationAmplitude(float cal, bool isV);
 static void  calibrationPhase(PhaseXY_t *pPh, float phase, int_fast8_t idxCT);
 static void  configChannelV(int_fast8_t ch);
 static void  configChannelCT(int_fast8_t ch);
@@ -221,10 +221,9 @@ void ecmConfigChannel(int ch) {
 }
 
 void configChannelCT(int_fast8_t ch) {
-  const float iCal          = 6.0f; // Port from emonPi2/Tx4 for 333 mV CT
   channelActive[ch + NUM_V] = ecmCfg.ctCfg[ch].active;
   ecmCfg.ctCfg[ch].ctCal =
-      calibrationAmplitude(ecmCfg.ctCfg[ch].ctCalRaw, iCal);
+      calibrationAmplitude(ecmCfg.ctCfg[ch].ctCalRaw, false);
 
   PhaseXY_t phaseXY;
   calibrationPhase(&phaseXY, ecmCfg.ctCfg[ch].phCal, ch);
@@ -233,10 +232,9 @@ void configChannelCT(int_fast8_t ch) {
 }
 
 void configChannelV(int_fast8_t ch) {
-  const float vsCal = 16.0174f; // Port from emonPi2/Tx4 * 2 for differential
   channelActive[ch] = ecmCfg.vCfg[ch].vActive;
   ecmCfg.vCfg[ch].voltageCal =
-      calibrationAmplitude(ecmCfg.vCfg[ch].voltageCalRaw, vsCal);
+      calibrationAmplitude(ecmCfg.vCfg[ch].voltageCalRaw, true);
 }
 
 void ecmConfigInit(void) {
@@ -346,18 +344,19 @@ RAMFUNC bool zeroCrossingSW(q15_t smpV) {
 /*! @brief Turn an amplitude calibration value into a factor to change the
  *         abstract value into the real value, accounting for ADC width.
  *  @param [in] cal : the calibration value
- *  @param [in] fixed : the hardware specific calibration value
+ *  @param [in] isV : true for voltage, false for CT
  *  @return : the scaled calibration value
  */
-static float calibrationAmplitude(float cal, float fixed) {
-  const int   adcWidth = ADC_RES_BITS;
-  const float vRef     = ADC_VREF;
+static float calibrationAmplitude(float cal, bool isV) {
+  const float vCalRef  = CAL_V * ADC_VREF;
+  const float ctCalRef = CAL_CT * ADC_VREF;
+  const float adcAdj   = (float)(1 << ADC_RES_BITS);
 
-  float cmCal = qfp_fmul(cal, vRef);
-  cmCal       = qfp_fmul(cmCal, fixed);
-  cmCal       = qfp_fdiv(cmCal, qfp_uint2float(1 << adcWidth));
-
-  return cmCal;
+  if (isV) {
+    return qfp_fdiv(qfp_fmul(cal, vCalRef), adcAdj);
+  } else {
+    return qfp_fdiv(qfp_fmul(cal, ctCalRef), adcAdj);
+  }
 }
 
 /*! @brief Decompose a floating point CT phase into an X/Y pair for

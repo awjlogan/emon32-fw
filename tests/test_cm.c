@@ -15,7 +15,7 @@
 #define REPORT_V    1 /* Number of V channels to report */
 #define SMP_TICK    1000000u / SAMPLE_RATE / (VCT_TOTAL)
 #define TEST_TIME   100E6 /* Time to run in microseconds */
-#define VRMS_GOLD   232.62f
+#define VRMS_GOLD   235.0f
 
 typedef struct wave_ {
   double omega;  /* Angular velocity */
@@ -227,6 +227,7 @@ int main(int argc, char *argv[]) {
   printf("  Dynamic test...\n\n");
   printf("    - Phase 0°, PF = 1 ... ");
   dynamicRun(4, false);
+
   if ((dataset.CT[0].pf > 1.01f) || (dataset.CT[0].pf < 0.99f)) {
     printf("\nPF Gold: %.2f Test: %.2f\n", 1.00f, dataset.CT[0].pf);
     return 1;
@@ -270,14 +271,14 @@ static q15_t generateWave(wave_t *w, int tMicros) {
   assert((w->s > 0.0) && (w->s <= 1.0));
   q15_t  wave;
   double a = sin(((w->omega * tMicros) / 1000000.0) + w->phi) * w->s;
-  wave     = (q15_t)(a * 1024);
+  wave     = (q15_t)(a * 2048);
   wave += w->offset;
 
   /* Clip if the offset exceeds the bounds */
-  if (wave < -1024) {
-    wave = -1024;
-  } else if (wave > 1023) {
-    wave = 1023;
+  if (wave < -2048) {
+    wave = -2048;
+  } else if (wave > 2047) {
+    wave = 2047;
   }
   return wave;
 }
