@@ -32,15 +32,13 @@
 #define SAMPLE_BUF_DEPTH  2
 #define ADC_VREF          1.024f
 #define ADC_RES_BITS      12
+#define CAL_V             8.087f
+#define CAL_CT            3.0f
+#define CT_RES            1 /* Number of CT channels reserved for future use */
 
 /* Pulse count setup */
 #define NUM_PULSECOUNT 2
-
-/* If there is hardware support of zero-crossing detection, set 1 */
-#define ZEROX_HW_SPT     0
-#define EIC_INTEN_ZEROX  EIC_INTENSET_EXTINT15
-#define EIC_INTDIS_ZEROX EIC_INTENCLR_EXTINT15
-#define EIC_INTFLG_ZEROX EIC_INTFLAG_EXTINT15
+#define PULSE_RES      1 /* Number of Pulse channels reserved */
 
 /* Oversampling
  * There will be a fixed anti-aliasing filter on the board. This should be the

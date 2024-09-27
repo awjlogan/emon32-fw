@@ -221,11 +221,6 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
     ecmCfg->correction.valid = false;
   }
 
-  if (ZEROX_HW_SPT) {
-    ecmCfg->zx_hw_stat = &eicZeroXStat;
-    ecmCfg->zx_hw_clr  = &eicZeroXClr;
-  }
-
   for (unsigned int i = 0; i < NUM_V; i++) {
     ecmCfg->vCfg[i].voltageCalRaw = pCfg->voltageCfg[i].voltageCal;
     ecmCfg->vCfg[i].vActive       = pCfg->voltageCfg[i].vActive;

@@ -57,8 +57,8 @@ typedef struct __attribute__((__packed__)) Emon32Config_ {
   BaseCfg_t          baseCfg;
   DataTxCfg_t        dataTxCfg;
   VoltageCfgPacked_t voltageCfg[NUM_V];
-  CTCfgPacked_t      ctCfg[NUM_CT];
-  PulseCfgPacked_t   pulseCfg[NUM_PULSECOUNT];
+  CTCfgPacked_t      ctCfg[NUM_CT + CT_RES];
+  PulseCfgPacked_t   pulseCfg[NUM_PULSECOUNT + PULSE_RES];
   uint8_t            res0[17];
   uint16_t           crc16_ccitt;
 } Emon32Config_t;

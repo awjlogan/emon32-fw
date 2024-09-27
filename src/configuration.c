@@ -50,6 +50,7 @@ static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
 static void     inBufferClear(int n);
 static void     printSettings(void);
+static void     printUptime(void);
 static void     putFloat(float val, int flt_len);
 static char     waitForChar(void);
 static bool     zeroAccumulators(void);
@@ -62,6 +63,7 @@ static bool     zeroAccumulators(void);
 static Emon32Config_t config;
 static char           inBuffer[IN_BUFFER_W];
 static int            inBufferIdx   = 0;
+static bool           cmdPending    = false;
 static bool           resetReq      = false;
 static bool           unsavedChange = false;
 
@@ -553,6 +555,21 @@ static void putFloat(float val, int flt_len) {
   dbgPuts(strBuffer);
 }
 
+static void printUptime(void) {
+
+  uint32_t tSeconds = timerUptime();
+  uint32_t tMinutes = tSeconds / 60;
+  uint32_t tHours   = tMinutes / 60;
+  uint32_t tDays    = tHours / 24;
+
+  tSeconds = tSeconds % 60;
+  tMinutes = tMinutes % 60;
+  tHours   = tHours % 24;
+
+  printf_("%" PRIu32 "d %" PRIu32 "h %" PRIu32 "m %" PRIu32 "s\r\n", tDays,
+          tHours, tMinutes, tSeconds);
+}
+
 /*! @brief Blocking wait for a key from the serial link. If the USB CDC is
  *         connected the key will come from here.
  */
@@ -605,14 +622,22 @@ static bool zeroAccumulators(void) {
 
 void configCmdChar(const uint8_t c) {
   if (('\r' == c) || ('\n' == c)) {
-    emon32EventSet(EVT_PROCESS_CMD);
+    if (!cmdPending) {
+      dbgPuts("\r\n");
+      cmdPending = true;
+      emon32EventSet(EVT_PROCESS_CMD);
+    }
   } else if ('\b' == c) {
     dbgPuts("\b \b");
+    if (0 != inBufferIdx) {
+      inBufferIdx--;
+      inBuffer[inBufferIdx] = 0;
+    }
   } else if ((inBufferIdx < IN_BUFFER_W) && utilCharPrintable(c)) {
     inBuffer[inBufferIdx++] = c;
   } else {
     inBufferClear(IN_BUFFER_W);
-    dbgPuts("\a\r\n");
+    dbgPuts("\r\n");
   }
 }
 
@@ -625,7 +650,9 @@ void configFirmwareBoardInfo(void) {
           (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
           (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
   printf_("  - Last reset: %s\r\n", getLastReset());
-  printf_("  - Uptime (s): %" PRIu32 "\r\n", timerUptime());
+  dbgPuts("  - Uptime    : ");
+  printUptime();
+  dbgPuts("\r\n");
 
   dbgPuts("> Firmware:\r\n");
   printf_("  - Version:    %d.%d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN,
@@ -868,6 +895,7 @@ void configProcessCmd(void) {
     break;
   }
 
+  cmdPending = false;
   inBufferClear(arglen + 1);
 }
 
@@ -887,7 +915,7 @@ void SERCOM_UART_INTERACTIVE_HANDLER {
     uint8_t rx_char = uartGetc(SERCOM_UART_INTERACTIVE);
     configCmdChar(rx_char);
 
-    if (utilCharPrintable(rx_char)) {
+    if (utilCharPrintable(rx_char) && !cmdPending) {
       uartPutcBlocking(SERCOM_UART_INTERACTIVE, rx_char);
     }
   }
