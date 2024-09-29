@@ -204,6 +204,11 @@ static bool configureAnalog(void) {
   calAmpl = convF.val;
 
   if (NUM_V > ch) {
+
+    if ((calAmpl <= 25.0f) || (calAmpl >= 150.0f)) {
+      return false;
+    }
+
     config.voltageCfg[ch].vActive    = active;
     config.voltageCfg[ch].voltageCal = calAmpl;
     ecmCfg->vCfg[ch].vActive         = active;
@@ -239,7 +244,11 @@ static bool configureAnalog(void) {
     return false;
   }
 
-  /* CT configuration */
+  /* CT configuration - assume 10/200 A min/max CTs */
+  if ((calAmpl < 10.0f) || (calAmpl) > 200.0f) {
+    return false;
+  }
+
   ch -= NUM_V;
   config.ctCfg[ch].ctActive = active;
   ecmCfg->ctCfg[ch].active  = active;
@@ -382,6 +391,10 @@ static bool configureSerialLog(void) {
 
 static bool configureWhDelta(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
+  if (convI.val < 10) {
+    return false;
+  }
 
   if (convI.valid) {
     config.baseCfg.whDeltaStore = convI.val;
