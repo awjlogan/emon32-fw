@@ -56,6 +56,7 @@ static void cumulativeProcess(Emon32Cumulative_t    *pPkt,
 static void datasetAddPulse(Emon32Dataset_t *pDst);
 static RFMOpt_t *dataTxConfigure(const Emon32Config_t *pCfg);
 static void      ecmConfigure(const Emon32Config_t *pCfg);
+static void      ecmDmaCallback(void);
 static void      evtKiloHertz(void);
 static uint32_t  evtPending(EVTSRC_t evt);
 static void      pulseConfigure(const Emon32Config_t *pCfg);
@@ -235,6 +236,22 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
   }
 
   ecmConfigInit();
+}
+
+void ecmDmaCallback(void) {
+  ECM_STATUS_t injectStatus;
+  ecmDataBufferSwap();
+  injectStatus = ecmInjectSample();
+  switch (injectStatus) {
+  case ECM_REPORT_COMPLETE:
+    emon32EventSet(EVT_ECM_SET_CMPL);
+    break;
+  case ECM_PEND_1S:
+    emon32EventSet(EVT_ECM_PEND_1S);
+    break;
+  default:
+    break;
+  }
 }
 
 void emon32EventClr(const EVTSRC_t evt) {
@@ -445,7 +462,6 @@ static void ucSetup(void) {
 int main(void) {
 
   Emon32Config_t    *pConfig        = 0;
-  ECMDataset_t       ecmDataset     = {0};
   Emon32Dataset_t    dataset        = {0};
   unsigned int       numTempSensors = 0;
   Emon32Cumulative_t nvmCumulative  = {0};
@@ -465,8 +481,6 @@ int main(void) {
   configLoadFromNVM();
 
   pConfig = configGetConfig();
-
-  dataset.pECM = &ecmDataset;
   cumulativeNVMLoad(&nvmCumulative, &dataset);
 
   lastStoredWh = totalEnergy(&dataset);
@@ -481,6 +495,7 @@ int main(void) {
 
   /* Set up buffers for ADC data, configure energy processing, and start */
   ecmConfigure(pConfig);
+  dmacCallbackBufferFill(&ecmDmaCallback);
   ecmFlush();
   adcDMACStart();
   dbgPuts("> Start monitoring...\r\n");
@@ -508,9 +523,7 @@ int main(void) {
          */
         eepromWLClear();
         eepromWLReset(sizeof(nvmCumulative));
-        for (int i = 0; i < NUM_CT; i++) {
-          ecmDataset.CT[i].residualEnergy = 0.0f;
-        }
+        ecmClearResidual();
         for (int i = 0; i < NUM_PULSECOUNT; i++) {
           pulseSetCount(0, i);
         }
@@ -569,7 +582,7 @@ int main(void) {
         opt.useRFM    = (0 != rfmOpt);
         opt.logSerial = pConfig->baseCfg.logToSerial;
 
-        ecmProcessSet(&ecmDataset);
+        dataset.pECM = ecmProcessSet();
         datasetAddPulse(&dataset);
         transmitData(&dataset, &opt);
 

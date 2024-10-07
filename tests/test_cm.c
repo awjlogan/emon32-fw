@@ -57,7 +57,7 @@ static uint32_t time = 0;
 ECM_STATUS_t    status;
 SampleSet_t     smpProc;
 unsigned int    smpIdx = 0;
-ECMDataset_t    dataset;
+ECMDataset_t   *dataset;
 
 volatile RawSampleSetPacked_t *volatile smpRaw[2];
 wave_t wave[VCT_TOTAL];
@@ -81,9 +81,9 @@ static void dynamicRun(int reports, bool prtReport) {
     status = ecmInjectSample();
 
     if (ECM_REPORT_COMPLETE == status) {
-      ecmProcessSet(&dataset);
+      dataset = ecmProcessSet();
       if (prtReport) {
-        printReport(reportNum, time, &dataset);
+        printReport(reportNum, time, dataset);
       }
       reportNum++;
     }
@@ -115,14 +115,12 @@ int main(int argc, char *argv[]) {
     currentToWave(3.5, 5, 5.0, &wave[i]);
   }
 
-  pEcmCfg             = ecmConfigGet();
-  pEcmCfg->zx_hw_stat = 0;
-  pEcmCfg->zx_hw_clr  = 0;
+  pEcmCfg = ecmConfigGet();
 
   /* ecmDataBuffer returns a pointer to the buffer which the DMA is putting
    * data into.
    */
-  memset(&smpProc, 0, sizeof(SampleSet_t));
+  memset(&smpProc, 0, sizeof(smpProc));
   smpRaw[0] = ecmDataBuffer();
   ecmDataBufferSwap();
   smpRaw[1] = ecmDataBuffer();
@@ -228,13 +226,13 @@ int main(int argc, char *argv[]) {
   printf("    - Phase 0°, PF = 1 ... ");
   dynamicRun(4, false);
 
-  if ((dataset.CT[0].pf > 1.01f) || (dataset.CT[0].pf < 0.99f)) {
-    printf("\nPF Gold: %.2f Test: %.2f\n", 1.00f, dataset.CT[0].pf);
+  if ((dataset->CT[0].pf > 1.01f) || (dataset->CT[0].pf < 0.99f)) {
+    printf("\nPF Gold: %.2f Test: %.2f\n", 1.00f, dataset->CT[0].pf);
     return 1;
   }
-  if ((dataset.rmsV[0] > (VRMS_GOLD + 1.0f)) ||
-      (dataset.rmsV[0] < (VRMS_GOLD - 1.0f))) {
-    printf("\nVrms Gold: %.2f Test: %.2f\n", VRMS_GOLD, dataset.rmsV[0]);
+  if ((dataset->rmsV[0] > (VRMS_GOLD + 1.0f)) ||
+      (dataset->rmsV[0] < (VRMS_GOLD - 1.0f))) {
+    printf("\nVrms Gold: %.2f Test: %.2f\n", VRMS_GOLD, dataset->rmsV[0]);
     return 1;
   }
   printf("Done!\n");
@@ -249,8 +247,8 @@ int main(int argc, char *argv[]) {
   wave[NUM_V].phi = M_PI;
   time            = 0;
   dynamicRun(4, false);
-  if ((dataset.CT[0].pf < -1.01f) || (dataset.CT[0].pf > -0.99f)) {
-    printf("Gold: %.2f Test: %.2f\n", 1.00f, dataset.CT[0].pf);
+  if ((dataset->CT[0].pf < -1.01f) || (dataset->CT[0].pf > -0.99f)) {
+    printf("Gold: %.2f Test: %.2f\n", 1.00f, dataset->CT[0].pf);
     return 1;
   }
   printf("Done!\n");

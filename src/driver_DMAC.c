@@ -3,12 +3,13 @@
 #include "emon32_samd.h"
 
 #include "emon32.h"
-#include "emon_CM.h"
 
 void irqHandlerADCCommon(void);
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static DmacDescriptor          dmacs_wb[NUM_CHAN_DMA];
+
+static void (*cbBufferFill)(void);
 
 /* Useful ref: https://aykevl.nl/2019/09/samd21-dma */
 
@@ -29,6 +30,8 @@ void dmacSetup(void) {
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch) {
   return &dmacs[ch];
 }
+
+void dmacCallbackBufferFill(void (*cb)(void)) { cbBufferFill = cb; }
 
 void dmacChannelDisable(unsigned int ch) {
   DMAC->CHID.reg = ch;
@@ -78,21 +81,7 @@ unsigned int dmacChannelBusy(unsigned int ch) {
   }
 }
 
-void irqHandlerADCCommon(void) {
-  ECM_STATUS_t injectStatus;
-  ecmDataBufferSwap();
-  injectStatus = ecmInjectSample();
-  switch (injectStatus) {
-  case ECM_REPORT_COMPLETE:
-    emon32EventSet(EVT_ECM_SET_CMPL);
-    break;
-  case ECM_PEND_1S:
-    emon32EventSet(EVT_ECM_PEND_1S);
-    break;
-  default:
-    break;
-  }
-}
+void irqHandlerADCCommon(void) { (*cbBufferFill)(); }
 
 void irq_handler_dmac(void) {
   /* Check which channel has triggered the interrupt, set the event, and

@@ -19,10 +19,12 @@
 #include "emon_CM.h"
 #include "emon_CM_coeffs.h"
 
-/* Number of samples available for power calculation. Must be power of 2. */
-#define PROC_DEPTH   32u /* REVISIT only need  to store V values */
+#define PROC_DEPTH   16u /* Voltage sample buffer depth. Must be power of 2. */
 #define ZC_HYST      2u  /* Zero crossing hysteresis */
 #define EQUIL_CYCLES 8u  /* Number of cycles to discard at startup */
+
+_Static_assert(!(PROC_DEPTH & (PROC_DEPTH - 1)),
+               "PROC_DEPTH is not a power of 2.");
 
 static const float twoPi = 6.2831853072f;
 
@@ -207,6 +209,7 @@ static ECMCfg_t ecmCfg         = {0};
 static bool     processTrigger = false;
 static int      discardCycles  = EQUIL_CYCLES;
 static bool     initDone       = true;
+static bool     inAutoPhase    = false;
 static int      samplePeriodus;
 static float    sampleIntervalRad;
 
@@ -284,8 +287,12 @@ volatile RawSampleSetPacked_t *ecmDataBuffer(void) { return adcActive; }
  * Pre-processing
  *****************************************************************************/
 
+typedef struct vSmp_ {
+  q15_t smpV[NUM_V];
+} vSmp_t;
+
 static RawSampleSetUnpacked_t dspBuffer[DOWNSAMPLE_TAPS];
-static SampleSet_t            sampleRingBuffer[PROC_DEPTH];
+static vSmp_t                 vSampleBuffer[PROC_DEPTH];
 
 /******************************************************************************
  * Accumulators
@@ -298,6 +305,8 @@ static Accumulator_t *accumProcessing = accumBuffer + 1;
 static ECMPerformance_t  perfCounter[2];
 static ECMPerformance_t *perfActive = perfCounter;
 static ECMPerformance_t *perfIdle   = perfCounter + 1;
+
+static ECMDataset_t datasetProc = {0};
 
 /******************************************************************************
  * Functions
@@ -379,17 +388,28 @@ static void calibrationPhase(PhaseXY_t *pPh, float phase, int_fast8_t idxCT) {
                          (qfp_fmul(pPh->phaseY, qfp_fcos(sampleIntervalRad))));
 }
 
-float ecmPhaseCalibrate(unsigned int idx) {
-  /* REVISIT Automatic phase calibration */
-  (void)idx;
-  return 0.0f;
+void ecmClearResidual(void) {
+  for (int i = 0; i < NUM_CT; i++) {
+    datasetProc.CT[i].residualEnergy = 0.0f;
+  }
+}
+
+void ecmPhaseCalibrate(AutoPhaseRes_t *pDst) {
+  pDst->success = false;
+  if (!(channelActive[pDst->idxCt + NUM_V])) {
+    return;
+  }
+  inAutoPhase = true;
+
+  pDst->success = true;
+  inAutoPhase   = false;
 }
 
 void ecmFlush(void) {
   discardCycles = EQUIL_CYCLES;
 
   memset(accumBuffer, 0, (2 * sizeof(*accumBuffer)));
-  memset(sampleRingBuffer, 0, (PROC_DEPTH * sizeof(*sampleRingBuffer)));
+  // memset(sampleRingBuffer, 0, (PROC_DEPTH * sizeof(*sampleRingBuffer)));
   memset(dspBuffer, 0, (DOWNSAMPLE_TAPS * sizeof(*dspBuffer)));
 }
 
@@ -422,8 +442,8 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
     const uint_fast8_t idxInjPrev =
         (0 == idxInj) ? (downsampleTaps - 1u) : (idxInj - 1u);
 
-    /* Copy the packed raw ADC value into the unpacked buffer; samples[1] is the
-     * most recent sample.
+    /* Copy the packed raw ADC value into the unpacked buffer; samples[1] is
+     * the most recent sample.
      */
     for (int_fast8_t idxSmp = 0; idxSmp < VCT_TOTAL; idxSmp++) {
       dspBuffer[idxInjPrev].smp[idxSmp] =
@@ -499,10 +519,10 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
 }
 
 RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
-  bool     reportReady = false;
-  bool     zerox_flag  = false;
-  bool     pend_1s     = false;
-  uint32_t t_start     = 0;
+  bool        reportReady = false;
+  bool        pend_1s     = false;
+  SampleSet_t smpSet      = {0};
+  uint32_t    t_start     = 0;
 
   static int_fast8_t idxInject;
 
@@ -510,14 +530,17 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
     t_start = (*ecmCfg.timeMicros)();
   }
 
-  ecmFilterSample(&sampleRingBuffer[idxInject]);
+  ecmFilterSample(&smpSet);
+  for (int_fast8_t i = 0; i < NUM_V; i++) {
+    vSampleBuffer[idxInject].smpV[i] = smpSet.smpV[i];
+  }
   accumCollecting->numSamples++;
 
   const int_fast8_t idxLast = (idxInject - 1u) & (PROC_DEPTH - 1u);
 
   for (int_fast8_t idxV = 0; idxV < NUM_V; idxV++) {
     if (channelActive[idxV]) {
-      int64_t V = sampleRingBuffer[idxInject].smpV[idxV];
+      int64_t V = smpSet.smpV[idxV];
       accumCollecting->processV[idxV].sumV_sqr += V * V;
       accumCollecting->processV[idxV].sumV_deltas += V;
     }
@@ -525,11 +548,9 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
 
   for (int_fast8_t idxCT = 0; idxCT < NUM_CT; idxCT++) {
     if (channelActive[idxCT + NUM_V]) {
-      int64_t thisV =
-          sampleRingBuffer[idxInject].smpV[ecmCfg.ctCfg[idxCT].vChan1];
-      int64_t lastV =
-          sampleRingBuffer[idxLast].smpV[ecmCfg.ctCfg[idxCT].vChan1];
-      int64_t thisCT = sampleRingBuffer[idxInject].smpCT[idxCT];
+      int64_t thisV = vSampleBuffer[idxInject].smpV[ecmCfg.ctCfg[idxCT].vChan1];
+      int64_t lastV = vSampleBuffer[idxLast].smpV[ecmCfg.ctCfg[idxCT].vChan1];
+      int64_t thisCT = smpSet.smpCT[idxCT];
 
       accumCollecting->processCT[idxCT].sumPA += thisCT * lastV;
       accumCollecting->processCT[idxCT].sumPB += thisCT * thisV;
@@ -541,15 +562,7 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
   /* Flag if there has been a (-) -> (+) crossing, always on V1. Check for
    * zero-crossing, swap buffers and pend event.
    */
-  zerox_flag = ecmCfg.zx_hw_stat
-                   ? (*ecmCfg.zx_hw_stat)()
-                   : zeroCrossingSW(sampleRingBuffer[idxInject].smpV[0]);
-
-  /* Check for zero crossing, swap buffers and pend event */
-  if (zerox_flag) {
-    if (ecmCfg.zx_hw_clr)
-      (*ecmCfg.zx_hw_clr)();
-
+  if (zeroCrossingSW(smpSet.smpV[0])) {
     if (0 == discardCycles) {
       accumCollecting->cycles++;
     } else {
@@ -560,8 +573,8 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
       }
     }
 
-    /* Flag one second before the report is due to allow slow sensors to sample.
-     * For example, DS18B20 requires 750 ms to sample.
+    /* Flag one second before the report is due to allow slow sensors to
+     * sample. For example, DS18B20 requires 750 ms to sample.
      */
     if (accumCollecting->cycles == (ecmCfg.reportCycles - ecmCfg.mainsFreq)) {
       pend_1s = true;
@@ -599,7 +612,7 @@ ECMPerformance_t *ecmPerformance(void) {
   return perfIdle;
 }
 
-RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
+RAMFUNC ECMDataset_t *ecmProcessSet(void) {
   uint32_t  t_start = 0;
   CalcRMS_t rms;
 
@@ -612,16 +625,16 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
 
   const float timeTotal =
       qfp_fdiv(qfp_uint2float(accumProcessing->tDelta_us), 1000000.0f);
-  pData->wallTime = timeTotal;
+  datasetProc.wallTime = timeTotal;
 
   for (int_fast8_t idxV = 0; idxV < NUM_V; idxV++) {
     if (channelActive[idxV]) {
-      rms.cal           = ecmCfg.vCfg[idxV].voltageCal;
-      rms.sDelta        = accumProcessing->processV[idxV].sumV_deltas;
-      rms.sSqr          = accumProcessing->processV[idxV].sumV_sqr;
-      pData->rmsV[idxV] = calcRMS(&rms);
+      rms.cal                = ecmCfg.vCfg[idxV].voltageCal;
+      rms.sDelta             = accumProcessing->processV[idxV].sumV_deltas;
+      rms.sSqr               = accumProcessing->processV[idxV].sumV_sqr;
+      datasetProc.rmsV[idxV] = calcRMS(&rms);
     } else {
-      pData->rmsV[idxV] = 0.0f;
+      datasetProc.rmsV[idxV] = 0.0f;
     }
   }
 
@@ -630,10 +643,10 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
       int idxV = ecmCfg.ctCfg[idxCT].vChan1;
 
       // RMS Current
-      rms.cal               = ecmCfg.ctCfg[idxCT].ctCal;
-      rms.sDelta            = accumProcessing->processCT[idxCT].sumI_deltas;
-      rms.sSqr              = accumProcessing->processCT[idxCT].sumI_sqr;
-      pData->CT[idxCT].rmsI = calcRMS(&rms);
+      rms.cal    = ecmCfg.ctCfg[idxCT].ctCal;
+      rms.sDelta = accumProcessing->processCT[idxCT].sumI_deltas;
+      rms.sSqr   = accumProcessing->processCT[idxCT].sumI_sqr;
+      datasetProc.CT[idxCT].rmsI = calcRMS(&rms);
 
       // Power and energy
       float sumEnergy = qfp_fadd(
@@ -651,32 +664,34 @@ RAMFUNC void ecmProcessSet(ECMDataset_t *pData) {
           qfp_fmul(powerNow, qfp_fmul(rms.cal, ecmCfg.vCfg[idxV].voltageCal));
 
       // Power factor
-      float rmsV          = pData->rmsV[idxV];
-      float VA            = qfp_fmul(pData->CT[idxCT].rmsI, rmsV);
-      float pf            = qfp_fdiv(powerNow, VA);
-      bool  pf_b          = ((pf > 1.05f) || (pf < -1.05f) || (pf != pf));
-      pData->CT[idxCT].pf = pf_b ? 0.0f : pf;
+      float rmsV               = datasetProc.rmsV[idxV];
+      float VA                 = qfp_fmul(datasetProc.CT[idxCT].rmsI, rmsV);
+      float pf                 = qfp_fdiv(powerNow, VA);
+      bool  pf_b               = ((pf > 1.05f) || (pf < -1.05f) || (pf != pf));
+      datasetProc.CT[idxCT].pf = pf_b ? 0.0f : pf;
 
       // Energy and power, rounding to nearest integer
-      pData->CT[idxCT].realPower     = qfp_float2int(qfp_fadd(powerNow, 0.5f));
-      pData->CT[idxCT].apparentPower = qfp_float2int(qfp_fadd(VA, 0.5f));
+      datasetProc.CT[idxCT].realPower = qfp_float2int(qfp_fadd(powerNow, 0.5f));
+      datasetProc.CT[idxCT].apparentPower = qfp_float2int(qfp_fadd(VA, 0.5f));
 
       // REVISIT : Consider double precision here, some truncation observed
       float energyNow = qfp_fmul(powerNow, timeTotal);
-      energyNow       = qfp_fadd(energyNow, pData->CT[idxCT].residualEnergy);
-      int whNow       = qfp_float2int(qfp_fdiv(energyNow, 3600.0f));
+      energyNow = qfp_fadd(energyNow, datasetProc.CT[idxCT].residualEnergy);
+      int whNow = qfp_float2int(qfp_fdiv(energyNow, 3600.0f));
 
-      pData->CT[idxCT].wattHour += whNow;
-      pData->CT[idxCT].residualEnergy =
+      datasetProc.CT[idxCT].wattHour += whNow;
+      datasetProc.CT[idxCT].residualEnergy =
           qfp_fsub(energyNow, qfp_int2float(whNow * 3600));
     } else {
       /* Zero all values otherwise */
-      memset(&pData->CT[idxCT], 0, sizeof(*pData->CT));
+      memset(&datasetProc.CT[idxCT], 0, sizeof(*datasetProc.CT));
     }
   }
 
   perfActive->numCycles++;
   perfActive->microsCycles += (*ecmCfg.timeMicrosDelta)(t_start);
+
+  return &datasetProc;
 }
 
 void ecmProcessSetTrigger(void) { processTrigger = true; }

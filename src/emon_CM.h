@@ -80,8 +80,6 @@ typedef struct CTCfgUnpacked_ {
 } CTCfg_t;
 
 typedef struct ECMCfg_ {
-  int (*zx_hw_stat)(void);               /* HW zero crossing status function */
-  void (*zx_hw_clr)(void);               /* HW zero crossing clear function */
   uint32_t (*timeMicros)(void);          /* Time in microseconds now */
   uint32_t (*timeMicrosDelta)(uint32_t); /* Time delta in microseconds */
 
@@ -121,9 +119,18 @@ typedef struct ECMPerformance_ {
   int microsDatasets;
 } ECMPerformance_t;
 
+typedef struct AutoPhaseRes_ {
+  int   idxCt;
+  float phase;
+  bool  success;
+} AutoPhaseRes_t;
+
 /******************************************************************************
  * Function prototypes
  *****************************************************************************/
+
+/*! @brief Clear residual energy in dataset */
+void ecmClearResidual(void);
 
 /*! @brief Get the pointer to the configuration struct
  *  @return : pointer to Emon CM configuration struct
@@ -176,10 +183,9 @@ ECM_STATUS_t ecmInjectSample(void) RAMFUNC;
 ECMPerformance_t *ecmPerformance(void);
 
 /*! @brief Calibrate a CT sensor's lead against the input voltage
- *  @param [in] idx : CT index
- *  @return : phase lead in degrees
+ *  @param [in] pDst : autophase structure
  */
-float ecmPhaseCalibrate(unsigned int idx);
+void ecmPhaseCalibrate(AutoPhaseRes_t *pDst);
 
 /*! @brief Processes a whole cycle
  */
@@ -188,7 +194,7 @@ ECM_STATUS_t ecmProcessCycle(void) RAMFUNC;
 /*! @brief Processes a whole data set
  *  @param [out] pData : pointer to the processed data structure
  */
-void ecmProcessSet(ECMDataset_t *pData) RAMFUNC;
+ECMDataset_t *ecmProcessSet(void) RAMFUNC;
 
 /*! @brief Force trigger data set processing on next cycle complete */
 void ecmProcessSetTrigger(void);

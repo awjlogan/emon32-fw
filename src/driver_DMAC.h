@@ -15,6 +15,9 @@ void dmacSetup(void);
  */
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch);
 
+/*! @brief Set the callback when the DMA has filled the sample buffer */
+void dmacCallbackBufferFill(void (*cb)(void));
+
 /*! @brief Disable a DMAC channel
  *  @param [in] ch : channel number
  */
