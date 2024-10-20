@@ -89,6 +89,8 @@ typedef struct ECMCfg_ {
   int  samplePeriod; /* Sampling period for each sample */
   int  assumedVrms;  /* Assume RMS voltage if not found */
 
+  int_fast8_t mapCTLog[NUM_CT]; /* Map of CT to microcontroller pins */
+
   GainOffset_t correction; /* Gain and offset correction */
 
   CTCfg_t ctCfg[NUM_CT]; /* CT Configuration */
@@ -140,7 +142,7 @@ ECMCfg_t *ecmConfigGet(void);
 /*! @brief Configure a channel.
  *  @param [in] ch : channel, logical index.
  */
-void ecmConfigChannel(int ch);
+void ecmConfigChannel(int_fast8_t ch);
 
 /*! @brief Having set all configuration values, calculate all required constant
  *         values

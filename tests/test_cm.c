@@ -150,6 +150,10 @@ int main(int argc, char *argv[]) {
   pEcmCfg->correction.offset = 0;
   pEcmCfg->correction.gain   = (1 << 11);
 
+  for (int i = 0; i < NUM_CT; i++) {
+    pEcmCfg->mapCTLog[i] = i;
+  }
+
   ecmConfigInit();
 
   printf("---- emon32 CM test ----\n\n");

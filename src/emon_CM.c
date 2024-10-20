@@ -19,9 +19,9 @@
 #include "emon_CM.h"
 #include "emon_CM_coeffs.h"
 
-#define PROC_DEPTH   16u /* Voltage sample buffer depth. Must be power of 2. */
-#define ZC_HYST      2u  /* Zero crossing hysteresis */
-#define EQUIL_CYCLES 8u  /* Number of cycles to discard at startup */
+#define PROC_DEPTH   16 /* Voltage sample buffer depth. Must be power of 2. */
+#define ZC_HYST      2  /* Zero crossing hysteresis */
+#define EQUIL_CYCLES 8  /* Number of cycles to discard at startup */
 
 _Static_assert(!(PROC_DEPTH & (PROC_DEPTH - 1)),
                "PROC_DEPTH is not a power of 2.");
@@ -205,17 +205,18 @@ static void swapPtr(void **pIn1, void **pIn2) {
  * Configuration
  *****************************************************************************/
 
-static ECMCfg_t ecmCfg         = {0};
-static bool     processTrigger = false;
-static int      discardCycles  = EQUIL_CYCLES;
-static bool     initDone       = true;
-static bool     inAutoPhase    = false;
-static int      samplePeriodus;
-static float    sampleIntervalRad;
+static ECMCfg_t    ecmCfg           = {0};
+static bool        processTrigger   = false;
+static int_fast8_t mapLogCT[NUM_CT] = {0};
+static int_fast8_t discardCycles    = EQUIL_CYCLES;
+static bool        initDone         = true;
+static bool        inAutoPhase      = false;
+static int         samplePeriodus;
+static float       sampleIntervalRad;
 
 ECMCfg_t *ecmConfigGet(void) { return &ecmCfg; }
 
-void ecmConfigChannel(int ch) {
+void ecmConfigChannel(int_fast8_t ch) {
   if (ch < NUM_V) {
     configChannelV(ch);
   } else {
@@ -250,9 +251,13 @@ void ecmConfigInit(void) {
   float sampleIntervalDeg = qfp_fmul(360.0f, qfp_int2float(ecmCfg.mainsFreq));
   sampleIntervalDeg       = qfp_fdiv(sampleIntervalDeg, sampleRateHz);
 
-  /* This (should) be optimised at compile time */
   sampleIntervalRad = twoPi / 360.0f;
   sampleIntervalRad = qfp_fmul(sampleIntervalRad, sampleIntervalDeg);
+
+  /* Map the logical channel back to the CT to unwind the data */
+  for (int_fast8_t i = 0; i < NUM_CT; i++) {
+    mapLogCT[ecmCfg.mapCTLog[i]] = i;
+  }
 
   for (int_fast8_t i = 0; i < NUM_V; i++) {
     configChannelV(i);
@@ -375,9 +380,10 @@ static float calibrationAmplitude(float cal, bool isV) {
  *  @return : structure with the X/Y fixed point coefficients.
  */
 static void calibrationPhase(PhaseXY_t *pPh, float phase, int_fast8_t idxCT) {
+  int_fast8_t idxMapped = ecmCfg.mapCTLog[idxCT];
 
   float phaseShift = qfp_fdiv(phase, 360.0f);
-  int   phCorr_i   = (idxCT + NUM_V) * ecmCfg.mainsFreq * samplePeriodus;
+  int   phCorr_i   = (idxMapped + NUM_V) * ecmCfg.mainsFreq * samplePeriodus;
   float phCorr_f   = qfp_fdiv(qfp_int2float(phCorr_i), 1000000.0f);
   phaseShift       = qfp_fadd(phaseShift, phCorr_f);
   phaseShift       = qfp_fmul(phaseShift, twoPi);
@@ -421,7 +427,7 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
     }
 
     for (int_fast8_t idxCT = 0; idxCT < NUM_CT; idxCT++) {
-      pDst->smpCT[idxCT] =
+      pDst->smpCT[mapLogCT[idxCT - NUM_V]] =
           applyCorrection(adcProc->samples[0].smp[idxCT + NUM_V]);
     }
   } else {
@@ -490,7 +496,9 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
 
     for (int_fast8_t ch = 0; ch < VCT_TOTAL; ch++) {
       q15_t result;
-      if (channelActive[ch]) {
+      bool  active = (ch < NUM_V) ? channelActive[ch]
+                                  : channelActive[mapLogCT[ch - NUM_V]];
+      if (active) {
         int32_t intRes = coeffMid * dspBuffer[idxMid].smp[ch];
 
         for (int fir = 0; fir < (numCoeffUnique - 1); fir++) {
@@ -506,7 +514,8 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
       if (ch < NUM_V) {
         pDst->smpV[ch] = result;
       } else {
-        pDst->smpCT[ch - NUM_V] = result;
+        /* Map the logical input to the CT channel */
+        pDst->smpCT[mapLogCT[ch - NUM_V]] = result;
       }
     }
 

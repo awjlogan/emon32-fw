@@ -205,6 +205,8 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
    */
   EMON32_ASSERT(pCfg);
 
+  extern const int_fast8_t ainRemap[NUM_CT];
+
   ECMCfg_t *ecmCfg = ecmConfigGet();
 
   ecmCfg->downsample      = DOWNSAMPLE_DSP;
@@ -233,6 +235,10 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
     ecmCfg->ctCfg[i].active   = pCfg->ctCfg[i].ctActive;
     ecmCfg->ctCfg[i].vChan1   = pCfg->ctCfg[i].vChan1;
     ecmCfg->ctCfg[i].vChan2   = pCfg->ctCfg[i].vChan2;
+  }
+
+  for (int i = 0; i < NUM_CT; i++) {
+    ecmCfg->mapCTLog[i] = ainRemap[i];
   }
 
   ecmConfigInit();
