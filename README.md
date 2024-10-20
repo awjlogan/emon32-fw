@@ -146,6 +146,15 @@ If, for whatever reason, the bootloader is corrupted it can be flashed back to t
 
 ## Modifications
 
+### Helper scripts
+
+> [!NOTE]
+> A Python virtual environment shoulde be setup by running `python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt` in `./scripts/`.
+
+- `a2l.sh`: converts a hex address to a file line. Usage: `a2l.sh <address>`
+- `elf-size.sh`: this script decomposes the built `.elf` file into functions with their sizes.
+- `filter.py`: generates the half band filter coefficients. Described in "Digital Filter".
+
 ### Floating point support
 
 The Cortex-M0+ does not have a hardware floating point unit, so all floating point operations are done in software. The gcc built in floating point functions are quite large and slow, and have been replaced with the [Qfplib](https://www.quinapalus.com/qfplib.html) library. All floating point operations, including type conversions, should use these functions.
@@ -173,10 +182,7 @@ The base configuration has an oversampling factor of 2X to ease the anti-aliasin
 > [!NOTE]
 > It is recommended to use an odd number of taps, as the filter can be made symmetric in this manner.
 
-You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matplotlib.org/) to use the filter designer,
-
-> [!NOTE]
-> A Python virtual environment can be setup by running `python3 -m venv venv && source venv/bin/activate && pip3 install -r requirements.txt` in `./scripts/`.
+You will need [**SciPy**](https://scipy.org/) and [**Matplotlib**](https://matplotlib.org/) to use the filter designer. These are included in the virtual environment described in "Helper Scripts".
 
 ### Assertions
 
@@ -224,7 +230,7 @@ You will also need to ensure that the vendor's headers are included and visible 
 ### Third party libraries and tools
 
 - [mcu-starter-projects](https://github.com/ataradov/mcu-starter-projects) - good starting point for build chains for microcontrollers.
-- [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation. Note that floating point operations have been replaced with Qfplib functions.
+- [printf](https://github.com/eyalroz/printf) - embedded `printf` implementation.
 - [pid.codes](https://pid.codes) - reuse of a retired USB VID for open source projects.
 - [Qfplib](https://www.quinapalus.com/qfplib.html) - soft floating point library for Arm Cortex-M0.
 - [RFM69](https://github.com/LowPowerLab/RFM69) - RFM69 driver from Low Power Labs used as reference.

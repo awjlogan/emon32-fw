@@ -2,3 +2,4 @@ matplotlib
 scipy
 ruamel.yaml
 pyserial
+elf-size-analyze
