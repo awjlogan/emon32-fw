@@ -185,10 +185,39 @@ int dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json) {
   return strn.n;
 }
 
-void dataPackPacked(const Emon32Dataset_t *pData, PackedData_t *pPacked) {
-  pPacked->msg = pData->msgNum;
-  /* Vrms is sent as 0.01 scaling */
-  for (unsigned int v = 0; v < NUM_V; v++) {
-    pPacked->V[v] = qfp_float2int(qfp_fmul(pData->pECM->rmsV[v], 100.0f));
+int_fast8_t dataPackPacked(const Emon32Dataset_t *pData, void *pPacked,
+                           PackedRange_t range) {
+
+  /* Both upper and lower packets share the same initial data structure.
+   * Differentiate for pulse or temperature readings. */
+
+  bool isUpper = (PACKED_UPPER == range);
+
+  PackedDataCommon_t *pCommon = pPacked;
+  pCommon->msg                = pData->msgNum;
+
+  for (int v = 0; v < NUM_V; v++) {
+    pCommon->V[v] = qfp_float2int(qfp_fmul(pData->pECM->rmsV[v], 100.0f));
   }
+
+  for (int i = 0; i < (NUM_CT / 2); i++) {
+    pCommon->P[i] = pData->pECM->CT[i + ((NUM_CT / 2) * isUpper)].realPower;
+    pCommon->E[i] = pData->pECM->CT[i + ((NUM_CT / 2) * isUpper)].wattHour;
+  }
+
+  if (PACKED_LOWER == range) {
+    PackedDataLower6_t *pLower = pPacked;
+    for (int p = 0; p < NUM_PULSECOUNT; p++) {
+      pLower->pulse[p] = pData->pulseCnt[p];
+    }
+    return sizeof(*pLower);
+  } else if (PACKED_UPPER == range) {
+    PackedDataUpper6_t *pUpper = pPacked;
+    for (int t = 0; t < (TEMP_MAX_ONEWIRE / 2); t++) {
+      pUpper->temp[t] = qfp_float2int(pData->temp[t]);
+    }
+    return sizeof(*pUpper);
+  }
+
+  return 0;
 }

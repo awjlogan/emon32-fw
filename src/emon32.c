@@ -432,7 +432,7 @@ static void transmitData(const Emon32Dataset_t *pSrc,
 
   if (pOpt->useRFM) {
     PackedData_t packedData = {0};
-    dataPackPacked(pSrc, &packedData);
+    dataPackPacked(pSrc, &packedData, PACKED_LOWER);
     if (sercomExtIntfEnabled()) {
       /* Try to send in "clean" air. If failed, retry on next loop. Should not
        * reach RFM_FAILED at all. */

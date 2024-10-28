@@ -59,6 +59,30 @@ typedef struct __attribute__((__packed__)) PackedData_ {
   uint32_t pulse[NUM_PULSECOUNT];
 } PackedData_t;
 
+typedef struct __attribute__((__packed__)) PackedDataCommon_ {
+  uint32_t msg;
+  int16_t  V[NUM_V];
+  int16_t  P[NUM_CT / 2];
+  int32_t  E[NUM_CT / 2];
+} PackedDataCommon_t;
+
+typedef struct __attribute__((__packed__)) PackedDataLower6_ {
+  PackedDataCommon_t common;
+  uint32_t           pulse[NUM_PULSECOUNT];
+} PackedDataLower6_t;
+
+typedef struct __attribute__((__packed__)) PackedDataUpper6_ {
+  PackedDataCommon_t common;
+  int16_t            temp[4];
+} PackedDataUpper6_t;
+
+/* Maximum size of RFM69CW buffer is 61 bytes. Node, number, and CRC included.
+ */
+_Static_assert((sizeof(PackedDataLower6_t) + 4) < 62,
+               "PackedDataLower6_t > 62 bytes");
+_Static_assert((sizeof(PackedDataUpper6_t) + 4) < 62,
+               "PackedDataUpper6_t > 62 bytes");
+
 /* EVTSRC_t contains all the event/interrupts sources. This value is shifted
  * to provide a vector of set events as bits.
  */
