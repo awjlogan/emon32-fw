@@ -34,6 +34,7 @@ def extract_version():
             if found == 3:
                 return (maj, min, rev)
 
+
 def main():
     maj, min, rev = extract_version()
     commit = extract_commit()
