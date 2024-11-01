@@ -428,9 +428,9 @@ static void enterBootloader(void) {
  */
 static uint32_t getBoardRevision(void) {
   uint32_t boardRev = 0;
-  boardRev |= portPinValue(GRP_REV, PIN_REV0);
-  boardRev |= portPinValue(GRP_REV, PIN_REV1) << 1;
-  boardRev |= portPinValue(GRP_REV, PIN_REV2) << 2;
+  boardRev |= portPinValue(GRP_REV0, PIN_REV0);
+  boardRev |= portPinValue(GRP_REV1, PIN_REV1) << 1;
+  boardRev |= portPinValue(GRP_REV2, PIN_REV2) << 2;
   return boardRev;
 }
 

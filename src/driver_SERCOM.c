@@ -14,7 +14,7 @@ static void i2cmExtPinsSetup(bool enable);
 static void sercomSetupSPI(void);
 static void spiExtPinsSetup(bool enable);
 
-static bool extIntfEnabled = true;
+static volatile bool extIntfEnabled = true;
 
 static void i2cmCommon(Sercom *pSercom) {
   /* For 400 kHz I2C, SCL T_high >= 0.6 us, T_low >= 1.3 us, with
@@ -53,6 +53,9 @@ static void i2cmExtPinsSetup(bool enable) {
   } else {
     portPinMuxClear(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA);
     portPinMuxClear(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL);
+
+    portPinDir(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA, PIN_DIR_IN);
+    portPinDir(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL, PIN_DIR_IN);
   }
 }
 
@@ -66,6 +69,10 @@ static void spiExtPinsSetup(bool enable) {
     portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_MISO);
     portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_MOSI);
     portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_SCK);
+
+    portPinDir(GRP_SERCOM_SPI, PIN_SPI_MISO, PIN_DIR_IN);
+    portPinDir(GRP_SERCOM_SPI, PIN_SPI_MOSI, PIN_DIR_IN);
+    portPinDir(GRP_SERCOM_SPI, PIN_SPI_SCK, PIN_DIR_IN);
     portPinDir(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DIR_IN);
   }
 }

@@ -1,18 +1,9 @@
 #pragma once
 
-/* SAMD uses Arm Cortex-M0+ or Cortex-M4 - can place fast functions into RAM
+/* SAMD uses Arm Cortex-M0+ or Cortex-M4F - can place fast functions into RAM
  * to avoid the penalty of loading from flash with wait states.
  */
 #define RAMFUNC __attribute__((section(".ramfunc")))
-
-/* Board identification number. If a custom board is used, this should be
- * added to "dbgPutBoard" in emon32.c
- */
-#define BOARD_ID_LC       0
-#define BOARD_ID_STANDARD 1
-#define BOARD_ID_EMONPI   2
-#define BOARD_ID_DEV      255
-#define BOARD_ID          BOARD_ID_EMONPI
 
 /* Clock frequencies
  *  - Core is on the 48 MHz DFLL
@@ -23,28 +14,24 @@
 #define F_TIMER_ADC F_PERIPH / 8
 #define F_TIMER2    F_PERIPH / 8
 
-#define NUM_V             3
-#define NUM_CT            12
-#define VCT_TOTAL         (NUM_V + NUM_CT)
-#define NUM_CT_ACTIVE_DEF 6 /* Onboard CTs only */
-#define SAMPLE_RATE       4800
-#define SAMPLES_IN_SET    2
-#define SAMPLE_BUF_DEPTH  2
-#define ADC_VREF          1.024f
-#define ADC_RES_BITS      12
-#define CAL_V             8.087f
-#define CAL_CT            3.0f
-#define CT_RES            1 /* Number of CT channels reserved for future use */
-
-/* Pulse count setup */
-#define NUM_PULSECOUNT 2
-#define PULSE_RES      1 /* Number of Pulse channels reserved */
-
-/* Oversampling
- * There will be a fixed anti-aliasing filter on the board. This should be the
- * target oversampling ratio at the ADC
- */
+#define NUM_V              3
+#define NUM_CT             12
+#define VCT_TOTAL          (NUM_V + NUM_CT)
+#define CT_RES             1 /* Number of CT channels reserved for future use */
+#define NUM_CT_ACTIVE_DEF  6 /* Onboard CTs only */
+#define SAMPLE_RATE        4800
+#define SAMPLES_IN_SET     2
+#define SAMPLE_BUF_DEPTH   2
 #define OVERSAMPLING_RATIO 2
+
+#define ADC_VREF     1.024f
+#define ADC_RES_BITS 12
+#define CAL_V        8.087f
+#define CAL_CT       3.0f
+
+/* OneWire/Pulse setup */
+#define NUM_OPA   2
+#define PULSE_RES 1 /* Number of Pulse channels reserved */
 
 /* Temperature sensors
  * This is the maximum number of OneWire DS18B20 sensors that can be used
@@ -124,40 +111,29 @@
 #define GRP_PINB 1u
 
 /* Revision information */
-#define GRP_REV  GRP_PINA
-#define PIN_REV0 19u
-#define PIN_REV1 20u
-#define PIN_REV2 21u
+#define GRP_REV0 GRP_PINA
+#define GRP_REV1 GRP_PINB
+#define GRP_REV2 GRP_PINA
+#define PIN_REV0 0u
+#define PIN_REV1 17u
+#define PIN_REV2 1u
 
 /* LEDs */
 #define GRP_LED_STATUS GRP_PINB
 #define PIN_LED_STATUS 22u
 #define GRP_LED_PROG   GRP_PINB
 #define PIN_LED_PROG   23u
-#define GRP_LED_USER   GRP_PINB
-#define PIN_LED_USER0  10u
-#define PIN_LED_USER1  11u
 
-/* OneWire Interface */
-#define GRP_ONEWIRE GRP_PINA
-#define PIN_ONEWIRE 18u
-
-/* Pulse interface */
-#define GRP_PULSE  GRP_PINA
-#define PIN_PULSE1 17u
-#define PIN_PULSE2 16u
-
-/* !(TEST_SENSE) pin */
-#define GRP_TEST_SENSE GRP_PINA
-#define PIN_TEST_SENSE 28
+/* OneWire/Pulse interface */
+#define GRP_OPA     GRP_PINA
+#define PIN_OPA1    16
+#define PIN_OPA2    17
+#define PIN_OPA1_PU 18
+#define PIN_OPA2_PU 19
 
 /* nDISABLE_EXT_INTF */
-/* REVISIT : in 0.1, nDISABLE_EXT and ZXC are on the same EIC line. Fixed in 0.2
- *           so enable the EIC controller for this pin to enable and disable on
- *           an interrupt, rather than by polling.
- */
 #define GRP_nDISABLE_EXT GRP_PINB
-#define PIN_nDISABLE_EXT 15
+#define PIN_nDISABLE_EXT 16u
 
 /* ADC Pins */
 #define GRP_ADC_VMID   GRP_PINA
@@ -170,22 +146,22 @@
 #define PIN_ADC_VSENS2 9u
 #define GRP_ADC_VSENS3 GRP_PINA
 #define PIN_ADC_VSENS3 4u
-#define GRP_ADC_CT1    GRP_PINA
-#define PIN_ADC_CT1    5u
-#define GRP_ADC_CT2    GRP_PINA
-#define PIN_ADC_CT2    6u
-#define GRP_ADC_CT3    GRP_PINA
-#define PIN_ADC_CT3    7u
-#define GRP_ADC_CT4    GRP_PINB
-#define PIN_ADC_CT4    0u
-#define GRP_ADC_CT5    GRP_PINB
-#define PIN_ADC_CT5    1u
-#define GRP_ADC_CT6    GRP_PINB
-#define PIN_ADC_CT6    2u
+#define GRP_ADC_CT1    GRP_PINB
+#define PIN_ADC_CT1    0u
+#define GRP_ADC_CT2    GRP_PINB
+#define PIN_ADC_CT2    1u
+#define GRP_ADC_CT3    GRP_PINB
+#define PIN_ADC_CT3    4u
+#define GRP_ADC_CT4    GRP_PINA
+#define PIN_ADC_CT4    6u
+#define GRP_ADC_CT5    GRP_PINA
+#define PIN_ADC_CT5    7u
+#define GRP_ADC_CT6    GRP_PINA
+#define PIN_ADC_CT6    8u
 #define GRP_ADC_CT7    GRP_PINB
-#define PIN_ADC_CT7    3u
+#define PIN_ADC_CT7    2u
 #define GRP_ADC_CT8    GRP_PINB
-#define PIN_ADC_CT8    4u
+#define PIN_ADC_CT8    3u
 #define GRP_ADC_CT9    GRP_PINB
 #define PIN_ADC_CT9    5u
 #define GRP_ADC_CT10   GRP_PINB
@@ -193,15 +169,11 @@
 #define GRP_ADC_CT11   GRP_PINB
 #define PIN_ADC_CT11   7u
 #define GRP_ADC_AIN    GRP_PINA
-#define PIN_ADC_AIN    8u
+#define PIN_ADC_AIN    9u
 #define GRP_ADC_VCAL_H GRP_PINA
-#define PIN_ADC_VCAL_H 9u
+#define PIN_ADC_VCAL_H 10u
 #define GRP_ADC_VCAL_L GRP_PINA
-#define PIN_ADC_VCAL_L 10u
-
-/* Zero crossing detection */
-#define GRP_ZEROX GRP_PINA
-#define PIN_ZEROX 27u
+#define PIN_ADC_VCAL_L 11u
 
 /* USB */
 #define GRP_USB_DM 0
@@ -215,11 +187,8 @@
 #define PMUX_UART_DBG1 PORT_PMUX_PMUXE_D /* SERCOM-ALT */
 
 #define GRP_SERCOM_UART_DBG0 GRP_PINB
-#define PIN_UART_DBG_RX0     17u
-#define PIN_UART_DBG_TX0     16u
-#define GRP_SERCOM_UART_DBG1 GRP_PINB
-#define PIN_UART_DBG_RX1     31u
-#define PIN_UART_DBG_TX1     30u
+#define PIN_UART_DBG_RX0     20u
+#define PIN_UART_DBG_TX0     21u
 #define UART_DBG_PAD_RX      1u
 #define UART_DBG_PAD_TX      0u
 #define UART_DBG_BAUD        38400u
@@ -234,9 +203,8 @@
 #define PMUX_SPI_DATA  PORT_PMUX_PMUXE_C
 #define GRP_RFM_INTF   GRP_PINB
 #define PIN_RFM_IRQ    14u
+#define PMUX_RFM_IRQ   PORT_PMUX_PMUXE_A
 #define PIN_RFM_RST    15u
-#define PMUX_RFM_INTF  PORT_PMUX_PMUXE_A
-#define EIC_CH_RFM_IRQ 14u
 #define RFM_RETRIES    8
 #define RFM_TIMEOUT    30
 

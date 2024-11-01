@@ -4,7 +4,7 @@
 
 #include "emon32.h"
 
-void irqHandlerADCCommon(void);
+static void irqHandlerADCCommon(void);
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static DmacDescriptor          dmacs_wb[NUM_CHAN_DMA];
@@ -81,7 +81,7 @@ unsigned int dmacChannelBusy(unsigned int ch) {
   }
 }
 
-void irqHandlerADCCommon(void) { (*cbBufferFill)(); }
+static void irqHandlerADCCommon(void) { (*cbBufferFill)(); }
 
 void irq_handler_dmac(void) {
   /* Check which channel has triggered the interrupt, set the event, and

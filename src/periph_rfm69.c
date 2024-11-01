@@ -247,9 +247,6 @@ void rfmInterrupt(void) { rxRdy = true; }
 
 bool rfmInit(RFM_Freq_t freq) {
 
-  /* REVISIT : refactor to be independent of hardware implementation */
-  portPinMux(GRP_RFM_INTF, PIN_RFM_IRQ, PMUX_RFM_INTF);
-
   /* Configuration parameters */
   const uint8_t config[][2] = {
       {REG_OPMODE, 0x04},     /* OPMODE: Sequencer, standby, listen off */
