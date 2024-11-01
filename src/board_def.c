@@ -14,6 +14,8 @@ const uint8_t pinsGPIO_Out[][2] = {
 const uint8_t pinsGPIO_In[][2] = {{GRP_PULSE, PIN_PULSE1},
                                   {GRP_PULSE, PIN_PULSE2},
                                   {GRP_ONEWIRE, PIN_ONEWIRE},
+                                  {GRP_RFM_INTF, PIN_RFM_IRQ},
+                                  {GRP_RFM_INTF, PIN_RFM_RST},
                                   {GRP_PINA, PIN_REV0},
                                   {GRP_PINA, PIN_REV1},
                                   {GRP_PINA, PIN_REV2},

@@ -30,9 +30,10 @@
 #include "printf.h"
 
 typedef struct TransmitOpt_ {
-  bool json;
-  bool useRFM;
-  bool logSerial;
+  bool    json;
+  bool    useRFM;
+  bool    logSerial;
+  uint8_t node;
 } TransmitOpt_t;
 
 /*************************************
@@ -180,7 +181,9 @@ static RFMOpt_t *dataTxConfigure(const Emon32Config_t *pCfg) {
     rfmOpt->timeout   = 1000u;
     rfmOpt->n         = 23u;
     if (sercomExtIntfEnabled()) {
-      rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq);
+      if (rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq)) {
+        rfmSetAESKey("89txbe4p8aik5kt3"); /* Default OEM AES key */
+      }
     }
   }
   return rfmOpt;
@@ -428,24 +431,24 @@ static void transmitData(const Emon32Dataset_t *pSrc,
                          const TransmitOpt_t   *pOpt) {
   char txBuffer[TX_BUFFER_W] = {0};
 
-  int pktLength = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
+  int nSerial = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
 
   if (pOpt->useRFM) {
-    PackedData_t packedData = {0};
-    dataPackPacked(pSrc, &packedData, PACKED_LOWER);
     if (sercomExtIntfEnabled()) {
-      /* Try to send in "clean" air. If failed, retry on next loop. Should not
-       * reach RFM_FAILED at all. */
-      RFMSend_t res = rfmSendReady(5u);
-      if (RFM_SUCCESS == res) {
-        rfmSend(&packedData);
+      int_fast8_t nPacked = dataPackPacked(pSrc, rfmGetBuffer(), PACKED_LOWER);
+      rfmSetAddress(pOpt->node);
+      if (RFM_SUCCESS == rfmSendBuffer(nPacked)) {
+        nPacked = dataPackPacked(pSrc, rfmGetBuffer(), PACKED_UPPER);
+        rfmSetAddress(pOpt->node + 1);
+        rfmSendBuffer(nPacked);
       }
     }
+
     if (pOpt->logSerial) {
-      putsDbgNonBlocking(txBuffer, pktLength);
+      putsDbgNonBlocking(txBuffer, nSerial);
     }
   } else {
-    putsDbgNonBlocking(txBuffer, pktLength);
+    putsDbgNonBlocking(txBuffer, nSerial);
   }
 }
 
@@ -457,6 +460,7 @@ static void ucSetup(void) {
   clkSetup();
   timerSetup();
   portSetup();
+  eicSetup();
   dmacSetup();
   sercomSetup();
   adcSetup();
@@ -591,6 +595,7 @@ int main(void) {
         opt.json      = pConfig->baseCfg.useJson;
         opt.useRFM    = (0 != rfmOpt);
         opt.logSerial = pConfig->baseCfg.logToSerial;
+        opt.node      = pConfig->baseCfg.nodeID;
 
         dataset.pECM = ecmProcessSet();
         datasetAddPulse(&dataset);

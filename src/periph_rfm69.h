@@ -16,7 +16,8 @@ typedef enum RFMSend_ {
   RFM_NO_INIT,
   RFM_TIMED_OUT,
   RFM_FAILED,
-  RFM_SUCCESS
+  RFM_SUCCESS,
+  RFM_N_TOO_LARGE
 } RFMSend_t;
 
 typedef struct RFMOpt_ {
@@ -29,17 +30,34 @@ typedef struct RFMOpt_ {
   unsigned int timeout;
 } RFMOpt_t;
 
+/*! @brief Get a pointer to the RFM69's data buffer
+ *  @return pointer to RFM69 buffer
+ */
+uint8_t *rfmGetBuffer(void);
+
 RFMOpt_t *rfmGetHandle(void);
 
 /*! @brief Initialise the RFM69 module
  *  @param [in] freq : RFM operating frequency
+ *  @return : true if successful, false otherwise
  */
-void rfmInit(RFM_Freq_t freq);
+bool rfmInit(RFM_Freq_t freq);
 
-/*! @brief Send a packet through the RFM69 module
- *  @param [in] : Pointer to the RFM packet
- *  @return : 0 for success, -1 for failure
+/*! @brief The interrupt handler for RFM69 receive */
+void rfmInterrupt(void);
+
+/*! @brief Send data through the RFM69
+ *  @param [in] : number of bytes to be sent
+ *  @return : result of the attempt to send
  */
-RFMSend_t rfmSend(const void *pData);
+RFMSend_t rfmSendBuffer(const int_fast8_t n);
 
-RFMSend_t rfmSendReady(uint32_t timeout);
+/*! @brief Sets the RFM69's address
+ *  @param [in] addr : address to set the RFM69
+ */
+void rfmSetAddress(const uint16_t addr);
+
+/*! @brief Set the AES key for encryption
+ *  @param [in] aes : 16 character AES key. 0 disables encryption.
+ */
+void rfmSetAESKey(const char *aes);

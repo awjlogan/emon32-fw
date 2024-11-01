@@ -10,11 +10,11 @@
 #define I2CM_ACTIVATE_TIMEOUT_US 200u /* Time to wait for I2C bus */
 
 static void i2cmCommon(Sercom *pSercom);
-static void i2cmExtPinsSetup(int enable);
-static void spiExtPinsSetup(int enable);
+static void i2cmExtPinsSetup(bool enable);
+static void sercomSetupSPI(void);
+static void spiExtPinsSetup(bool enable);
 
-static int   extIntfEnabled = 1;
-static Pin_t spiSelectPin;
+static bool extIntfEnabled = true;
 
 static void i2cmCommon(Sercom *pSercom) {
   /* For 400 kHz I2C, SCL T_high >= 0.6 us, T_low >= 1.3 us, with
@@ -46,7 +46,7 @@ static void i2cmCommon(Sercom *pSercom) {
                                SERCOM_I2CM_INTENSET_ERROR;
 }
 
-static void i2cmExtPinsSetup(int enable) {
+static void i2cmExtPinsSetup(bool enable) {
   if (enable) {
     portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SDA, PMUX_I2CM_EXT);
     portPinMux(GRP_SERCOM_I2C_EXT, PIN_I2C_EXT_SCL, PMUX_I2CM_EXT);
@@ -56,7 +56,7 @@ static void i2cmExtPinsSetup(int enable) {
   }
 }
 
-static void spiExtPinsSetup(int enable) {
+static void spiExtPinsSetup(bool enable) {
   if (enable) {
     portPinMux(GRP_SERCOM_SPI, PIN_SPI_MISO, PMUX_SPI_DATA);
     portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI, PMUX_SPI_DATA);
@@ -71,24 +71,26 @@ static void spiExtPinsSetup(int enable) {
 }
 
 void sercomExtIntfDisable(void) {
-  extIntfEnabled = 0;
-  i2cmExtPinsSetup(0);
-  spiExtPinsSetup(0);
+  extIntfEnabled = false;
+  i2cmExtPinsSetup(false);
+  spiExtPinsSetup(false);
 }
 
 void sercomExtIntfEnable(void) {
-  extIntfEnabled = 1;
-  i2cmExtPinsSetup(1);
-  spiExtPinsSetup(1);
+  extIntfEnabled = true;
+  i2cmExtPinsSetup(true);
+  spiExtPinsSetup(true);
 }
 
-int sercomExtIntfEnabled(void) { return extIntfEnabled; }
+bool sercomExtIntfEnabled(void) { return extIntfEnabled; }
 
 void sercomSetup(void) {
   /*****************
    * Debug UART setup
    ******************/
-  unsigned int testSense = portPinValue(GRP_TEST_SENSE, PIN_TEST_SENSE);
+
+  extIntfEnabled =
+      portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT) ? true : false;
 
   UART_Cfg_t uart_dbg_cfg;
   uart_dbg_cfg.sercom    = SERCOM_UART_DBG;
@@ -99,18 +101,10 @@ void sercomSetup(void) {
   uart_dbg_cfg.pad_tx    = UART_DBG_PAD_TX;
   uart_dbg_cfg.pad_rx    = UART_DBG_PAD_RX;
 
-  /* If the test probe is present, route the debug UART to the tester */
-  if (0 == testSense) {
-    uart_dbg_cfg.port_grp = GRP_SERCOM_UART_DBG0;
-    uart_dbg_cfg.pin_tx   = PIN_UART_DBG_TX0;
-    uart_dbg_cfg.pin_rx   = PIN_UART_DBG_RX0;
-    uart_dbg_cfg.pmux     = PMUX_UART_DBG0;
-  } else {
-    uart_dbg_cfg.port_grp = GRP_SERCOM_UART_DBG1;
-    uart_dbg_cfg.pin_tx   = PIN_UART_DBG_TX1;
-    uart_dbg_cfg.pin_rx   = PIN_UART_DBG_RX1;
-    uart_dbg_cfg.pmux     = PMUX_UART_DBG1;
-  }
+  uart_dbg_cfg.port_grp = GRP_SERCOM_UART_DBG0;
+  uart_dbg_cfg.pin_tx   = PIN_UART_DBG_TX0;
+  uart_dbg_cfg.pin_rx   = PIN_UART_DBG_RX0;
+  uart_dbg_cfg.pmux     = PMUX_UART_DBG0;
 
   uart_dbg_cfg.dmaChannel   = DMA_CHAN_UART_DBG;
   uart_dbg_cfg.dmaCfg.ctrlb = DMAC_CHCTRLB_LVL(1u) |
@@ -136,23 +130,17 @@ void sercomSetup(void) {
 
   i2cmCommon(SERCOM_I2CM);
 
-  if (portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT)) {
-    i2cmExtPinsSetup(1);
-  } else {
-    extIntfEnabled = 0;
-  }
-
   PM->APBCMASK.reg |= SERCOM_I2CM_EXT_APBCMASK;
   GCLK->CLKCTRL.reg = GCLK_CLKCTRL_ID(SERCOM_I2CM_EXT_GCLK_ID) |
                       GCLK_CLKCTRL_GEN(3u) | GCLK_CLKCTRL_CLKEN;
 
+  i2cmExtPinsSetup(extIntfEnabled);
   i2cmCommon(SERCOM_I2CM_EXT);
 
   /*****************
    * SPI Setup
    ******************/
-  Pin_t spiPin = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
-  sercomSetupSPI(spiPin);
+  sercomSetupSPI();
 }
 
 void sercomSetupUART(const UART_Cfg_t *pCfg) {
@@ -218,17 +206,12 @@ void sercomSetupUART(const UART_Cfg_t *pCfg) {
   dmacChannelConfigure(pCfg->dmaChannel, &pCfg->dmaCfg);
 }
 
-void sercomSetupSPI(Pin_t sel) {
+static void sercomSetupSPI(void) {
   /**********************
    * SPI Setup (for RFM69)
    ***********************/
 
-  spiSelectPin.grp = sel.grp;
-  spiSelectPin.pin = sel.pin;
-
-  if (portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT)) {
-    spiExtPinsSetup(1);
-  }
+  spiExtPinsSetup(extIntfEnabled);
 
   /* Configure clocks - runs from the OSC8M clock on gen 3 */
   PM->APBCMASK.reg |= SERCOM_SPI_APBCMASK;

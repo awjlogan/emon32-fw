@@ -224,7 +224,7 @@
 #define UART_DBG_PAD_TX      0u
 #define UART_DBG_BAUD        38400u
 
-/* SPI related defines */
+/* RFM related defines */
 #define GRP_SERCOM_SPI GRP_PINA
 #define PIN_SPI_MISO   12u
 #define PIN_SPI_SCK    13u
@@ -232,6 +232,13 @@
 #define PIN_SPI_RFM_SS 14u
 #define SPI_DATA_BAUD  4000000ul
 #define PMUX_SPI_DATA  PORT_PMUX_PMUXE_C
+#define GRP_RFM_INTF   GRP_PINB
+#define PIN_RFM_IRQ    14u
+#define PIN_RFM_RST    15u
+#define PMUX_RFM_INTF  PORT_PMUX_PMUXE_A
+#define EIC_CH_RFM_IRQ 14u
+#define RFM_RETRIES    8
+#define RFM_TIMEOUT    30
 
 /* I2C related defines */
 #define GRP_SERCOM_I2C_INT GRP_PINB

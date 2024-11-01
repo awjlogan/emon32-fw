@@ -61,7 +61,7 @@ void sercomExtIntfDisable(void);
 void sercomExtIntfEnable(void);
 
 /*! @brief Status of the external SPI and I2C interfaces */
-int sercomExtIntfEnabled(void);
+bool sercomExtIntfEnabled(void);
 
 /*! @brief configure the serial communication module. This function starts the
  *         debug UART and I2C modules. Further SPI and UART modules are
@@ -69,9 +69,6 @@ int sercomExtIntfEnabled(void);
  *  @param [in] pCfg : pointer to the configuration struct
  */
 void sercomSetup(void);
-
-/*! @brief Configure a SERCOM module for SPI */
-void sercomSetupSPI(const Pin_t sel);
 
 /*! @brief Configure a SERCOM module for UART functions.
  *  @param [in] pCfg : pointer to configuration struct
