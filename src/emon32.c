@@ -96,7 +96,7 @@ static void cumulativeNVMLoad(Emon32Cumulative_t *pPkt,
       pData->pECM->CT[idxCT].wattHour = pPkt->wattHour[idxCT];
     }
 
-    for (unsigned int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++) {
+    for (unsigned int idxPulse = 0; idxPulse < NUM_OPA; idxPulse++) {
       pData->pulseCnt[idxPulse] = pPkt->pulseCnt[idxPulse];
     }
   } else {
@@ -116,7 +116,7 @@ static void cumulativeNVMStore(Emon32Cumulative_t    *pPkt,
     pPkt->wattHour[idxCT] = pData->pECM->CT[idxCT].wattHour;
   }
 
-  for (int idxPulse = 0; idxPulse < NUM_PULSECOUNT; idxPulse++) {
+  for (int idxPulse = 0; idxPulse < NUM_OPA; idxPulse++) {
     pPkt->pulseCnt[0] = pData->pulseCnt[0];
   }
 
@@ -159,7 +159,7 @@ static void datasetAddPulse(Emon32Dataset_t *pDst) {
   EMON32_ASSERT(pDst);
 
   pDst->msgNum++;
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
+  for (unsigned int i = 0; i < NUM_OPA; i++) {
     pDst->pulseCnt[i] = pulseGetCount(i);
   }
 }
@@ -349,13 +349,13 @@ static uint32_t evtPending(EVTSRC_t evt) {
 static void pulseConfigure(const Emon32Config_t *pCfg) {
   EMON32_ASSERT(pCfg);
 
-  uint8_t pinsPulse[][2] = {{GRP_PULSE, PIN_PULSE1}, {GRP_PULSE, PIN_PULSE2}};
+  uint8_t pinsPulse[][2] = {{GRP_OPA, PIN_OPA1}, {GRP_OPA, PIN_OPA2}};
 
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
+  for (unsigned int i = 0; i < NUM_OPA; i++) {
     PulseCfg_t *pulseCfg = pulseGetCfg(i);
 
     if (0 != pulseCfg) {
-      pulseCfg->edge    = (PulseEdge_t)pCfg->pulseCfg[i].edge;
+      pulseCfg->edge    = (PulseEdge_t)pCfg->pulseCfg[i].func;
       pulseCfg->grp     = pinsPulse[i][0];
       pulseCfg->pin     = pinsPulse[i][1];
       pulseCfg->periods = pCfg->pulseCfg[i].period;
@@ -404,8 +404,8 @@ static uint32_t tempSetup(void) {
   unsigned int   numTempSensors = 0;
   DS18B20_conf_t dsCfg          = {0};
 
-  dsCfg.grp       = GRP_ONEWIRE;
-  dsCfg.pin       = PIN_ONEWIRE;
+  dsCfg.grp       = GRP_OPA;
+  dsCfg.pin       = PIN_OPA1;
   dsCfg.t_wait_us = 5;
 
   numTempSensors = tempInitSensors(TEMP_INTF_ONEWIRE, &dsCfg);
@@ -534,7 +534,7 @@ int main(void) {
         eepromWLClear();
         eepromWLReset(sizeof(nvmCumulative));
         ecmClearResidual();
-        for (int i = 0; i < NUM_PULSECOUNT; i++) {
+        for (int i = 0; i < NUM_OPA; i++) {
           pulseSetCount(0, i);
         }
         emon32EventClr(EVT_CLEAR_ACCUM);

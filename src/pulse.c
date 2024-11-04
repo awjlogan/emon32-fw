@@ -5,14 +5,14 @@
 
 typedef enum PulseLvl_ { PULSE_LVL_HIGH, PULSE_LVL_LOW } PulseLvl_t;
 
-static uint64_t     pulseCount[NUM_PULSECOUNT];
-static PulseCfg_t   pulseCfg[NUM_PULSECOUNT];
-static unsigned int pinValue[NUM_PULSECOUNT];
-static PulseLvl_t   pulseLvlLast[NUM_PULSECOUNT];
+static uint64_t     pulseCount[NUM_OPA];
+static PulseCfg_t   pulseCfg[NUM_OPA];
+static unsigned int pinValue[NUM_OPA];
+static PulseLvl_t   pulseLvlLast[NUM_OPA];
 
 PulseCfg_t *pulseGetCfg(const unsigned int index) {
   /* If no pulse counters attached or index out of range, return 0 */
-  if ((0 == NUM_PULSECOUNT) || (index > (NUM_PULSECOUNT - 1u))) {
+  if ((0 == NUM_OPA) || (index > (NUM_OPA - 1u))) {
     return 0;
   }
 
@@ -40,7 +40,7 @@ void pulseUpdate(void) {
   unsigned int mask;
   PulseLvl_t   level;
 
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
+  for (unsigned int i = 0; i < NUM_OPA; i++) {
     if (0 != pulseCfg[i].active) {
       mask  = (1 << pulseCfg[i].periods) - 1u;
       level = pulseLvlLast[i];

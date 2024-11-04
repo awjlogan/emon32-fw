@@ -42,7 +42,7 @@ static int      configTimeToCycles(const float time, const int mainsFreq);
 static bool     configureAnalog(void);
 static bool     configureAssumed(void);
 static bool     configureDatalog(void);
-static void     configurePulse(void);
+static void     configureOPA(void);
 static bool     configureSerialLog(void);
 static bool     configureWhDelta(void);
 static void     enterBootloader(void);
@@ -97,15 +97,18 @@ static void configDefault(void) {
     config.ctCfg[idxCT].ctActive = (idxCT < NUM_CT_ACTIVE_DEF);
   }
 
-  /* Pulse counters:
+  /* OneWire/Pulse configuration:
+   *   - Pulse input
    *   - Period: 100 ms
    *   - Rising edge trigger
+   *   - Pull up disabled
    *   - All disabled
    */
-  for (int i = 0u; i < NUM_PULSECOUNT; i++) {
+  for (int i = 0u; i < NUM_OPA; i++) {
     config.pulseCfg[i].pulseActive = false;
     config.pulseCfg[i].period      = 100u;
-    config.pulseCfg[i].edge        = 0u;
+    config.pulseCfg[i].func        = 'r';
+    config.pulseCfg[i].puEn        = false;
   }
 
   config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2u));
@@ -308,7 +311,7 @@ static bool configureDatalog(void) {
   return false;
 }
 
-static void configurePulse(void) {
+static void configureOPA(void) {
   /* String format in inBuffer:
    *      [1] -> ch;
    *      [3] -> active;
@@ -327,7 +330,7 @@ static void configurePulse(void) {
   }
   ch = convI.val - 1;
 
-  if ((ch < 0) || (ch >= NUM_PULSECOUNT)) {
+  if ((ch < 0) || (ch >= NUM_OPA)) {
     return;
   }
 
@@ -359,15 +362,15 @@ static void configurePulse(void) {
     switch (edge) {
     case 'r':
       dbgPuts("Rising, ");
-      config.pulseCfg[ch].edge = 0u;
+      config.pulseCfg[ch].func = 'r';
       break;
     case 'f':
       dbgPuts("Falling, ");
-      config.pulseCfg[ch].edge = 1u;
+      config.pulseCfg[ch].func = 'f';
       break;
     case 'b':
       dbgPuts("Both, ");
-      config.pulseCfg[ch].edge = 2u;
+      config.pulseCfg[ch].func = 'b';
       break;
     }
     config.pulseCfg[ch].period = period;
@@ -506,19 +509,19 @@ static void printSettings(void) {
           config.baseCfg.useJson ? "JSON" : "Key:Value");
   dbgPuts("\r\n");
 
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
+  for (unsigned int i = 0; i < NUM_OPA; i++) {
     bool enabled = config.pulseCfg[i].pulseActive;
     printf_("Pulse Channel %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
     printf_("  - Hysteresis (ms): %d\r\n", config.pulseCfg[i].period);
     dbgPuts("  - Edge:            ");
-    switch (config.pulseCfg[i].edge) {
-    case 0:
+    switch (config.pulseCfg[i].func) {
+    case 'r':
       dbgPuts("Rising");
       break;
-    case 1:
+    case 'f':
       dbgPuts("Falling");
       break;
-    case 2:
+    case 'b':
       dbgPuts("Both");
       break;
     default:
@@ -744,12 +747,13 @@ void configProcessCmd(void) {
       "   - v1        : CT voltage channel 1\r\n"
       "   - v2        : CT voltage channel 2\r\n"
       " - l           : list settings\r\n"
-      " - m<w> <x> <y> <z>\r\n"
-      "   - Pulse counting.\r\n"
-      "     - w : pulse channel index\r\n"
-      "     - x = 0: OFF, x = 1, ON.\r\n"
-      "     - y : edge sensitivity (r,f,b). Ignored if x = 0\r\n"
-      "     - z : minimum period (ms). Ignored if x = 0\r\n"
+      " - m<v> <w> <x> <y> <z>\r\n"
+      "   - Configure a OneWire/pulse input.\r\n"
+      "     - v : channel index\r\n"
+      "     - w : function select. w = p: pulse, w = o: OneWire.\r\n"
+      "     - x : edge sensitivity (r,f,b). Ignored if w = o\r\n"
+      "     - y : minimum period (ms). Ignored if w = o\r\n"
+      "     - z : pull-up. z = 1: PULL UP, z = 0: NO PULL UP\r\n"
       " - n<n>        : set node ID [1..60]\r\n"
       " - p<n>        : set the RF power level\r\n"
       " - r           : restore defaults\r\n"
@@ -848,7 +852,7 @@ void configProcessCmd(void) {
     printSettings();
     break;
   case 'm':
-    configurePulse();
+    configureOPA();
     unsavedChange = true;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;

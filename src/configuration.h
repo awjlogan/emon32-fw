@@ -30,12 +30,12 @@ typedef struct __attribute__((__packed__)) DataTxCfg_ {
   uint8_t res0;
 } DataTxCfg_t;
 
-typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
+typedef struct __attribute__((__packed__)) OpaCfgPacked_ {
   uint8_t period;
-  uint8_t edge;
+  uint8_t func; /* 'o': OneWire; 'r', 'b', 'f': pulse  */
   bool    pulseActive;
-  uint8_t res0;
-} PulseCfgPacked_t;
+  bool    puEn; /* Pull up enabled */
+} OpaCfgPacked_t;
 
 typedef struct __attribute__((__packed__)) VoltageCfg_ {
   float   voltageCal; /* Conversion to real V value */
@@ -58,15 +58,15 @@ typedef struct __attribute__((__packed__)) Emon32Config_ {
   DataTxCfg_t        dataTxCfg;
   VoltageCfgPacked_t voltageCfg[NUM_V];
   CTCfgPacked_t      ctCfg[NUM_CT + CT_RES];
-  PulseCfgPacked_t   pulseCfg[NUM_PULSECOUNT + PULSE_RES];
+  OpaCfgPacked_t     pulseCfg[NUM_OPA + PULSE_RES];
   uint8_t            res0[17];
   uint16_t           crc16_ccitt;
 } Emon32Config_t;
 
 _Static_assert((sizeof(BaseCfg_t) == 24), "BaseCfg_t is not 24 bytes wide.");
 _Static_assert((sizeof(DataTxCfg_t) == 4), "DataTxCfg_t is not 4 bytes wide.");
-_Static_assert((sizeof(PulseCfgPacked_t) == 4),
-               "PulseCfgPacked_t is not 4 bytes wide.");
+_Static_assert((sizeof(OpaCfgPacked_t) == 4),
+               "OpaCfgPacked_t is not 4 bytes wide.");
 _Static_assert((sizeof(VoltageCfgPacked_t) == 8),
                "VoltageCfgPacked_t is not 8 bytes wide.");
 _Static_assert((sizeof(CTCfgPacked_t) == 12),

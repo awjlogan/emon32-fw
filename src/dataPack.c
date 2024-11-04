@@ -207,7 +207,7 @@ int_fast8_t dataPackPacked(const Emon32Dataset_t *pData, void *pPacked,
 
   if (PACKED_LOWER == range) {
     PackedDataLower6_t *pLower = pPacked;
-    for (int p = 0; p < NUM_PULSECOUNT; p++) {
+    for (int p = 0; p < NUM_OPA; p++) {
       pLower->pulse[p] = pData->pulseCnt[p];
     }
     return sizeof(*pLower);

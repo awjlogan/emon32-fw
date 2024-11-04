@@ -4,9 +4,9 @@
 #include <stdint.h>
 
 typedef enum PulseEdge_ {
-  PULSE_EDGE_RISING  = 0,
-  PULSE_EDGE_FALLING = 1,
-  PULSE_EDGE_BOTH    = 2
+  PULSE_EDGE_RISING  = 'r',
+  PULSE_EDGE_FALLING = 'f',
+  PULSE_EDGE_BOTH    = 'b'
 } PulseEdge_t;
 
 typedef struct PulseCfg_ {

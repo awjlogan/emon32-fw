@@ -37,14 +37,14 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 typedef struct Emon32Dataset_ {
   uint32_t      msgNum;
   ECMDataset_t *pECM;
-  uint32_t      pulseCnt[NUM_PULSECOUNT];
+  uint32_t      pulseCnt[NUM_OPA];
   int16_t       temp[TEMP_MAX_ONEWIRE];
   unsigned int  numTempSensors;
 } Emon32Dataset_t;
 
 typedef struct __attribute__((__packed__)) Emon32Cumulative_ {
   uint32_t wattHour[NUM_CT];
-  uint32_t pulseCnt[NUM_PULSECOUNT];
+  uint32_t pulseCnt[NUM_OPA];
 } Emon32Cumulative_t;
 
 /* This struct must match the OEM definitions found at:
@@ -56,7 +56,7 @@ typedef struct __attribute__((__packed__)) PackedData_ {
   int16_t  P[NUM_CT];
   int32_t  E[NUM_CT];
   int16_t  T[TEMP_MAX_ONEWIRE];
-  uint32_t pulse[NUM_PULSECOUNT];
+  uint32_t pulse[NUM_OPA];
 } PackedData_t;
 
 typedef struct __attribute__((__packed__)) PackedDataCommon_ {
@@ -68,7 +68,7 @@ typedef struct __attribute__((__packed__)) PackedDataCommon_ {
 
 typedef struct __attribute__((__packed__)) PackedDataLower6_ {
   PackedDataCommon_t common;
-  uint32_t           pulse[NUM_PULSECOUNT];
+  uint32_t           pulse[NUM_OPA];
 } PackedDataLower6_t;
 
 typedef struct __attribute__((__packed__)) PackedDataUpper6_ {
