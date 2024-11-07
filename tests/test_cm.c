@@ -1,5 +1,6 @@
 #include <assert.h>
 #include <math.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,10 +25,17 @@ typedef struct wave_ {
   int    offset; /* Constant offset, clamped if outside range */
 } wave_t;
 
+/*! @brief Check the results from a run
+ *  @param [in] pData : pointer to dataset
+ *  @param [in] pF : gold power factor
+ *  @return : true for success, false otherwise
+ */
+static bool checkDataset(ECMDataset_t *pData, float pF);
+
 /*! @brief Convert a current in CT to a wave description
  *  @param [in] IRMS : RMS current
  *  @param [in] scaleCT : current to produce 333 mV RMS output
- *  @param [in] phase : CT phase
+ *  @param [in] phase : CT phase (degrees)
  *  @param [out] pW  : pointer to the wave struct
  */
 static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w);
@@ -64,6 +72,23 @@ wave_t wave[VCT_TOTAL];
 
 static uint32_t timeMicros(void) { return time; }
 static uint32_t timeMicrosDelta(uint32_t timePrev) { return time - timePrev; }
+
+static bool checkDataset(ECMDataset_t *pData, float pF) {
+
+  if (pF != 0.0f) {
+    if ((pData->CT[0].pf > (pF + 0.01f)) || (pData->CT[0].pf < (pF - 0.01f))) {
+      printf("\nPF Gold: %.2f Test: %.2f\n", pF, pData->CT[0].pf);
+      return false;
+    }
+  }
+
+  if ((pData->rmsV[0] > (VRMS_GOLD + 1.0f)) ||
+      (pData->rmsV[0] < (VRMS_GOLD - 1.0f))) {
+    printf("\nVrms Gold: %.2f Test: %.2f\n", VRMS_GOLD, pData->rmsV[0]);
+    return false;
+  }
+  return true;
+}
 
 static void dynamicRun(int reports, bool prtReport) {
   int reportNum = 0;
@@ -109,6 +134,7 @@ int main(int argc, char *argv[]) {
    */
   for (int i = 0; i < NUM_V; i++) {
     voltageToWave(230.0, &wave[i]);
+    wave[i].phi = M_PI * 120 * i / 180;
   }
 
   for (int i = NUM_V; i < VCT_TOTAL; i++) {
@@ -229,32 +255,39 @@ int main(int argc, char *argv[]) {
   printf("  Dynamic test...\n\n");
   printf("    - Phase 0°, PF = 1 ... ");
   dynamicRun(4, false);
-
-  if ((dataset->CT[0].pf > 1.01f) || (dataset->CT[0].pf < 0.99f)) {
-    printf("\nPF Gold: %.2f Test: %.2f\n", 1.00f, dataset->CT[0].pf);
+  if (!checkDataset(dataset, 1.0f))
     return 1;
-  }
-  if ((dataset->rmsV[0] > (VRMS_GOLD + 1.0f)) ||
-      (dataset->rmsV[0] < (VRMS_GOLD - 1.0f))) {
-    printf("\nVrms Gold: %.2f Test: %.2f\n", VRMS_GOLD, dataset->rmsV[0]);
-    return 1;
-  }
   printf("Done!\n");
 
   printf("    - Phase 90°, PF = 0 ... ");
   wave[NUM_V].phi = M_PI / 2;
   time            = 0;
   dynamicRun(4, false);
+  if (!checkDataset(dataset, 0.0f))
+    return 1;
   printf("Done!\n");
 
   printf("    - Phase 180°, PF = -1 ... ");
   wave[NUM_V].phi = M_PI;
   time            = 0;
   dynamicRun(4, false);
-  if ((dataset->CT[0].pf < -1.01f) || (dataset->CT[0].pf > -0.99f)) {
-    printf("Gold: %.2f Test: %.2f\n", 1.00f, dataset->CT[0].pf);
-    return 1;
-  }
+  if (!checkDataset(dataset, -1.0f))
+    ;
+  printf("Done!\n");
+
+  printf("    - 600 s report period ... ");
+  pEcmCfg->reportCycles = 600 * 50;
+  wave[NUM_V].phi       = M_PI * 4.2f / 180;
+  time                  = 0;
+  dynamicRun(1, false);
+  checkDataset(dataset, 1.0f);
+  printf("Done!\n");
+
+  printf("    - 0.5 s report period ... ");
+  pEcmCfg->reportCycles = 25;
+  time                  = 0;
+  dynamicRun(1, false);
+  checkDataset(dataset, 1.0f);
   printf("Done!\n");
 
   printf("\n  Finished!\n\n");
@@ -265,7 +298,7 @@ static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {
   double iPk = IRMS * sqrt(2);
   w->offset  = 0;
   w->omega   = 2 * M_PI * MAINS_FREQ;
-  w->phi     = phase / 180;
+  w->phi     = M_PI * phase / 180;
   w->s       = iPk / scaleCT;
 }
 

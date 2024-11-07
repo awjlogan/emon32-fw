@@ -178,10 +178,10 @@ static RAMFUNC float calcRMS(CalcRMS_t *pSrc) {
   int64_t numSamplesSqr = (int64_t)pSrc->numSamples * pSrc->numSamples;
   float   vcal          = pSrc->cal;
 
-  int64_t deltasSqr = pSrc->sDelta * pSrc->sDelta;
+  int32_t deltasSqr = pSrc->sDelta * pSrc->sDelta;
 
   float offsetCorr =
-      qfp_fdiv(qfp_int642float(deltasSqr), qfp_int642float(numSamplesSqr));
+      qfp_fdiv(qfp_int2float(deltasSqr), qfp_int642float(numSamplesSqr));
 
   float rms =
       qfp_fdiv(qfp_int642float(pSrc->sSqr), qfp_int2float(pSrc->numSamples));
@@ -545,25 +545,25 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
   }
   accumCollecting->numSamples++;
 
-  const int_fast8_t idxLast = (idxInject - 1u) & (PROC_DEPTH - 1u);
+  const int_fast8_t idxLast = (idxInject - 1) & (PROC_DEPTH - 1);
 
   for (int_fast8_t idxV = 0; idxV < NUM_V; idxV++) {
     if (channelActive[idxV]) {
-      int64_t V = smpSet.smpV[idxV];
-      accumCollecting->processV[idxV].sumV_sqr += V * V;
+      int32_t V = smpSet.smpV[idxV];
+      accumCollecting->processV[idxV].sumV_sqr += (int64_t)(V * V);
       accumCollecting->processV[idxV].sumV_deltas += V;
     }
   }
 
   for (int_fast8_t idxCT = 0; idxCT < NUM_CT; idxCT++) {
     if (channelActive[idxCT + NUM_V]) {
-      int64_t thisV = vSampleBuffer[idxInject].smpV[ecmCfg.ctCfg[idxCT].vChan1];
-      int64_t lastV = vSampleBuffer[idxLast].smpV[ecmCfg.ctCfg[idxCT].vChan1];
-      int64_t thisCT = smpSet.smpCT[idxCT];
+      int32_t thisV = vSampleBuffer[idxInject].smpV[ecmCfg.ctCfg[idxCT].vChan1];
+      int32_t lastV = vSampleBuffer[idxLast].smpV[ecmCfg.ctCfg[idxCT].vChan1];
+      int32_t thisCT = smpSet.smpCT[idxCT];
 
-      accumCollecting->processCT[idxCT].sumPA += thisCT * lastV;
-      accumCollecting->processCT[idxCT].sumPB += thisCT * thisV;
-      accumCollecting->processCT[idxCT].sumI_sqr += thisCT * thisCT;
+      accumCollecting->processCT[idxCT].sumPA += (int64_t)(thisCT * lastV);
+      accumCollecting->processCT[idxCT].sumPB += (int64_t)(thisCT * thisV);
+      accumCollecting->processCT[idxCT].sumI_sqr += (int64_t)(thisCT * thisCT);
       accumCollecting->processCT[idxCT].sumI_deltas += thisCT;
     }
   }
