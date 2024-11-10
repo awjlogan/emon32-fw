@@ -2,14 +2,22 @@
 
 #include <stdint.h>
 
+#include <temperature.h>
+
 typedef struct DS18B20_conf_ {
-  unsigned int grp;
-  unsigned int pin;
-  unsigned int t_wait_us;
+  uint8_t grp;
+  uint8_t pin;
+  uint8_t t_wait_us;
 } DS18B20_conf_t;
 
-/*! @brief Configure the OneWire port
+typedef struct DS18B20_Res_ {
+  TempStatus_t status;
+  int16_t      temp;
+} DS18B20_Res_t;
+
+/*! @brief Configure the OneWire port and find sensors
  *  @param [in] pCfg: pointer to the configuration struct
+ *  @return : number of sensors found
  */
 unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg);
 
@@ -20,10 +28,9 @@ int ds18b20StartSample(void);
 
 /*! @brief Read the temperature data from a OneWire device
  *  @param [in] dev : index of OneWire device
- *  @return : INT16_MIN for failure (no presence response), otherwise sensor
- * data
+ *  @return : result in struct
  */
-int16_t ds18b20ReadSample(const unsigned int dev);
+DS18B20_Res_t ds18b20ReadSample(const unsigned int dev);
 
 /*! @brief Convert the DS18B20 value into a float
  *  @param [in] fix : 8.4 fixed point value

@@ -566,8 +566,12 @@ int main(void) {
       if (evtPending(EVT_TEMP_READ)) {
         if (numTempSensors > 0) {
           TempRead_t tempValue = tempReadSample(TEMP_INTF_ONEWIRE, tempCount);
-          dataset.temp[tempCount++] =
-              tempAsFloat(TEMP_INTF_ONEWIRE, tempValue.result);
+
+          if (TEMP_OK == tempValue.status) {
+            dataset.temp[tempCount] = tempValue.result;
+          }
+
+          tempCount++;
           if (tempCount == numTempSensors) {
             emon32EventSet(EVT_PROCESS_DATASET);
             emon32EventClr(EVT_TEMP_READ);

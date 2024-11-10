@@ -32,11 +32,10 @@ static int          oneWireSearch(void);
 static void         oneWireWriteBit(unsigned int bit);
 static void         oneWireWriteBytes(const void *pSrc, const uint8_t n);
 
-uint64_t ROM_NO;
-uint8_t  crc8;
-int      lastDiscrepancy;
-int      lastFamilyDiscrepancy;
-int      lastDeviceFlag;
+uint64_t ROM_NO                = 0;
+int      lastDiscrepancy       = 0;
+int      lastFamilyDiscrepancy = 0;
+int      lastDeviceFlag        = 0;
 
 static uint8_t calcCRC8(const uint8_t crc, const uint8_t value) {
   const uint8_t dscrc_table[] = {
@@ -145,7 +144,7 @@ static unsigned int oneWireReset(void) {
 
 static int oneWireSearch(void) {
   /* Initialise for search */
-  const uint8_t cmdSearchRom    = 0xF0u;
+  const uint8_t CMD_SEARCH_ROM  = 0xF0u;
   int           searchDirection = 0;
   int           idBitNumber     = 1;
   int           lastZero        = 0;
@@ -153,6 +152,7 @@ static int oneWireSearch(void) {
   int           searchResult    = 0;
   int           idBit           = 0;
   int           cmpidBit        = 0;
+  uint8_t       crc8            = 0;
   uint8_t      *romBuffer       = (uint8_t *)&ROM_NO;
 
   /* If the last call was not the last one... */
@@ -167,7 +167,7 @@ static int oneWireSearch(void) {
     }
 
     /* ...issue the search command...*/
-    oneWireWriteBytes(&cmdSearchRom, 1);
+    oneWireWriteBytes(&CMD_SEARCH_ROM, 1);
 
     /* ...and commence the search! */
     for (unsigned int i = 0; i < 64; i++) {
@@ -254,6 +254,8 @@ static void oneWireWriteBit(unsigned int bit) {
 }
 
 static void oneWireWriteBytes(const void *pSrc, const uint8_t n) {
+  EMON32_ASSERT(pSrc);
+
   uint8_t *pData = (uint8_t *)pSrc;
   for (uint8_t i = 0; i < n; i++) {
     uint8_t byte = *pData++;
@@ -267,8 +269,9 @@ static void oneWireWriteBytes(const void *pSrc, const uint8_t n) {
 unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg) {
   EMON32_ASSERT(pCfg);
 
-  unsigned int deviceCount  = 0;
-  int          searchResult = 0;
+  const uint8_t DS18B_FAMILY_CODE = 0x28;
+  unsigned int  deviceCount       = 0;
+  int           searchResult      = 0;
 
   cfg.grp       = pCfg->grp;
   cfg.pin       = pCfg->pin;
@@ -280,8 +283,12 @@ unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg) {
   searchResult = oneWireFirst();
 
   while ((0 != searchResult) && (deviceCount < TEMP_MAX_ONEWIRE)) {
-    address[deviceCount] = ROM_NO;
-    deviceCount++;
+
+    /* Only count DS18B20 devices. */
+    if (DS18B_FAMILY_CODE == (uint8_t)ROM_NO) {
+      address[deviceCount] = ROM_NO;
+      deviceCount++;
+    }
 
     searchResult = oneWireNext();
   }
@@ -295,7 +302,9 @@ unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg) {
 }
 
 int ds18b20StartSample(void) {
-  const uint8_t cmds[2] = {0xCC, 0x44};
+  const uint8_t CMD_SKIP_ROM  = 0xCC;
+  const uint8_t CMD_CONVERT_T = 0x44;
+  const uint8_t cmds[2]       = {CMD_SKIP_ROM, CMD_CONVERT_T};
 
   /* Check for presence pulse before continuing */
   if (0 == oneWireReset()) {
@@ -306,25 +315,60 @@ int ds18b20StartSample(void) {
   return 0;
 }
 
-int16_t ds18b20ReadSample(const unsigned int dev) {
-  const uint8_t   cmdMatchROM    = 0x55;
-  const uint8_t   cmdReadScratch = 0xBE;
-  const uint64_t *addrDev        = address + addressRemap[dev];
-  int             tempData       = 0;
+DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
+  const uint8_t CMD_MATCH_ROM    = 0x55;
+  const uint8_t CMD_READ_SCRATCH = 0xBE;
+  const int16_t DS_T85DEG        = 1360;
+  const int16_t DS_TNEG55DEG     = -880;
+  const int16_t DS_T125DEG       = 2000;
+
+  const uint64_t *addrDev    = address + addressRemap[dev];
+  uint8_t         rBuffer[9] = {0};
+  uint8_t         crcDS      = 0;
+  DS18B20_Res_t   tempRes    = {0};
 
   /* Check for presence pulse before continuing */
   if (0 == oneWireReset()) {
-    return INT16_MIN;
+    tempRes.status = TEMP_NO_SENSORS;
+    return tempRes;
   }
 
-  oneWireWriteBytes(&cmdMatchROM, 1);
+  oneWireWriteBytes(&CMD_MATCH_ROM, 1);
   oneWireWriteBytes(addrDev, 8);
-  oneWireWriteBytes(&cmdReadScratch, 1);
-  /* REVISIT : can read all 9 bytes to get the CRC as well */
-  oneWireReadBytes(&tempData, 2);
+  oneWireWriteBytes(&CMD_READ_SCRATCH, 1);
+  oneWireReadBytes(&rBuffer, 9);
 
-  /* Second byte is the MSB, shift to top 8 */
-  return (int16_t)tempData;
+  /* Check CRC for received data */
+  for (int i = 0; i < 8; i++) {
+    calcCRC8(crcDS, rBuffer[i]);
+  }
+  if (crcDS != rBuffer[8]) {
+    tempRes.status = TEMP_BAD_CRC;
+  }
+
+  /* rBuffer[4] is the DS18B20's configuration register, must not be 0. See
+   * Figure 10. Configuration Register. */
+  if (0 == rBuffer[4]) {
+    tempRes.status = TEMP_BAD_SENSOR;
+    return tempRes;
+  }
+
+  /* Check for spurious 85°§C reading. This could be caused by e.g. a power
+   * glitch after the sample was requested. */
+  tempRes.temp = rBuffer[0] | (rBuffer[1] << 8);
+  if ((0x0C == rBuffer[6]) && (DS_T85DEG == tempRes.temp)) {
+    tempRes.status = TEMP_BAD_SENSOR;
+    return tempRes;
+  }
+
+  /* Flag values < -55°C and > +125°C as out of range  */
+  if ((DS_TNEG55DEG > tempRes.temp) || (DS_T125DEG < tempRes.temp)) {
+    tempRes.status = TEMP_OUT_OF_RANGE;
+    return tempRes;
+  }
+
+  tempRes.status = TEMP_OK;
+  return tempRes;
 }
 
 float ds18b20SampleToCelsius(const int16_t fix) {

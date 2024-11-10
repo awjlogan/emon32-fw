@@ -11,7 +11,11 @@ typedef enum TempStatus_ {
   TEMP_OVERRUN,
   TEMP_NO_SENSORS,
   TEMP_FAILED,
-  TEMP_NO_SAMPLE
+  TEMP_NO_SAMPLE,
+  TEMP_OUT_OF_RANGE,
+  TEMP_UNUSED,
+  TEMP_BAD_CRC,
+  TEMP_BAD_SENSOR
 } TempStatus_t;
 
 typedef struct TempRead_ {

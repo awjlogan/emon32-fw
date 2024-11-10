@@ -41,8 +41,10 @@ TempRead_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev) {
   }
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    res.result = ds18b20ReadSample(dev);
-    res.status = TEMP_OK;
+    DS18B20_Res_t dsRes = ds18b20ReadSample(dev);
+
+    res.status = dsRes.status;
+    res.result = dsRes.temp;
   }
 
   return res;
