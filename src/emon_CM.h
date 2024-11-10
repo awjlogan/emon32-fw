@@ -108,7 +108,7 @@ typedef struct DataCT_ {
 
 typedef struct ECMDataset_ {
   float    wallTime;
-  float    rmsV[NUM_V];
+  float    rmsV[NUM_V * 2]; /* For L-L */
   DataCT_t CT[NUM_CT];
 } ECMDataset_t;
 
