@@ -38,7 +38,7 @@ typedef struct Emon32Dataset_ {
   uint32_t      msgNum;
   ECMDataset_t *pECM;
   uint32_t      pulseCnt[NUM_PULSECOUNT];
-  float         temp[TEMP_MAX_ONEWIRE];
+  int16_t       temp[TEMP_MAX_ONEWIRE];
   unsigned int  numTempSensors;
 } Emon32Dataset_t;
 
@@ -79,9 +79,9 @@ typedef struct __attribute__((__packed__)) PackedDataUpper6_ {
 /* Maximum size of RFM69CW buffer is 61 bytes. Node, number, and CRC included.
  */
 _Static_assert((sizeof(PackedDataLower6_t) + 4) < 62,
-               "PackedDataLower6_t > 62 bytes");
+               "PackedDataLower6_t > 61 bytes");
 _Static_assert((sizeof(PackedDataUpper6_t) + 4) < 62,
-               "PackedDataUpper6_t > 62 bytes");
+               "PackedDataUpper6_t > 61 bytes");
 
 /* EVTSRC_t contains all the event/interrupts sources. This value is shifted
  * to provide a vector of set events as bits.

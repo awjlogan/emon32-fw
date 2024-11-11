@@ -214,7 +214,8 @@ int_fast8_t dataPackPacked(const Emon32Dataset_t *pData, void *pPacked,
   } else if (PACKED_UPPER == range) {
     PackedDataUpper6_t *pUpper = pPacked;
     for (int t = 0; t < (TEMP_MAX_ONEWIRE / 2); t++) {
-      pUpper->temp[t] = qfp_float2int(pData->temp[t]);
+      /* Sent as 100x the temperature value. */
+      pUpper->temp[t] = (pData->temp[t] * 6) + (pData->temp[t] >> 2);
     }
     return sizeof(*pUpper);
   }
