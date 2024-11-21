@@ -102,7 +102,7 @@ static int strnFtoa(StrN_t *strD, const float v) {
   /* Zero the destination buffer then convert */
   memset(strD->str, 0, strD->m);
   utilFtoa(strD->str, v);
-  strD->n = strnLen(strD);
+  strD->n = strnLen(strD) - 1;
 
   /* Truncate if it exceeds the length of the string */
   if (-1 == strD->n) {
@@ -115,7 +115,7 @@ static int strnItoa(StrN_t *strD, const uint32_t v) {
   /* Zero the destination buffer then convert */
   memset(strD->str, 0, strD->m);
 
-  strD->n = utilItoa(strD->str, v, ITOA_BASE10);
+  strD->n = utilItoa(strD->str, v, ITOA_BASE10) - 1;
   return strD->n;
 }
 

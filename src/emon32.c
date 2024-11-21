@@ -147,7 +147,7 @@ static void cumulativeProcess(Emon32Cumulative_t    *pPkt,
   energyOverflow = (latestWh < lastStoredWh);
   deltaWh        = latestWh - lastStoredWh;
   if ((deltaWh > whDeltaStore) || energyOverflow) {
-    cumulativeNVMStore(pPkt, pData);
+    // cumulativeNVMStore(pPkt, pData);
     lastStoredWh = latestWh;
   }
 }
@@ -294,9 +294,6 @@ static void evtKiloHertz(void) {
    * processing rather than entering the interrupt reliably.
    */
   wdtFeed();
-
-  /* Handle any USB transactions */
-  usbCDCTask();
 
   /* Update the pulse counters, looking on different edges */
   pulseUpdate();
@@ -481,7 +478,6 @@ int main(void) {
   ucSetup();
   uiLedOn(LED_STATUS);
   ssd1306Setup();
-  configFirmwareBoardInfo();
 
   /* Load stored values (configuration and accumulated energy) from
    * non-volatile memory (NVM). If the NVM has not been used before then
@@ -509,6 +505,9 @@ int main(void) {
   ecmFlush();
   adcDMACStart();
   dbgPuts("> Start monitoring...\r\n");
+
+  timerDelay_ms(1000);
+  configFirmwareBoardInfo();
 
   for (;;) {
     /* While there is an event pending (may be set while another is
