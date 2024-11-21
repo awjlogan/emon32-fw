@@ -4,15 +4,11 @@
 #include "configuration.h"
 #include "driver_PORT.h"
 #include "driver_USB.h"
+#include "tusb_config.h"
 
 bool usbCDCIsConnected(void) { return tud_cdc_connected(); }
 
-void usbCDCPutsBlocking(const char *s) {
-  if (usbCDCTxFull()) {
-    tud_cdc_write_flush();
-  }
-  tud_cdc_write_str(s);
-}
+void usbCDCPutsBlocking(const char *s) { tud_cdc_write_str(s); }
 
 bool usbCDCRxAvailable(void) { return tud_cdc_available(); }
 
@@ -34,7 +30,11 @@ void usbCDCTask(void) {
   int nrx = tud_cdc_available();
   if (nrx) {
     for (int i = 0; i < nrx; i++) {
-      configCmdChar(tud_cdc_read_char());
+      int ch = tud_cdc_read_char();
+      if (-1 != ch) {
+        configCmdChar(((uint8_t)ch));
+        usbCDCTxChar((uint8_t)ch);
+      }
     }
   }
 }

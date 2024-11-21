@@ -227,6 +227,7 @@ void IRQ_TIMER_TICK(void) {
     timeMillisCounter++;
 
     tud_task();
+    usbCDCTask();
 
     emon32EventSet(EVT_TICK_1kHz);
   }

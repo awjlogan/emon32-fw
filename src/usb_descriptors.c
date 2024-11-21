@@ -1,8 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c)  2019 Ha Thach (tinyusb.org)
- *                2024 Angus Logan (awjlogan@gmail.com)
+ * Copyright (c) 2019 Ha Thach (tinyusb.org)
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,35 +23,8 @@
  *
  */
 
-#include "configuration.h"
+#include "board_api.h"
 #include "tusb.h"
-
-// Get USB Serial number string from unique ID if available. Return number of
-// character. Input is string descriptor from index 1 (index 0 is type + len)
-static inline size_t board_usb_get_serial(uint16_t desc_str1[],
-                                          size_t   max_chars) {
-  uint8_t uid[16] TU_ATTR_ALIGNED(4);
-  size_t  uid_len;
-
-  uint32_t *uid32 = (uint32_t *)(uintptr_t)uid;
-  uid32[0]        = getUniqueID(0);
-  uid32[1]        = getUniqueID(1);
-  uid_len         = 8;
-
-  if (uid_len > max_chars / 2)
-    uid_len = max_chars / 2;
-
-  for (size_t i = 0; i < uid_len; i++) {
-    for (size_t j = 0; j < 2; j++) {
-      const char    nibble_to_hex[16] = {'0', '1', '2', '3', '4', '5', '6', '7',
-                                         '8', '9', 'A', 'B', 'C', 'D', 'E', 'F'};
-      uint8_t const nibble            = (uid[i] >> (j * 4)) & 0xf;
-      desc_str1[i * 2 + (1 - j)]      = nibble_to_hex[nibble]; // UTF-16-LE
-    }
-  }
-
-  return 2 * uid_len;
-}
 
 /* A combination of interfaces must have a unique product id, since PC will save
  * device driver after the first plug. Same VID/PID with different interface e.g
@@ -66,9 +38,6 @@ static inline size_t board_usb_get_serial(uint16_t desc_str1[],
   (0x4000 | _PID_MAP(CDC, 0) | _PID_MAP(MSC, 1) | _PID_MAP(HID, 2) |           \
    _PID_MAP(MIDI, 3) | _PID_MAP(VENDOR, 4))
 
-/* Assigned emonPi3 VID/PID from pid.codes:
- * https://github.com/pidcodes/pidcodes.github.com/pull/934
- */
 #define USB_VID 0x1209
 #define USB_BCD 0x2025
 
@@ -126,12 +95,73 @@ uint8_t const desc_fs_configuration[] = {
                        EPNUM_CDC_0_IN, 64),
 };
 
+#if TUD_OPT_HIGH_SPEED
+// Per USB specs: high speed capable device must report device_qualifier and
+// other_speed_configuration
+
+uint8_t const desc_hs_configuration[] = {
+    // Config number, interface count, string index, total length, attribute,
+    // power in mA
+    TUD_CONFIG_DESCRIPTOR(1, ITF_NUM_TOTAL, 0, CONFIG_TOTAL_LEN, 0x00, 100),
+
+    // 1st CDC: Interface number, string index, EP notification address and
+    // size, EP data address (out, in) and size.
+    TUD_CDC_DESCRIPTOR(ITF_NUM_CDC_0, 4, EPNUM_CDC_0_NOTIF, 8, EPNUM_CDC_0_OUT,
+                       EPNUM_CDC_0_IN, 512),
+};
+
+// device qualifier is mostly similar to device descriptor since we don't change
+// configuration based on speed
+tusb_desc_device_qualifier_t const desc_device_qualifier = {
+    .bLength         = sizeof(tusb_desc_device_t),
+    .bDescriptorType = TUSB_DESC_DEVICE,
+    .bcdUSB          = USB_BCD,
+
+    .bDeviceClass    = TUSB_CLASS_MISC,
+    .bDeviceSubClass = MISC_SUBCLASS_COMMON,
+    .bDeviceProtocol = MISC_PROTOCOL_IAD,
+
+    .bMaxPacketSize0    = CFG_TUD_ENDPOINT0_SIZE,
+    .bNumConfigurations = 0x01,
+    .bReserved          = 0x00};
+
+// Invoked when received GET DEVICE QUALIFIER DESCRIPTOR request
+// Application return pointer to descriptor, whose contents must exist long
+// enough for transfer to complete. device_qualifier descriptor describes
+// information about a high-speed capable device that would change if the device
+// were operating at the other speed. If not highspeed capable stall this
+// request.
+uint8_t const *tud_descriptor_device_qualifier_cb(void) {
+  return (uint8_t const *)&desc_device_qualifier;
+}
+
+// Invoked when received GET OTHER SEED CONFIGURATION DESCRIPTOR request
+// Application return pointer to descriptor, whose contents must exist long
+// enough for transfer to complete Configuration descriptor in the other speed
+// e.g if high speed then this is for full speed and vice versa
+uint8_t const *tud_descriptor_other_speed_configuration_cb(uint8_t index) {
+  (void)index; // for multiple configurations
+
+  // if link speed is high return fullspeed config, and vice versa
+  return (tud_speed_get() == TUSB_SPEED_HIGH) ? desc_fs_configuration
+                                              : desc_hs_configuration;
+}
+
+#endif // highspeed
+
 // Invoked when received GET CONFIGURATION DESCRIPTOR
 // Application return pointer to descriptor
 // Descriptor contents must exist long enough for transfer to complete
 uint8_t const *tud_descriptor_configuration_cb(uint8_t index) {
   (void)index; // for multiple configurations
+
+#if TUD_OPT_HIGH_SPEED
+  // Although we are highspeed, host may be fullspeed.
+  return (tud_speed_get() == TUSB_SPEED_HIGH) ? desc_hs_configuration
+                                              : desc_fs_configuration;
+#else
   return desc_fs_configuration;
+#endif
 }
 
 //--------------------------------------------------------------------+
@@ -152,7 +182,7 @@ char const *string_desc_arr[] = {
     "OpenEnergyMonitor",        // 1: Manufacturer
     "emonPi3",                  // 2: Product
     NULL,                       // 3: Serials will use unique ID if possible
-    "emonPi3 CDC",              // 4: CDC Interface
+    "OEM CDC",                  // 4: CDC Interface
 };
 
 static uint16_t _desc_str[32 + 1];
