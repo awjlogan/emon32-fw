@@ -51,9 +51,9 @@ static void adcCalibrate(void) {
   ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
   adcSync();
 
-  expScale14 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN19);
-  expScale14 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN19);
-  expScale34 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN18);
+  expScale14 = adcCalibrateSmp(AIN_VCAL_L);
+  expScale14 = adcCalibrateSmp(AIN_VCAL_L);
+  expScale34 = adcCalibrateSmp(AIN_VCAL_H);
 
   ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
   adcSync();
