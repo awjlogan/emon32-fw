@@ -353,7 +353,7 @@ DS18B20_Res_t ds18b20ReadSample(const unsigned int dev) {
     return tempRes;
   }
 
-  /* Check for spurious 85°§C reading. This could be caused by e.g. a power
+  /* Check for spurious 85°C reading. This could be caused by e.g. a power
    * glitch after the sample was requested. */
   tempRes.temp = rBuffer[0] | (rBuffer[1] << 8);
   if ((0x0C == rBuffer[6]) && (DS_T85DEG == tempRes.temp)) {

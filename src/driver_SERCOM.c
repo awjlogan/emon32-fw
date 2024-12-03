@@ -26,11 +26,8 @@ static void i2cmCommon(Sercom *pSercom) {
   pSercom->I2CM.BAUD.reg =
       SERCOM_I2CM_BAUD_BAUDLOW(8u) | SERCOM_I2CM_BAUD_BAUD(2u);
 
-  /* Configure the master I2C SERCOM */
-  pSercom->I2CM.CTRLA.reg = SERCOM_I2CM_CTRLA_MODE_I2C_MASTER;
-
-  /* Enable SERCOM, with sync */
-  pSercom->I2CM.CTRLA.reg |= SERCOM_I2CM_CTRLA_ENABLE;
+  pSercom->I2CM.CTRLA.reg =
+      SERCOM_I2CM_CTRLA_MODE_I2C_MASTER | SERCOM_I2CM_CTRLA_ENABLE;
   while (pSercom->I2CM.SYNCBUSY.reg & SERCOM_I2CM_SYNCBUSY_SYSOP)
     ;
 

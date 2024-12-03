@@ -437,7 +437,7 @@ static void transmitData(const Emon32Dataset_t *pSrc,
   }
 }
 
-/*! @brief Setup the microcontoller. This function must be called first. An
+/*! @brief Setup the microcontroller. This function must be called first. An
  *         implementation must provide all the functions that are called.
  *         These can be empty if they are not used.
  */
