@@ -284,10 +284,8 @@ void emon32EventSet(const EVTSRC_t evt) {
  *         should be done here (UI update, watchdog etc)
  */
 static void evtKiloHertz(void) {
-  int                      extEnabled;
   uint32_t                 msDelta;
-  static volatile uint32_t msLast = 0;
-  int                      ndisable_ext;
+  static volatile uint32_t msLast          = 0;
   static unsigned int      statLedOff_time = 0;
 
   /* Feed watchdog - placed in the event handler to allow reset of stuck
@@ -297,16 +295,6 @@ static void evtKiloHertz(void) {
 
   /* Update the pulse counters, looking on different edges */
   pulseUpdate();
-
-  /* Check for nDISABLE_EXT_INTF */
-  /* REVISIT in board 0.2, this will be handled by EIC */
-  extEnabled   = sercomExtIntfEnabled();
-  ndisable_ext = portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT);
-  if (extEnabled && !ndisable_ext) {
-    sercomExtIntfDisable();
-  } else if (!extEnabled && ndisable_ext) {
-    sercomExtIntfEnable();
-  }
 
   /* When there is a TX to the outside world, blink the STATUS LED for
    * time TX_INDICATE_T to show there is activity.
@@ -477,6 +465,12 @@ int main(void) {
 
   ucSetup();
   uiLedOn(LED_STATUS);
+
+  /* If the system is booted while it is connected to an active Pi, then make
+   * sure the external I2C and SPI interfaces are disabled. */
+  if (!portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT)) {
+    sercomExtIntfDisable();
+  }
   ssd1306Setup();
 
   /* Load stored values (configuration and accumulated energy) from
@@ -485,29 +479,31 @@ int main(void) {
    */
   dbgPuts("> Reading configuration and accumulators from NVM...\r\n");
   configLoadFromNVM();
-
   pConfig = configGetConfig();
-  cumulativeNVMLoad(&nvmCumulative, &dataset);
 
+  /* Load the accumulated energy and pulse values from NVM. */
+  cumulativeNVMLoad(&nvmCumulative, &dataset);
   lastStoredWh = totalEnergy(&dataset);
 
-  /* Set up data transmission interfaces and configuration */
+  /* Set up data transmission interfaces and configuration. */
   rfmOpt = dataTxConfigure(pConfig);
 
-  /* Set up pulse and temperature sensors, if present */
+  /* Set up pulse and temperature sensors, if present. */
   pulseConfigure(pConfig);
   numTempSensors         = tempSetup();
   dataset.numTempSensors = numTempSensors;
+
+  /* Wait 1s to allow USB to enumerate as serial. Not always possible, but gives
+   * the possibility. The board information can be accessed through the serial
+   * console later. */
+  timerDelay_ms(1000);
+  configFirmwareBoardInfo();
 
   /* Set up buffers for ADC data, configure energy processing, and start */
   ecmConfigure(pConfig);
   dmacCallbackBufferFill(&ecmDmaCallback);
   ecmFlush();
   adcDMACStart();
-  dbgPuts("> Start monitoring...\r\n");
-
-  timerDelay_ms(1000);
-  configFirmwareBoardInfo();
 
   for (;;) {
     /* While there is an event pending (may be set while another is
@@ -631,16 +627,10 @@ int main(void) {
       }
 
       if (evtPending(EVT_SAFE_RESET_REQ)) {
-        /* REVISIT store the cumulative value safely here. Currently
-         * uses a non-blocking timer callback to complete this, need
-         * to ensure that everything is written successfully.
-         */
-
+        cumulativeNVMStore(&nvmCumulative, &dataset);
         NVIC_SystemReset();
       }
     }
-
-    /* REVISIT add invariant and behaviour assertions */
 
     /* Enter WFI until woken by an interrupt */
     __WFI();

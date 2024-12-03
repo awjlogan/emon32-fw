@@ -9,7 +9,7 @@
 #include "periph_rfm69.h"
 
 void eicConfigureRfmIrq(void) {
-  // REVISIT : abstract from underlying hardware
+
   /* Check the status of the nDISABLE_EXT_INTF pin before disabling to catch a
    * transition while the EIC controller is disabled */
   bool nDisable = portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT);
