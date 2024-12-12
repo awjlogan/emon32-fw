@@ -1,4 +1,5 @@
 #include "driver_PORT.h"
+#include "board_def.h"
 #include "emon32_samd.h"
 
 void portPinCfg(unsigned int grp, unsigned int pin, unsigned int cfg,
@@ -60,6 +61,11 @@ void portSetup(void) {
   /* GPIO outputs - also enable read buffer */
   for (unsigned int i = 0; pinsGPIO_Out[i][0] != 0xFF; i++) {
     portPinDir(pinsGPIO_Out[i][0], pinsGPIO_Out[i][1], PIN_DIR_OUT);
+    /* RFM69 !SS must be HIGH */
+    if ((GRP_PINA == pinsGPIO_Out[i][0]) &&
+        (PIN_SPI_RFM_SS == pinsGPIO_Out[i][1])) {
+      portPinDrv(GRP_PINA, PIN_SPI_RFM_SS, PIN_DRV_SET);
+    }
     portPinCfg(pinsGPIO_Out[i][0], pinsGPIO_Out[i][1], PORT_PINCFG_INEN,
                PIN_CFG_SET);
   }
@@ -69,9 +75,9 @@ void portSetup(void) {
     portPinDir(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PIN_DIR_IN);
     portPinCfg(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PORT_PINCFG_PULLEN,
                PIN_CFG_SET);
+    portPinDrv(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PIN_DRV_SET);
     portPinCfg(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PORT_PINCFG_INEN,
                PIN_CFG_SET);
-    portPinDrv(pinsGPIO_In[i][0], pinsGPIO_In[i][1], PIN_DRV_SET);
   }
 
   /* Unused pins: input, pull down (Table 23-2) */

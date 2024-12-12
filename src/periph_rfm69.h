@@ -1,11 +1,5 @@
 #pragma once
 
-#define RFM_PALEVEL_DEF                                                        \
-  0x19 /* Default power level must be below maximum                            \
-        * in case there is no antenna - this can                               \
-        * destroy the RFM module.                                              \
-        */
-
 typedef enum RFM_Freq_ {
   RFM_FREQ_868MHz,
   RFM_FREQ_915MHz,

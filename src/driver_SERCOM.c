@@ -228,9 +228,9 @@ static void sercomSetupSPI(void) {
   SERCOM_SPI_DATA->SPI.BAUD.reg = 0;
 
   /* SPI mode 0: CPOL == 0, CPHA == 0 */
-  /* In v0.1 MOSI and !SS are swapped, fix by hand and revise for v0.2 */
-  SERCOM_SPI_DATA->SPI.CTRLA.reg =
-      SERCOM_SPI_CTRLA_MODE_SPI_MASTER | SERCOM_SPI_CTRLA_DOPO(0x2);
+  SERCOM_SPI_DATA->SPI.CTRLA.reg = SERCOM_SPI_CTRLA_MODE_SPI_MASTER |
+                                   SERCOM_SPI_CTRLA_DIPO(0x0) |
+                                   SERCOM_SPI_CTRLA_DOPO(0x2);
 
   /* Enable TX and RX interrupts (complete and empty), not routed to NVIC */
   SERCOM_SPI_DATA->SPI.INTENSET.reg |= SERCOM_SPI_INTENSET_RXC |

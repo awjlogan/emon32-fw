@@ -79,9 +79,9 @@ static void configDefault(void) {
   config.baseCfg.dataGrp      = 210u;
   config.baseCfg.logToSerial  = true;
   config.baseCfg.useJson      = false;
-  config.dataTxCfg.txType     = (uint8_t)DATATX_UART;
-  config.dataTxCfg.rfmPwr     = 0x19;
-  config.dataTxCfg.rfmFreq    = 0;
+  config.dataTxCfg.txType     = (uint8_t)DATATX_RFM69;
+  config.dataTxCfg.rfmPwr     = RFM_PALEVEL_DEF;
+  config.dataTxCfg.rfmFreq    = 2; /* 433 MHz */
 
   for (int idxV = 0u; idxV < NUM_V; idxV++) {
     config.voltageCfg[idxV].voltageCal = 100.0f;
