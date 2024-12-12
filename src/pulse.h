@@ -10,11 +10,12 @@ typedef enum PulseEdge_ {
 } PulseEdge_t;
 
 typedef struct PulseCfg_ {
-  PulseEdge_t  edge;
-  unsigned int grp;
-  unsigned int pin;
-  unsigned int periods;
-  bool         active;
+  PulseEdge_t  edge;    /* Edge or edges to detect */
+  unsigned int grp;     /* GPIO group */
+  unsigned int pin;     /* GPIO pin */
+  unsigned int periods; /* Blank period */
+  bool         active;  /* Channel active  */
+  bool         puEn;    /* Pull up enabled */
 } PulseCfg_t;
 
 /*! @brief Returns a pointer to the pulse counter configuration
