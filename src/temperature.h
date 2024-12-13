@@ -20,7 +20,7 @@ typedef enum TempStatus_ {
 
 typedef struct TempRead_ {
   TempStatus_t status;
-  int16_t      result;
+  int16_t      temp;
 } TempRead_t;
 
 /*! @brief Return the temperature as a float

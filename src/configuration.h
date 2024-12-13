@@ -33,7 +33,7 @@ typedef struct __attribute__((__packed__)) DataTxCfg_ {
 typedef struct __attribute__((__packed__)) OpaCfgPacked_ {
   uint8_t period;
   uint8_t func; /* 'o': OneWire; 'r', 'b', 'f': pulse  */
-  bool    pulseActive;
+  bool    opaActive;
   bool    puEn; /* Pull up enabled */
 } OpaCfgPacked_t;
 
@@ -58,7 +58,7 @@ typedef struct __attribute__((__packed__)) Emon32Config_ {
   DataTxCfg_t        dataTxCfg;
   VoltageCfgPacked_t voltageCfg[NUM_V];
   CTCfgPacked_t      ctCfg[NUM_CT + CT_RES];
-  OpaCfgPacked_t     pulseCfg[NUM_OPA + PULSE_RES];
+  OpaCfgPacked_t     opaCfg[NUM_OPA + PULSE_RES];
   uint8_t            res0[17];
   uint16_t           crc16_ccitt;
 } Emon32Config_t;

@@ -98,18 +98,25 @@ static void configDefault(void) {
   }
 
   /* OneWire/Pulse configuration:
+   * OPA1
    *   - Pulse input
    *   - Period: 100 ms
    *   - Rising edge trigger
    *   - Pull up disabled
-   *   - All disabled
    */
-  for (int i = 0u; i < NUM_OPA; i++) {
-    config.pulseCfg[i].pulseActive = false;
-    config.pulseCfg[i].period      = 100u;
-    config.pulseCfg[i].func        = 'r';
-    config.pulseCfg[i].puEn        = false;
-  }
+  config.opaCfg[0].func      = 'r';
+  config.opaCfg[0].opaActive = false;
+  config.opaCfg[0].period    = 100u;
+  config.opaCfg[0].puEn      = false;
+
+  /* OPA2
+   *   - OneWire input
+   *   - Enabled
+   */
+  config.opaCfg[1].func      = 'o';
+  config.opaCfg[1].opaActive = true;
+  config.opaCfg[1].period    = 0;
+  config.opaCfg[1].puEn      = true;
 
   config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2u));
 }
@@ -353,28 +360,28 @@ static void configureOPA(void) {
 
   /* If inactive, clear active flag, no decode for the rest */
   if (0 == active) {
-    config.pulseCfg[ch].pulseActive = false;
+    config.opaCfg[ch].opaActive = false;
     printf_("> Pulse channel %d disabled.\r\n", (ch + 1u));
     return;
   } else {
-    config.pulseCfg[ch].pulseActive = true;
+    config.opaCfg[ch].opaActive = true;
     printf_("> Pulse channel %d: ", (ch + 1u));
     switch (edge) {
     case 'r':
       dbgPuts("Rising, ");
-      config.pulseCfg[ch].func = 'r';
+      config.opaCfg[ch].func = 'r';
       break;
     case 'f':
       dbgPuts("Falling, ");
-      config.pulseCfg[ch].func = 'f';
+      config.opaCfg[ch].func = 'f';
       break;
     case 'b':
       dbgPuts("Both, ");
-      config.pulseCfg[ch].func = 'b';
+      config.opaCfg[ch].func = 'b';
       break;
     }
-    config.pulseCfg[ch].period = period;
-    printf_("%d ms\r\n", config.pulseCfg[ch].period);
+    config.opaCfg[ch].period = period;
+    printf_("%d ms\r\n", config.opaCfg[ch].period);
   }
 }
 
@@ -510,11 +517,11 @@ static void printSettings(void) {
   dbgPuts("\r\n");
 
   for (unsigned int i = 0; i < NUM_OPA; i++) {
-    bool enabled = config.pulseCfg[i].pulseActive;
+    bool enabled = config.opaCfg[i].opaActive;
     printf_("Pulse Channel %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
-    printf_("  - Hysteresis (ms): %d\r\n", config.pulseCfg[i].period);
+    printf_("  - Hysteresis (ms): %d\r\n", config.opaCfg[i].period);
     dbgPuts("  - Edge:            ");
-    switch (config.pulseCfg[i].func) {
+    switch (config.opaCfg[i].func) {
     case 'r':
       dbgPuts("Rising");
       break;

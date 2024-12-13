@@ -64,7 +64,7 @@ static void      pulseConfigure(const Emon32Config_t *pCfg);
 void             putchar_(char c);
 static void      putsDbgNonBlocking(const char *const s, uint16_t len);
 static void      ssd1306Setup(void);
-static uint32_t  tempSetup(void);
+static uint32_t  tempSetup(const Emon32Config_t *pCfg);
 static uint32_t  totalEnergy(const Emon32Dataset_t *pData);
 static void      transmitData(const Emon32Dataset_t *pSrc,
                               const TransmitOpt_t   *pOpt);
@@ -194,9 +194,8 @@ void dbgPuts(const char *s) {
 
   if (usbCDCIsConnected()) {
     usbCDCPutsBlocking(s);
-  } else {
-    uartPutsBlocking(SERCOM_UART_DBG, s);
   }
+  uartPutsBlocking(SERCOM_UART_DBG, s);
 }
 
 /*! @brief Configure the continuous energy monitoring system
@@ -339,12 +338,14 @@ static void pulseConfigure(const Emon32Config_t *pCfg) {
   for (unsigned int i = 0; i < NUM_OPA; i++) {
     PulseCfg_t *pulseCfg = pulseGetCfg(i);
 
-    if (0 != pulseCfg) {
-      pulseCfg->edge    = (PulseEdge_t)pCfg->pulseCfg[i].func;
+    if ((0 != pulseCfg) && ('o' != pCfg->opaCfg[i].func) &&
+        (pCfg->opaCfg[i].opaActive)) {
+      pulseCfg->edge    = (PulseEdge_t)pCfg->opaCfg[i].func;
       pulseCfg->grp     = pinsPulse[i][0];
       pulseCfg->pin     = pinsPulse[i][1];
-      pulseCfg->periods = pCfg->pulseCfg[i].period;
-      pulseCfg->active  = pCfg->pulseCfg[i].pulseActive;
+      pulseCfg->periods = pCfg->opaCfg[i].period;
+      pulseCfg->puEn    = pCfg->opaCfg[i].puEn;
+      pulseCfg->active  = true;
 
       pulseInit(i);
     }
@@ -357,17 +358,15 @@ static void pulseConfigure(const Emon32Config_t *pCfg) {
 void putchar_(char c) {
   if (usbCDCIsConnected()) {
     usbCDCTxChar(c);
-  } else {
-    uartPutcBlocking(SERCOM_UART_DBG, c);
   }
+  uartPutcBlocking(SERCOM_UART_DBG, c);
 }
 
 static void putsDbgNonBlocking(const char *const s, uint16_t len) {
   if (usbCDCIsConnected()) {
     usbCDCPutsBlocking(s);
-  } else {
-    uartPutsNonBlocking(DMA_CHAN_UART_DBG, s, len);
   }
+  uartPutsNonBlocking(DMA_CHAN_UART_DBG, s, len);
 }
 
 /*! @brief Setup the SSD1306 display, if present. Display a basic message */
@@ -385,15 +384,23 @@ static void ssd1306Setup(void) {
 /*! @brief Initialises the temperature sensors
  *  @return : number of temperature sensors found
  */
-static uint32_t tempSetup(void) {
+static uint32_t tempSetup(const Emon32Config_t *pCfg) {
+  const uint8_t opaPins[NUM_OPA] = {PIN_OPA1, PIN_OPA2};
+  const uint8_t opaPUs[NUM_OPA]  = {PIN_OPA1_PU, PIN_OPA2_PU};
+
   unsigned int   numTempSensors = 0;
   DS18B20_conf_t dsCfg          = {0};
+  dsCfg.grp                     = GRP_OPA;
+  dsCfg.t_wait_us               = 5;
 
-  dsCfg.grp       = GRP_OPA;
-  dsCfg.pin       = PIN_OPA1;
-  dsCfg.t_wait_us = 5;
-
-  numTempSensors = tempInitSensors(TEMP_INTF_ONEWIRE, &dsCfg);
+  for (int i = 0; i < NUM_OPA; i++) {
+    if ('o' == pCfg->opaCfg[i].func && (pCfg->opaCfg[i].opaActive)) {
+      dsCfg.opaIdx = i;
+      dsCfg.pin    = opaPins[i];
+      dsCfg.pinPU  = opaPUs[i];
+      numTempSensors += tempInitSensors(TEMP_INTF_ONEWIRE, &dsCfg);
+    }
+  }
 
   return numTempSensors;
 }
@@ -490,7 +497,7 @@ int main(void) {
 
   /* Set up pulse and temperature sensors, if present. */
   pulseConfigure(pConfig);
-  numTempSensors         = tempSetup();
+  numTempSensors         = tempSetup(pConfig);
   dataset.numTempSensors = numTempSensors;
 
   /* Wait 1s to allow USB to enumerate as serial. Not always possible, but gives
@@ -540,14 +547,24 @@ int main(void) {
        * the last temperature sample, start a temperature sample as well.
        */
       if (evtPending(EVT_ECM_TRIG)) {
-        (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
+        for (int i = 0; i < NUM_OPA; i++) {
+          if (('o' == pConfig->opaCfg[i].func) &&
+              pConfig->opaCfg[i].opaActive) {
+            (void)tempStartSample(TEMP_INTF_ONEWIRE, i);
+          }
+        }
         ecmProcessSetTrigger();
         emon32EventClr(EVT_ECM_TRIG);
       }
 
       /* Trigger a temperature sample 1 s before the report is due. */
       if (evtPending(EVT_ECM_PEND_1S)) {
-        (void)tempStartSample(TEMP_INTF_ONEWIRE, tempCount);
+        for (int i = 0; i < NUM_OPA; i++) {
+          if (('o' == pConfig->opaCfg[i].func) &&
+              pConfig->opaCfg[i].opaActive) {
+            (void)tempStartSample(TEMP_INTF_ONEWIRE, i);
+          }
+        }
         emon32EventClr(EVT_ECM_PEND_1S);
       }
 
@@ -567,7 +584,7 @@ int main(void) {
           TempRead_t tempValue = tempReadSample(TEMP_INTF_ONEWIRE, tempCount);
 
           if (TEMP_OK == tempValue.status) {
-            dataset.temp[tempCount] = tempValue.result;
+            dataset.temp[tempCount] = tempValue.temp;
           }
 
           tempCount++;
