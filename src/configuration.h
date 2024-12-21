@@ -21,10 +21,8 @@ typedef struct __attribute__((__packed__)) BaseCfg_ {
   float    reportTime; /* Time between reports */
 } BaseCfg_t;
 
-typedef enum DataTx_ { DATATX_RFM69 = 0, DATATX_UART = 1 } TxType_t;
-
 typedef struct __attribute__((__packed__)) DataTxCfg_ {
-  uint8_t txType;  /* UART or RFM on SPI */
+  bool    useRFM;
   uint8_t rfmFreq; /* 0: 868 MHz, 1: 915 MHz, 2: 433 MHz. */
   uint8_t rfmPwr;
   uint8_t res0;

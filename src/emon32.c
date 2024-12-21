@@ -55,20 +55,20 @@ static void cumulativeProcess(Emon32Cumulative_t    *pPkt,
                               const Emon32Dataset_t *pData,
                               const unsigned int     whDeltaStore);
 static void datasetAddPulse(Emon32Dataset_t *pDst);
-static RFMOpt_t *dataTxConfigure(const Emon32Config_t *pCfg);
-static void      ecmConfigure(const Emon32Config_t *pCfg);
-static void      ecmDmaCallback(void);
-static void      evtKiloHertz(void);
-static uint32_t  evtPending(EVTSRC_t evt);
-static void      pulseConfigure(const Emon32Config_t *pCfg);
-void             putchar_(char c);
-static void      putsDbgNonBlocking(const char *const s, uint16_t len);
-static void      ssd1306Setup(void);
-static uint32_t  tempSetup(const Emon32Config_t *pCfg);
-static uint32_t  totalEnergy(const Emon32Dataset_t *pData);
-static void      transmitData(const Emon32Dataset_t *pSrc,
-                              const TransmitOpt_t   *pOpt);
-static void      ucSetup(void);
+static void ecmConfigure(const Emon32Config_t *pCfg);
+static void ecmDmaCallback(void);
+static void evtKiloHertz(void);
+static uint32_t evtPending(EVTSRC_t evt);
+static void     pulseConfigure(const Emon32Config_t *pCfg);
+void            putchar_(char c);
+static void     putsDbgNonBlocking(const char *const s, uint16_t len);
+static bool     rfmConfigure(const Emon32Config_t *pCfg);
+static void     ssd1306Setup(void);
+static uint32_t tempSetup(const Emon32Config_t *pCfg);
+static uint32_t totalEnergy(const Emon32Dataset_t *pData);
+static void transmitData(const Emon32Dataset_t *pSrc, const TransmitOpt_t *pOpt,
+                         char *txBuffer);
+static void ucSetup(void);
 
 /*************************************
  * Functions
@@ -162,31 +162,6 @@ static void datasetAddPulse(Emon32Dataset_t *pDst) {
   for (unsigned int i = 0; i < NUM_OPA; i++) {
     pDst->pulseCnt[i] = pulseGetCount(i);
   }
-}
-
-/*! @brief Configure the data transmission output.
- *  @param [in] pCfg : pointer to the configuration struct
- *  @return : pointer to an RFM packet if using RFM, 0 if not.
- */
-static RFMOpt_t *dataTxConfigure(const Emon32Config_t *pCfg) {
-  EMON32_ASSERT(pCfg);
-
-  RFMOpt_t *rfmOpt = 0;
-  if (DATATX_RFM69 == (TxType_t)pCfg->dataTxCfg.txType) {
-    rfmOpt            = rfmGetHandle();
-    rfmOpt->node      = pCfg->baseCfg.nodeID;
-    rfmOpt->grp       = pCfg->baseCfg.dataGrp; /* Fixed for OpenEnergyMonitor */
-    rfmOpt->rf_pwr    = pCfg->dataTxCfg.rfmPwr;
-    rfmOpt->threshold = 0u;
-    rfmOpt->timeout   = 1000u;
-    rfmOpt->n         = 23u;
-    if (sercomExtIntfEnabled()) {
-      if (rfmInit((RFM_Freq_t)pCfg->dataTxCfg.rfmFreq)) {
-        rfmSetAESKey("89txbe4p8aik5kt3"); /* Default OEM AES key */
-      }
-    }
-  }
-  return rfmOpt;
 }
 
 void dbgPuts(const char *s) {
@@ -369,6 +344,21 @@ static void putsDbgNonBlocking(const char *const s, uint16_t len) {
   uartPutsNonBlocking(DMA_CHAN_UART_DBG, s, len);
 }
 
+static bool rfmConfigure(const Emon32Config_t *pCfg) {
+  RFMOpt_t rfmOpt = {0};
+  rfmOpt.freq     = (RFM_Freq_t)pCfg->dataTxCfg.rfmFreq;
+  rfmOpt.group    = pCfg->baseCfg.dataGrp;
+  rfmOpt.nodeID   = pCfg->baseCfg.nodeID;
+  rfmOpt.paLevel  = pCfg->dataTxCfg.rfmPwr;
+
+  if (rfmInit(&rfmOpt)) {
+    rfmSetAESKey("89txbe4p8aik5kt3"); /* Default OEM AES key */
+    return true;
+  }
+
+  return false;
+}
+
 /*! @brief Setup the SSD1306 display, if present. Display a basic message */
 static void ssd1306Setup(void) {
   SSD1306_Status_t s;
@@ -419,9 +409,8 @@ static uint32_t totalEnergy(const Emon32Dataset_t *pData) {
   return totalEnergy;
 }
 
-static void transmitData(const Emon32Dataset_t *pSrc,
-                         const TransmitOpt_t   *pOpt) {
-  char txBuffer[TX_BUFFER_W] = {0};
+static void transmitData(const Emon32Dataset_t *pSrc, const TransmitOpt_t *pOpt,
+                         char *txBuffer) {
 
   int nSerial = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
 
@@ -463,12 +452,12 @@ static void ucSetup(void) {
 
 int main(void) {
 
-  Emon32Config_t    *pConfig        = 0;
-  Emon32Dataset_t    dataset        = {0};
-  unsigned int       numTempSensors = 0;
-  Emon32Cumulative_t nvmCumulative  = {0};
-  RFMOpt_t          *rfmOpt         = 0;
-  unsigned int       tempCount      = 0;
+  Emon32Config_t    *pConfig               = 0;
+  Emon32Dataset_t    dataset               = {0};
+  unsigned int       numTempSensors        = 0;
+  Emon32Cumulative_t nvmCumulative         = {0};
+  unsigned int       tempCount             = 0;
+  char               txBuffer[TX_BUFFER_W] = {0};
 
   ucSetup();
   uiLedOn(LED_STATUS);
@@ -492,8 +481,11 @@ int main(void) {
   cumulativeNVMLoad(&nvmCumulative, &dataset);
   lastStoredWh = totalEnergy(&dataset);
 
-  /* Set up data transmission interfaces and configuration. */
-  rfmOpt = dataTxConfigure(pConfig);
+  /* Set up RFM module. Even if not used, this will put it in sleep mode. If
+   * successful, set OEM's AES key. */
+  pConfig->dataTxCfg.rfmFreq = RFM_FREQ_DEF;
+  pConfig->dataTxCfg.rfmPwr  = RFM_PALEVEL_DEF;
+  rfmConfigure(pConfig);
 
   /* Set up pulse and temperature sensors, if present. */
   pulseConfigure(pConfig);
@@ -604,14 +596,14 @@ int main(void) {
        */
       if (evtPending(EVT_PROCESS_DATASET)) {
         TransmitOpt_t opt;
-        opt.json      = pConfig->baseCfg.useJson;
-        opt.useRFM    = (0 != rfmOpt);
+        opt.useRFM    = pConfig->dataTxCfg.useRFM;
         opt.logSerial = pConfig->baseCfg.logToSerial;
         opt.node      = pConfig->baseCfg.nodeID;
+        opt.json      = pConfig->baseCfg.useJson;
 
         dataset.pECM = ecmProcessSet();
         datasetAddPulse(&dataset);
-        transmitData(&dataset, &opt);
+        transmitData(&dataset, &opt, txBuffer);
 
         /* If the energy used since the last storage is greater than the
          * configured energy delta (baseCfg.whDeltaStore), then save the

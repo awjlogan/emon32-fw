@@ -42,7 +42,6 @@ static const Pin_t   sel           = {GRP_SERCOM_SPI, PIN_SPI_RFM_SS};
 static bool          initDone      = false;
 static uint8_t       rfmBuffer[64] = {0};
 static int_fast8_t   rfmMode       = 0;
-static RFMOpt_t      rfmOpt        = {0};
 static RFMRx_t       rfmRx         = {0};
 
 static bool rfmAckRecv(uint16_t fromId) {
@@ -241,11 +240,14 @@ static void rfmSleep(void) { rfmSetMode(RFM69_MODE_SLEEP); }
 
 uint8_t *rfmGetBuffer(void) { return rfmBuffer; }
 
-RFMOpt_t *rfmGetHandle(void) { return &rfmOpt; }
-
 void rfmInterrupt(void) { rxRdy = true; }
 
-bool rfmInit(RFM_Freq_t freq) {
+bool rfmInit(const RFMOpt_t *pOpt) {
+
+  /* Immediately return if the interfaces are being externally controlled. */
+  if (!sercomExtIntfEnabled()) {
+    return false;
+  }
 
   /* Configuration parameters */
   const uint8_t config[][2] = {
@@ -256,19 +258,20 @@ bool rfmInit(RFM_Freq_t freq) {
       {REG_FDEVMSB, 0x05},    /* FdevMsb: ~90 kHz */
       {REG_FDEVLSB, 0xC3},    /* FdevLsb */
       {REG_FRFMSB,
-       (RFM_FREQ_868MHz == freq)
+       (RFM_FREQ_868MHz == pOpt->freq)
            ? 0xD9
-           : ((RFM_FREQ_915MHz == freq) ? 0xE4 : 0x6C)}, /* FrfMsb */
-      {REG_FRFMID, 0x00},                                /* FrfMid */
-      {REG_FRFLSB, 0x00},                                /* FrfLsb */
-      {REG_PALEVEL, (0x80 | RFM_PALEVEL_DEF)},           /* PaLevel */
+           : ((RFM_FREQ_915MHz == pOpt->freq) ? 0xE4 : 0x6C)}, /* FrfMsb */
+      {REG_FRFMID, 0x00},                                      /* FrfMid */
+      {REG_FRFLSB, 0x00},                                      /* FrfLsb */
+      {REG_PALEVEL, (0x80 | pOpt->paLevel)},
       {REG_AFCFEI, 0x2C},
       {REG_DIOMAPPING1, 0x80}, /* DioMapping1 */
       {REG_DIOMAPPING2, 0x03}, /* DioMapping2 */
       {REG_IRQFLAGS2, 0x00},   /* IrqFlags: FIFO overrun */
       {REG_SYNCCONFIG, 0x88},  /* SyncConfig : On, FIFO fill, 2 bytes, Tol */
       {REG_SYNCVALUE1, 0x2D},  /* SyncValue1 */
-      {REG_SYNCVALUE2, 210},   /* Group ID, fixed as 210 for OEM */
+      {REG_SYNCVALUE2, pOpt->group}, /* Group ID; OEM is default 210 */
+      {REG_NODEADRS, pOpt->nodeID},  /* Node ID */
       {REG_PACKETCONFIG1,
        0x00}, /* PktConfig: fixed, !DC free, !CRC, !CRCClear */
       {0xFF, 0}};

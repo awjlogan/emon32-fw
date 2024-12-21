@@ -6,6 +6,13 @@ typedef enum RFM_Freq_ {
   RFM_FREQ_433MHz
 } RFM_Freq_t;
 
+typedef struct RFMOpt_ {
+  RFM_Freq_t freq;
+  uint8_t    group;
+  uint8_t    nodeID;
+  uint8_t    paLevel;
+} RFMOpt_t;
+
 typedef enum RFMSend_ {
   RFM_NO_INIT,
   RFM_TIMED_OUT,
@@ -14,28 +21,16 @@ typedef enum RFMSend_ {
   RFM_N_TOO_LARGE
 } RFMSend_t;
 
-typedef struct RFMOpt_ {
-  void        *data;
-  unsigned int n;
-  unsigned int node;
-  unsigned int grp;
-  unsigned int rf_pwr;
-  unsigned int threshold;
-  unsigned int timeout;
-} RFMOpt_t;
-
 /*! @brief Get a pointer to the RFM69's data buffer
  *  @return pointer to RFM69 buffer
  */
 uint8_t *rfmGetBuffer(void);
 
-RFMOpt_t *rfmGetHandle(void);
-
 /*! @brief Initialise the RFM69 module
- *  @param [in] freq : RFM operating frequency
+ *  @param [in] pOpt : pointer to configuration struct
  *  @return : true if successful, false otherwise
  */
-bool rfmInit(RFM_Freq_t freq);
+bool rfmInit(const RFMOpt_t *pOpt);
 
 /*! @brief The interrupt handler for RFM69 receive */
 void rfmInterrupt(void);

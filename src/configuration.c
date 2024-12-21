@@ -43,8 +43,8 @@ static bool     configureAnalog(void);
 static bool     configureAssumed(void);
 static bool     configureDatalog(void);
 static void     configureOPA(void);
+static bool     configureRFEnable(void);
 static bool     configureSerialLog(void);
-static bool     configureWhDelta(void);
 static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
@@ -72,16 +72,16 @@ static void configDefault(void) {
   config.key = CONFIG_NVM_KEY;
 
   /* Single phase, 50 Hz, 240 VAC, 10 s report period */
-  config.baseCfg.nodeID       = NODE_ID; /* Node ID to transmit */
-  config.baseCfg.mainsFreq    = 50u;     /* Mains frequency */
+  config.baseCfg.nodeID       = NODE_ID_DEF; /* Node ID to transmit */
+  config.baseCfg.mainsFreq    = 50u;         /* Mains frequency */
   config.baseCfg.reportTime   = 9.8f;
-  config.baseCfg.whDeltaStore = DELTA_WH_STORE; /* 200 */
+  config.baseCfg.whDeltaStore = DELTA_WH_STORE_DEF;
   config.baseCfg.dataGrp      = 210u;
   config.baseCfg.logToSerial  = true;
   config.baseCfg.useJson      = false;
-  config.dataTxCfg.txType     = (uint8_t)DATATX_RFM69;
+  config.dataTxCfg.useRFM     = true;
   config.dataTxCfg.rfmPwr     = RFM_PALEVEL_DEF;
-  config.dataTxCfg.rfmFreq    = 2; /* 433 MHz */
+  config.dataTxCfg.rfmFreq    = RFM_FREQ_DEF;
 
   for (int idxV = 0u; idxV < NUM_V; idxV++) {
     config.voltageCfg[idxV].voltageCal = 100.0f;
@@ -385,33 +385,45 @@ static void configureOPA(void) {
   }
 }
 
+static bool configureRFEnable(void) {
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
+  if (!convI.valid) {
+    return false;
+  }
+
+  if (!((0 == convI.val) || (1 == convI.val))) {
+    return false;
+  }
+
+  config.dataTxCfg.useRFM = (bool)convI.val;
+  dbgPuts("> RF ");
+  if (convI.val) {
+    dbgPuts("enabled.\r\n");
+  } else {
+    dbgPuts("disabled.\r\n");
+  }
+
+  return true;
+}
+
 static bool configureSerialLog(void) {
   /* Log to serial output, default TRUE
    * Format: c0 | c1
    */
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
 
-  if (convI.valid) {
-    config.baseCfg.logToSerial = (bool)convI.val;
-    printf_("> Log to serial: %c\r\n", config.baseCfg.logToSerial ? 'Y' : 'N');
-    return true;
-  }
-  return false;
-}
-
-static bool configureWhDelta(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
-
-  if (convI.val < 10) {
+  if (!convI.valid) {
     return false;
   }
 
-  if (convI.valid) {
-    config.baseCfg.whDeltaStore = convI.val;
-    printf_("> Energy delta set to: %d\r\n", config.baseCfg.whDeltaStore);
-    return true;
+  if (!((0 == convI.val) || (1 == convI.val))) {
+    return false;
   }
-  return false;
+
+  config.baseCfg.logToSerial = (bool)convI.val;
+  printf_("> Log to serial: %c\r\n", config.baseCfg.logToSerial ? 'Y' : 'N');
+  return true;
 }
 
 static void enterBootloader(void) {
@@ -495,7 +507,7 @@ static void printSettings(void) {
   putFloat(config.baseCfg.reportTime, 0);
   printf_("\r\nMinimum accumulation (Wh): %d\r\n", config.baseCfg.whDeltaStore);
   dbgPuts("Data transmission:         ");
-  if (DATATX_RFM69 == (TxType_t)config.dataTxCfg.txType) {
+  if (config.dataTxCfg.useRFM) {
     dbgPuts("RFM69, ");
     switch (config.dataTxCfg.rfmFreq) {
     case 0:
@@ -766,7 +778,7 @@ void configProcessCmd(void) {
       " - s           : save settings to NVM\r\n"
       " - t           : trigger report on next cycle\r\n"
       " - v           : firmware and board information\r\n"
-      " - w<n>        : minimum difference in energy before saving (Wh)\r\n"
+      " - w<n>        : RF active. n = 0: OFF, n = 1: ON\r\n"
       " - z           : zero energy accumulators\r\n\r\n";
 
   /* Convert \r or \n to 0, and get the length until then. */
@@ -899,14 +911,13 @@ void configProcessCmd(void) {
     }
     break;
   case 't':
-    /* Trigger processing on set on next cycle complete */
     emon32EventSet(EVT_ECM_TRIG);
     break;
   case 'v':
     configFirmwareBoardInfo();
     break;
   case 'w':
-    if (configureWhDelta()) {
+    if (configureRFEnable()) {
       unsavedChange = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
