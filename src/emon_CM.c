@@ -96,6 +96,10 @@ typedef struct RawSampleSetUnpacked {
   q15_t smp[VCT_TOTAL];
 } RawSampleSetUnpacked_t;
 
+typedef struct vSmp_ {
+  q15_t smpV[NUM_V];
+} vSmp_t;
+
 /*************************************
  * Function prototypes
  *************************************/
@@ -111,6 +115,27 @@ static void  calibrationPhase(PhaseXY_t *pPh, float phase, int_fast8_t idxCT);
 static void  configChannelV(int_fast8_t ch);
 static void  configChannelCT(int_fast8_t ch);
 static void  swapPtr(void **pIn1, void **pIn2);
+
+/******************************************************************************
+ * Pre-processing
+ *****************************************************************************/
+
+static RawSampleSetUnpacked_t dspBuffer[DOWNSAMPLE_TAPS];
+static vSmp_t                 vSampleBuffer[PROC_DEPTH];
+
+/******************************************************************************
+ * Accumulators
+ *****************************************************************************/
+
+static Accumulator_t  accumBuffer[2];
+static Accumulator_t *accumCollecting = accumBuffer;
+static Accumulator_t *accumProcessing = accumBuffer + 1;
+
+static ECMPerformance_t  perfCounter[2];
+static ECMPerformance_t *perfActive = perfCounter;
+static ECMPerformance_t *perfIdle   = perfCounter + 1;
+
+static ECMDataset_t datasetProc = {0};
 
 /******** FIXED POINT MATHS FUNCTIONS ********
  *
@@ -166,7 +191,7 @@ static ECMCfg_t    ecmCfg           = {0};
 static bool        processTrigger   = false;
 static int_fast8_t mapLogCT[NUM_CT] = {0};
 static int_fast8_t discardCycles    = EQUIL_CYCLES;
-static bool        initDone         = true;
+static bool        initDone         = false;
 static bool        inAutoPhase      = false;
 static int         samplePeriodus;
 static float       sampleIntervalRad;
@@ -229,8 +254,10 @@ void ecmConfigInit(void) {
     threePhase = true;
   }
 
+  /* Configure each CT channel and load the initial Wh value from NVM. */
   for (int_fast8_t i = 0; i < NUM_CT; i++) {
     configChannelCT(i);
+    datasetProc.CT[i].wattHour = ecmCfg.ctCfg[i].wattHourInit;
   }
 
   initDone = true;
@@ -253,31 +280,6 @@ void ecmDataBufferSwap(void) {
 }
 
 volatile RawSampleSetPacked_t *ecmDataBuffer(void) { return adcActive; }
-
-/******************************************************************************
- * Pre-processing
- *****************************************************************************/
-
-typedef struct vSmp_ {
-  q15_t smpV[NUM_V];
-} vSmp_t;
-
-static RawSampleSetUnpacked_t dspBuffer[DOWNSAMPLE_TAPS];
-static vSmp_t                 vSampleBuffer[PROC_DEPTH];
-
-/******************************************************************************
- * Accumulators
- *****************************************************************************/
-
-static Accumulator_t  accumBuffer[2];
-static Accumulator_t *accumCollecting = accumBuffer;
-static Accumulator_t *accumProcessing = accumBuffer + 1;
-
-static ECMPerformance_t  perfCounter[2];
-static ECMPerformance_t *perfActive = perfCounter;
-static ECMPerformance_t *perfIdle   = perfCounter + 1;
-
-static ECMDataset_t datasetProc = {0};
 
 /******************************************************************************
  * Functions
@@ -360,8 +362,9 @@ static void calibrationPhase(PhaseXY_t *pPh, float phase, int_fast8_t idxCT) {
                          (qfp_fmul(pPh->phaseY, qfp_fcos(sampleIntervalRad))));
 }
 
-void ecmClearResidual(void) {
+void ecmClearEnergy(void) {
   for (int i = 0; i < NUM_CT; i++) {
+    datasetProc.CT[i].wattHour       = 0;
     datasetProc.CT[i].residualEnergy = 0.0f;
   }
 }
@@ -716,9 +719,10 @@ RAMFUNC ECMDataset_t *ecmProcessSet(void) {
           rmsV = datasetProc.rmsV[5];
         }
       }
-      float VA                 = qfp_fmul(datasetProc.CT[idxCT].rmsI, rmsV);
-      float pf                 = qfp_fdiv(powerNow, VA);
-      bool  pf_b               = ((pf > 1.05f) || (pf < -1.05f) || (pf != pf));
+      float VA   = qfp_fmul(datasetProc.CT[idxCT].rmsI, rmsV);
+      float pf   = qfp_fdiv(powerNow, VA);
+      bool  pf_b = ((pf > 1.05f) || (pf < -1.05f) || (pf != pf));
+
       datasetProc.CT[idxCT].pf = pf_b ? 0.0f : pf;
 
       // Energy and power, rounding to nearest integer

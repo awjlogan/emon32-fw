@@ -77,6 +77,7 @@ typedef struct CTCfgUnpacked_ {
   bool  active;
   int   vChan1;
   int   vChan2;
+  int   wattHourInit;
 } CTCfg_t;
 
 typedef struct ECMCfg_ {
@@ -131,8 +132,8 @@ typedef struct AutoPhaseRes_ {
  * Function prototypes
  *****************************************************************************/
 
-/*! @brief Clear residual energy in dataset */
-void ecmClearResidual(void);
+/*! @brief Clear accumulated energy in dataset */
+void ecmClearEnergy(void);
 
 /*! @brief Get the pointer to the configuration struct
  *  @return : pointer to Emon CM configuration struct

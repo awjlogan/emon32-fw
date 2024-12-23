@@ -41,14 +41,15 @@ void eepromInitConfig(const void *pSrc, const unsigned int n);
  *  @param [in] addr : base address of EEPROM read
  *  @param [out] pDst : pointer to read destination
  *  @param [in] n : number of bytes to read
- *  @return : 0 for success, -1 for failure
+ *  @return 0 for success, -1 for failure
  */
 int eepromRead(unsigned int addr, void *pDst, unsigned int n);
 
 /*! @brief Read data from EEPROM with wear leveling
  *  @param [out] pPktRd : pointer to read packet
+ *  @param [out] pIdx : pointer to the value of index that has read
  */
-eepromWLStatus_t eepromReadWL(void *pPktRd);
+eepromWLStatus_t eepromReadWL(void *pPktRd, int *pIdx);
 
 /*! @brief Do any required setup of the EEPROM */
 void eepromSetup(const unsigned int wlOffset);
@@ -81,6 +82,7 @@ eepromWrStatus_t eepromWriteContinue(void);
 
 /*! @brief Save data to EEPROM with wear leveling.
  *  @param [in] pPktWr : pointer to write packet
- *  @return : status of the EEPROM write process
+ *  @param [out] pIdx : pointer to the value of the index written to
+ *  @return status of the EEPROM write process
  */
-eepromWrStatus_t eepromWriteWL(const void *pPktWr);
+eepromWrStatus_t eepromWriteWL(const void *pPktWr, int *pIdx);

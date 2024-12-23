@@ -35,10 +35,10 @@ void pulseInit(const unsigned int index);
 void pulseUpdate(void);
 
 /*! @brief Sets the pulse count value
- *  @param [in] pulseCount : the value to set
  *  @param [in] index : pulse count index to set
+ *  @param [in] pulseCount : the value to set
  */
-void pulseSetCount(const uint64_t value, const unsigned int index);
+void pulseSetCount(const unsigned int index, const uint64_t value);
 
 /*! @brief Get the current pulse count value
  *  @return : current pulse value

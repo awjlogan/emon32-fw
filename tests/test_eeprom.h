@@ -1,5 +1,6 @@
 #pragma once
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -28,6 +29,8 @@ typedef enum {
   I2CM_ACK_CMD_STOP     = 3u
 } I2CM_AckCmd_t;
 
+uint16_t      calcCRC16_ccitt(const void *pSrc, unsigned int n);
+void          EMON32_ASSERT(bool val);
 I2CM_Status_t i2cActivate(int inst, uint8_t addr);
 void          i2cDataWrite(int inst, uint8_t data);
 uint8_t       i2cDataRead(int inst);
@@ -35,3 +38,5 @@ void          i2cAck(int inst, int action, int cmd);
 int           timerDelay_us(int a);
 int           timerDelay_ms(int a);
 void          timerDisable(void);
+uint32_t      timerMicros(void);
+uint32_t      timerMicrosDelta(uint32_t prevMicros);

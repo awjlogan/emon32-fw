@@ -37,7 +37,7 @@ void pulseInit(const unsigned int index) {
   pulseLvlLast[index] = (PulseLvl_t)pinValue[index];
 }
 
-void pulseSetCount(const uint64_t value, const unsigned int index) {
+void pulseSetCount(const unsigned int index, const uint64_t value) {
   pulseCount[index] = value;
 }
 
