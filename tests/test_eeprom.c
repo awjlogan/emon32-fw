@@ -170,33 +170,69 @@ int main(int argc, char *argv[]) {
   }
 
   int idx = 0;
-  for (unsigned int i = 0; i < 12; i++) {
+  /* Check for 0x00 -> 0xFF fill */
+  for (int i = 0; i < (12 * 8); i++) {
     eepromWriteWL(&cumulative, &idx);
 
     /* Check no over run into non-wear levelled portion
      * and correct valid bytes written */
-
     checkStatic();
-    if (eeprom[EEPROM_WL_OFFSET + i * 64] != 0x0) {
+    if (eeprom[EEPROM_WL_OFFSET +
+               ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))] !=
+        ((1 << (i / 12)) - 1)) {
       dumpMem(EEPROM_WL_OFFSET);
-      printf("  > Incorrect valid indicator %d, expected 0x0\n",
-             eeprom[EEPROM_WL_OFFSET + i * 64]);
+      printf("  > Incorrect valid indicator 0x%x at address 0x%x, expected "
+             "0x%x in "
+             "loop %d\n",
+             eeprom[EEPROM_WL_OFFSET +
+                    ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))],
+             (EEPROM_WL_OFFSET +
+              ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))),
+             ((1 << (i / 12)) - 1), i);
       assert(0);
+    }
+    for (int i = 0; i < NUM_CT; i++) {
+      cumulative.wattHour[i] += i;
+    }
+    for (int i = 0; i < NUM_OPA; i++) {
+      cumulative.pulseCnt[i] += i;
     }
   }
 
-  eepromWriteWL(&cumulative, &idx);
-
-  checkStatic();
-  if (eeprom[EEPROM_WL_OFFSET] != 0x1) {
+  if (eeprom[EEPROM_WL_OFFSET] != 0xFF) {
     dumpMem(EEPROM_WL_OFFSET);
-    printf("  > Incorrect valid indicator %d, expected 0x1\n",
+    printf("  > Incorrect valid indicator %d, expected 0xFF\n",
            eeprom[EEPROM_WL_OFFSET]);
     assert(0);
   }
 
-  eepromWriteWL(&cumulative, &idx);
-  checkStatic();
+  /* Check for 0xFF -> 0x00 fill */
+  for (int i = 0; i < (12 * 8); i++) {
+    eepromWriteWL(&cumulative, &idx);
+
+    checkStatic();
+    if (eeprom[EEPROM_WL_OFFSET +
+               ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))] !=
+        (UINT8_MAX & ~((1 << (i / 12)) - 1))) {
+      dumpMem(EEPROM_WL_OFFSET);
+      printf("  > Incorrect valid indicator 0x%x at address 0x%x, expected "
+             "0x%x in "
+             "loop %d\n",
+             eeprom[EEPROM_WL_OFFSET +
+                    ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))],
+             (EEPROM_WL_OFFSET +
+              ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))),
+             (UINT8_MAX & ~((1 << (i / 12)) - 1)), i);
+      assert(0);
+    }
+
+    for (int i = 0; i < NUM_CT; i++) {
+      cumulative.wattHour[i] += i;
+    }
+    for (int i = 0; i < NUM_OPA; i++) {
+      cumulative.pulseCnt[i] += i;
+    }
+  }
 
   /* Check identifying the last write is successful
    * initialise EEPROM and seed values into the "valid" positions, then

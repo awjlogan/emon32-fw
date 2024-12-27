@@ -129,10 +129,9 @@ static void configInitialiseNVM(void) {
   dbgPuts("  - Initialising NVM... ");
 
   configDefault();
-  eepromInitBlock(0, 0, 256);
+  eepromInitBlock(0, 0, EEPROM_WL_OFFSET);
   eepromInitConfig(&config, sizeof(config));
-
-  eepromInitBlock(EEPROM_WL_OFFSET, 0, (EEPROM_SIZE - EEPROM_WL_OFFSET));
+  eepromWLClear();
   dbgPuts("Done!\r\n");
 }
 

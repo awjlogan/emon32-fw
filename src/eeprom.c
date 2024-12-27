@@ -117,13 +117,11 @@ static int nextValidByte(const uint8_t currentValid) {
 static eepromWLStatus_t wlFindLast(void) {
   /* Step through from the base address in (data) sized steps. The first
    * byte that is different to the 0-th byte is the oldest block. If all
-   * blocks are the same, then the 0-th index is the next to be written. Get the
-   * checksum to ensure data integrity.
+   * blocks are the same, then the 0-th index is the next to be written.
    */
 
   WLHeader_t       wlHeader = {0};
-  uint16_t         crcData;
-  eepromWLStatus_t status = EEPROM_WL_OK;
+  eepromWLStatus_t status   = EEPROM_WL_OK;
 
   wlIdxNxtWr = 0;
   eepromRead(EEPROM_WL_OFFSET, &wlHeader, 4u);
@@ -293,6 +291,7 @@ eepromWLStatus_t eepromReadWL(void *pPktRd, int *pIdx) {
    */
   int              idxRd;
   unsigned int     addrRd;
+  uint16_t         crcData;
   WLHeader_t       header;
   eepromWLStatus_t status = EEPROM_WL_OK;
 
@@ -313,6 +312,11 @@ eepromWLStatus_t eepromReadWL(void *pPktRd, int *pIdx) {
 
   addrRd += 4;
   eepromRead(addrRd, pPktRd, wlData_n);
+  crcData = calcCRC16_ccitt(pPktRd, sizeof(Emon32Cumulative_t));
+
+  if (crcData != header.crc16_ccitt) {
+    status = EEPROM_WL_CRC_BAD;
+  }
 
   return status;
 }
@@ -329,7 +333,7 @@ void eepromWLClear(void) {
 
   for (int i = 0; i < wlBlkCnt; i++) {
     int addr = EEPROM_WL_OFFSET + (i * wlBlkSize);
-    eepromWrite(addr, &wlHeader, 4);
+    eepromWrite(addr, &wlHeader, sizeof(wlHeader));
   }
 }
 
@@ -441,13 +445,8 @@ eepromWrStatus_t eepromWriteWL(const void *pPktWr, int *pIdx) {
    */
   idxWr = wlIdxNxtWr + 1u;
   if (idxWr == wlBlkCnt) {
-    unsigned int addrRd;
     unsigned int validByte;
-    addrRd = addrWr - (wlData_n + 4);
-    if (addrRd < EEPROM_WL_OFFSET) {
-      addrRd += EEPROM_WL_OFFSET;
-    }
-    eepromRead(addrRd, &validByte, 1u);
+    eepromRead(addrWr, &validByte, 1u);
     wlCurrentValid = nextValidByte(validByte);
     idxWr          = 0;
   }

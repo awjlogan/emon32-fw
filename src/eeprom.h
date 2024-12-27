@@ -63,15 +63,15 @@ void eepromWLClear(void);
 void eepromWLReset(int len);
 
 /*! @brief Save data asynchronously to EEPROM
- *  @detail All writes are contiguous from the base. The implementation should
+ *  @details All writes are contiguous from the base. The implementation should
  *          account for page boundaries. Call with (0, NULL, 0) to continue
  *          an ongoing staged write.
  *  @param [in] addr : base address
  *  @param [in] pSrc : pointer to data
  *  @param [in] n    : number of bytes to send
- *  @return : EEPROM_WR_PEND -> data are being written
- *            EEPROM_WR_BUSY -> tried to send data while previous pending
- *            EEPROM_WR_COMPLETE -> tried to continue, but all data sent
+ *  @return EEPROM_WR_PEND -> data are being written
+ *          EEPROM_WR_BUSY -> tried to send data while previous pending
+ *          EEPROM_WR_COMPLETE -> tried to continue, but all data sent
  */
 eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc,
                              unsigned int n);
