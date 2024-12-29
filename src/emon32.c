@@ -148,13 +148,8 @@ static void cumulativeProcess(Emon32Cumulative_t    *pPkt,
    */
   energyOverflow = (latestWh < lastStoredWh);
   deltaWh        = latestWh - lastStoredWh;
-<<<<<<< HEAD
-  if ((deltaWh > whDeltaStore) || energyOverflow) {
-    // cumulativeNVMStore(pPkt, pData);
-=======
   if ((deltaWh >= whDeltaStore) || energyOverflow) {
     cumulativeNVMStore(pPkt, pData);
->>>>>>> v0.2
     lastStoredWh = latestWh;
   }
 }
@@ -267,14 +262,6 @@ static void evtKiloHertz(void) {
   static volatile uint32_t msLast          = 0;
   static unsigned int      statLedOff_time = 0;
 
-<<<<<<< HEAD
-  /* Feed watchdog - placed in the event handler to allow reset of stuck
-   * processing rather than entering the interrupt reliably.
-   */
-  wdtFeed();
-
-=======
->>>>>>> v0.2
   /* Update the pulse counters, looking on different edges */
   pulseUpdate();
 
