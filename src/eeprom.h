@@ -15,12 +15,11 @@ typedef enum eepromWrStatus_ {
 } eepromWrStatus_t;
 
 /*! @brief Discover the size of the EEPROM
- *  @return : size (in bytes) of the EEPROM. This should be a power-of-2.
+ *  @return size (in bytes) of the EEPROM. This should be a power-of-2.
  */
 unsigned int eepromDiscoverSize(void);
 
-/*! @brief Dump all the EEPROM data out on to the debug UART
- */
+/*! @brief Dump all the EEPROM data out on to the debug UART */
 void eepromDump(void);
 
 /*! @brief Set all data within a block to uniform value
@@ -41,14 +40,16 @@ void eepromInitConfig(const void *pSrc, const unsigned int n);
  *  @param [in] addr : base address of EEPROM read
  *  @param [out] pDst : pointer to read destination
  *  @param [in] n : number of bytes to read
- *  @return : 0 for success, -1 for failure
+ *  @return true for success, false otherwise
  */
-int eepromRead(unsigned int addr, void *pDst, unsigned int n);
+bool eepromRead(unsigned int addr, void *pDst, unsigned int n);
 
 /*! @brief Read data from EEPROM with wear leveling
  *  @param [out] pPktRd : pointer to read packet
+ *  @param [out] pIdx : pointer to the value of index that has read
+ *  @return status of the read
  */
-eepromWLStatus_t eepromReadWL(void *pPktRd);
+eepromWLStatus_t eepromReadWL(void *pPktRd, int *pIdx);
 
 /*! @brief Do any required setup of the EEPROM */
 void eepromSetup(const unsigned int wlOffset);
@@ -62,25 +63,27 @@ void eepromWLClear(void);
 void eepromWLReset(int len);
 
 /*! @brief Save data asynchronously to EEPROM
- *  @detail All writes are contiguous from the base. The implementation should
+ *  @details All writes are contiguous from the base. The implementation should
  *          account for page boundaries. Call with (0, NULL, 0) to continue
  *          an ongoing staged write.
  *  @param [in] addr : base address
  *  @param [in] pSrc : pointer to data
  *  @param [in] n    : number of bytes to send
- *  @return : EEPROM_WR_PEND -> data are being written
- *            EEPROM_WR_BUSY -> tried to send data while previous pending
- *            EEPROM_WR_COMPLETE -> tried to continue, but all data sent
+ *  @return EEPROM_WR_PEND -> data are being written
+ *          EEPROM_WR_BUSY -> tried to send data while previous pending
+ *          EEPROM_WR_COMPLETE -> tried to continue, but all data sent
  */
 eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc,
                              unsigned int n);
 
 /*! @brief Continue a multi page write to EEPROM
+ *  @return status of the write
  */
 eepromWrStatus_t eepromWriteContinue(void);
 
 /*! @brief Save data to EEPROM with wear leveling.
  *  @param [in] pPktWr : pointer to write packet
- *  @return : status of the EEPROM write process
+ *  @param [out] pIdx : pointer to the value of the index written to
+ *  @return status of the EEPROM write process
  */
-eepromWrStatus_t eepromWriteWL(const void *pPktWr);
+eepromWrStatus_t eepromWriteWL(const void *pPktWr, int *pIdx);

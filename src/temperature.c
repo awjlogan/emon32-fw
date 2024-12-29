@@ -1,14 +1,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "board_def.h"
 #include "driver_TIME.h"
 #include "emon32_assert.h"
 #include "periph_DS18B20.h"
 #include "temperature.h"
 
-static bool tempSampled      = false;
-static int  numSensors       = 0;
-static int  millisLastSample = 0;
+static bool tempSampled               = false;
+static int  numSensors                = 0;
+static int  millisLastSample[NUM_OPA] = {0};
 
 float tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed) {
   float ret = -1000.0;
@@ -22,7 +23,7 @@ unsigned int tempInitSensors(const TEMP_INTF_t intf, const void *pParams) {
   EMON32_ASSERT(pParams);
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    numSensors = ds18b20InitSensors((DS18B20_conf_t *)pParams);
+    numSensors += ds18b20InitSensors((DS18B20_conf_t *)pParams);
   }
 
   return numSensors;
@@ -41,10 +42,7 @@ TempRead_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev) {
   }
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    DS18B20_Res_t dsRes = ds18b20ReadSample(dev);
-
-    res.status = dsRes.status;
-    res.result = dsRes.temp;
+    res = ds18b20ReadSample(dev);
   }
 
   return res;
@@ -56,16 +54,15 @@ TempStatus_t tempStartSample(const TEMP_INTF_t intf, const uint32_t dev) {
     return TEMP_NO_SENSORS;
   }
 
-  if (timerMillisDelta(millisLastSample) < TEMP_CONVERSION_T) {
+  if (timerMillisDelta(millisLastSample[dev]) < TEMP_CONVERSION_T) {
     return TEMP_OVERRUN;
   }
 
   if (TEMP_INTF_ONEWIRE == intf) {
-    tempSampled = true;
-    (void)dev;
-    millisLastSample = timerMillis();
-    int samp         = ds18b20StartSample();
-    if (0 == samp)
+    tempSampled           = true;
+    millisLastSample[dev] = timerMillis();
+
+    if (ds18b20StartSample(dev))
       return TEMP_OK;
   }
 

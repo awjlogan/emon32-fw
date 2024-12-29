@@ -21,21 +21,19 @@ typedef struct __attribute__((__packed__)) BaseCfg_ {
   float    reportTime; /* Time between reports */
 } BaseCfg_t;
 
-typedef enum DataTx_ { DATATX_RFM69 = 0, DATATX_UART = 1 } TxType_t;
-
 typedef struct __attribute__((__packed__)) DataTxCfg_ {
-  uint8_t txType;  /* UART or RFM on SPI */
+  bool    useRFM;
   uint8_t rfmFreq; /* 0: 868 MHz, 1: 915 MHz, 2: 433 MHz. */
   uint8_t rfmPwr;
   uint8_t res0;
 } DataTxCfg_t;
 
-typedef struct __attribute__((__packed__)) PulseCfgPacked_ {
+typedef struct __attribute__((__packed__)) OpaCfgPacked_ {
   uint8_t period;
-  uint8_t edge;
-  bool    pulseActive;
-  uint8_t res0;
-} PulseCfgPacked_t;
+  uint8_t func; /* 'o': OneWire; 'r', 'b', 'f': pulse  */
+  bool    opaActive;
+  bool    puEn; /* Pull up enabled */
+} OpaCfgPacked_t;
 
 typedef struct __attribute__((__packed__)) VoltageCfg_ {
   float   voltageCal; /* Conversion to real V value */
@@ -58,15 +56,15 @@ typedef struct __attribute__((__packed__)) Emon32Config_ {
   DataTxCfg_t        dataTxCfg;
   VoltageCfgPacked_t voltageCfg[NUM_V];
   CTCfgPacked_t      ctCfg[NUM_CT + CT_RES];
-  PulseCfgPacked_t   pulseCfg[NUM_PULSECOUNT + PULSE_RES];
+  OpaCfgPacked_t     opaCfg[NUM_OPA + PULSE_RES];
   uint8_t            res0[17];
   uint16_t           crc16_ccitt;
 } Emon32Config_t;
 
 _Static_assert((sizeof(BaseCfg_t) == 24), "BaseCfg_t is not 24 bytes wide.");
 _Static_assert((sizeof(DataTxCfg_t) == 4), "DataTxCfg_t is not 4 bytes wide.");
-_Static_assert((sizeof(PulseCfgPacked_t) == 4),
-               "PulseCfgPacked_t is not 4 bytes wide.");
+_Static_assert((sizeof(OpaCfgPacked_t) == 4),
+               "OpaCfgPacked_t is not 4 bytes wide.");
 _Static_assert((sizeof(VoltageCfgPacked_t) == 8),
                "VoltageCfgPacked_t is not 8 bytes wide.");
 _Static_assert((sizeof(CTCfgPacked_t) == 12),
@@ -89,8 +87,7 @@ void configFirmwareBoardInfo(void);
  */
 Emon32Config_t *configGetConfig(void);
 
-/*! @brief This functions loads the default configuration and from NVM.
- */
+/*! @brief This functions loads the default configuration and from NVM. */
 void configLoadFromNVM(void);
 
 /*! @brief Process a pending command from the UART */

@@ -20,31 +20,33 @@ typedef enum TempStatus_ {
 
 typedef struct TempRead_ {
   TempStatus_t status;
-  int16_t      result;
+  int16_t      temp;
 } TempRead_t;
 
 /*! @brief Return the temperature as a float
+ *  @param [in] intf : interface type
  *  @param [in] tFixed : fixed point temperature
- *  @return : the temperature as a float
+ *  @return the temperature as a float
  */
 float tempAsFloat(const TEMP_INTF_t intf, const int16_t tFixed);
 
 /*! @brief Find and initialise sensors
  *  @param [in] intf : interface type
  *  @param [in] pParams : parameters for given interface type
- *  @return : number of sensors found
+ *  @return number of sensors found
  */
 unsigned int tempInitSensors(const TEMP_INTF_t intf, const void *pParams);
 
 /*! @brief Read an existing temperature sample
  *  @param [in] intf : interface type
  *  @param [in] dev : device index
- *  @return : TempRead struct
+ *  @return TempRead struct
  */
 TempRead_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev);
 
 /*! @brief Start a temperature sample
-    @param [in] intf : interface type
+ *  @param [in] intf : interface type
  *  @param [in] dev : device index
+ *  @return status of the sample start
  */
 TempStatus_t tempStartSample(const TEMP_INTF_t intf, const uint32_t dev);

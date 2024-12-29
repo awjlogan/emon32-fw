@@ -15,14 +15,6 @@ static Pin_t ledToPin(Led_t led) {
     p.grp = GRP_LED_STATUS;
     p.pin = PIN_LED_STATUS;
     break;
-  case LED_USER0:
-    p.grp = GRP_LED_USER;
-    p.pin = PIN_LED_USER0;
-    break;
-  case LED_USER1:
-    p.grp = GRP_LED_USER;
-    p.pin = PIN_LED_USER1;
-    break;
   default:
     break;
   }

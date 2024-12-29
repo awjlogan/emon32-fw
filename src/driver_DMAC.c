@@ -4,7 +4,7 @@
 
 #include "emon32.h"
 
-void irqHandlerADCCommon(void);
+static void irqHandlerADCCommon(void);
 
 static volatile DmacDescriptor dmacs[NUM_CHAN_DMA];
 static DmacDescriptor          dmacs_wb[NUM_CHAN_DMA];
@@ -63,25 +63,7 @@ void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg) {
   DMAC->CHCTRLB.reg = pCfg->ctrlb;
 }
 
-void dmacChannelResume(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHCTRLB.reg |= DMAC_CHCTRLB_CMD_RESUME;
-}
-
-void dmacChannelSuspend(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHCTRLB.reg |= DMAC_CHCTRLB_CMD_SUSPEND;
-}
-
-unsigned int dmacChannelBusy(unsigned int ch) {
-  if (0 != (DMAC->BUSYCH.reg & (1u << ch))) {
-    return 1u;
-  } else {
-    return 0;
-  }
-}
-
-void irqHandlerADCCommon(void) { (*cbBufferFill)(); }
+static void irqHandlerADCCommon(void) { (*cbBufferFill)(); }
 
 void irq_handler_dmac(void) {
   /* Check which channel has triggered the interrupt, set the event, and
@@ -102,16 +84,9 @@ void irq_handler_dmac(void) {
     irqHandlerADCCommon();
   }
 
-  DMAC->CHID.reg = DMA_CHAN_UART_DBG;
+  DMAC->CHID.reg = DMA_CHAN_UART;
   if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL) {
     emon32EventSet(EVT_DMAC_UART_CMPL);
-    DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
-  }
-
-  DMAC->CHID.reg = DMA_CHAN_I2CM;
-  if (DMAC->CHINTFLAG.reg & DMAC_CHINTFLAG_TCMPL) {
-    /* DMA for this channel is used to write to I2C EEPROM */
-    emon32EventSet(EVT_DMAC_I2C_CMPL);
     DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
   }
 }

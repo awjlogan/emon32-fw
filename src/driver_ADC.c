@@ -17,9 +17,8 @@ static int16_t adcCalibrateSmp(int pin);
 static void    adcConfigureDMAC(void);
 static void    adcSync(void);
 
-/*! @brief Load gain and offset registers for automatic compensation. Only
- *         available when using SAMD21 with sufficient ADC pins.
- */
+/*! @brief Calculate coarse gain and offset corrections. Only available when
+ * using SAMD21 with sufficient ADC pins. */
 static void adcCalibrate(void) {
   /* Expected ADC values for 1/4 and 3/4 scale, /2 for differential */
   const int32_t refScale14 = -16383 / 2;
@@ -51,9 +50,9 @@ static void adcCalibrate(void) {
   ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
   adcSync();
 
-  expScale14 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN18);
-  expScale14 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN18);
-  expScale34 = adcCalibrateSmp(ADC_INPUTCTRL_MUXPOS_PIN17);
+  expScale14 = adcCalibrateSmp(AIN_VCAL_L);
+  expScale14 = adcCalibrateSmp(AIN_VCAL_L);
+  expScale34 = adcCalibrateSmp(AIN_VCAL_H);
 
   ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
   adcSync();
@@ -96,9 +95,6 @@ static int16_t adcCalibrateSmp(int pin) {
   return ADC->RESULT.reg;
 }
 
-/*! @brief Load gain and offset registers for automatic compensation. Only
- *         available when using SAMD21 with sufficient ADC pins.
- */
 static void adcConfigureDMAC(void) {
   DMACCfgCh_t              dmacConfig;
   volatile DmacDescriptor *dmacDesc[2];
@@ -206,44 +202,6 @@ void adcSetup(void) {
   ADC->EVCTRL.reg = ADC_EVCTRL_STARTEI;
 
   adcConfigureDMAC();
-}
-
-int16_t adcSingleConversion(const unsigned int ch) {
-  /* Save the scan and positive mux positions, do the conversion, and
-   * restore the ADC state before returning the result.
-   */
-  int16_t      result      = 0;
-  unsigned int enabledFlag = 0;
-
-  const unsigned int inputCtrl = ADC->INPUTCTRL.reg;
-
-  ADC->INPUTCTRL.reg = ADC_INPUTCTRL_MUXNEG_PIN0 | ADC_INPUTCTRL_MUXPOS(ch);
-  adcSync();
-
-  ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
-
-  if (!(ADC->CTRLA.reg & ADC_CTRLA_ENABLE)) {
-    enabledFlag = 1u;
-    ADC->CTRLA.reg |= ADC_CTRLA_ENABLE;
-    adcSync();
-  }
-
-  ADC->SWTRIG.reg = ADC_SWTRIG_START;
-  while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY))
-    ;
-  result = ADC->RESULT.reg;
-
-  ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
-  ADC->INPUTCTRL.reg = inputCtrl;
-  adcSync();
-
-  /* Disable the ADC if it was enabled for a single conversion */
-  if (enabledFlag) {
-    ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
-    adcSync();
-  }
-
-  return result;
 }
 
 static void adcSync(void) {

@@ -1,18 +1,19 @@
 #include "pulse.h"
 #include "board_def.h"
 #include "driver_PORT.h"
+#include "driver_TIME.h"
 #include "emon32.h"
 
-typedef enum PulseLvl_ { PULSE_LVL_HIGH, PULSE_LVL_LOW } PulseLvl_t;
+typedef enum PulseLvl_ { PULSE_LVL_LOW, PULSE_LVL_HIGH } PulseLvl_t;
 
-static uint64_t     pulseCount[NUM_PULSECOUNT];
-static PulseCfg_t   pulseCfg[NUM_PULSECOUNT];
-static unsigned int pinValue[NUM_PULSECOUNT];
-static PulseLvl_t   pulseLvlLast[NUM_PULSECOUNT];
+static uint64_t     pulseCount[NUM_OPA];
+static PulseCfg_t   pulseCfg[NUM_OPA];
+static unsigned int pinValue[NUM_OPA];
+static PulseLvl_t   pulseLvlLast[NUM_OPA];
 
 PulseCfg_t *pulseGetCfg(const unsigned int index) {
   /* If no pulse counters attached or index out of range, return 0 */
-  if ((0 == NUM_PULSECOUNT) || (index > (NUM_PULSECOUNT - 1u))) {
+  if ((0 == NUM_OPA) || (index > (NUM_OPA - 1u))) {
     return 0;
   }
 
@@ -20,17 +21,23 @@ PulseCfg_t *pulseGetCfg(const unsigned int index) {
 }
 
 void pulseInit(const unsigned int index) {
-  unsigned int grp = pulseCfg[index].grp;
-  unsigned int pin = pulseCfg[index].pin;
+  const uint_fast8_t opaPUs[] = {PIN_OPA1_PU, PIN_OPA2_PU};
 
-  portPinDir(grp, pin, PIN_DIR_IN);
-  pinValue[index] = portPinValue(grp, pin);
+  const unsigned int pin = pulseCfg[index].pin;
+
+  /* Enable pull up if configured and allow a delay to charge RC */
+  if (pulseCfg[index].puEn) {
+    portPinDir(GRP_OPA, opaPUs[index], PIN_DIR_OUT);
+    portPinDrv(GRP_OPA, opaPUs[index], PIN_DRV_SET);
+    timerDelay_ms(1);
+  }
+  pinValue[index] = portPinValue(GRP_OPA, pin);
 
   /* Use the first read value as the current state */
-  pulseLvlLast[index] = (0 == pinValue[index]) ? PULSE_LVL_LOW : PULSE_LVL_HIGH;
+  pulseLvlLast[index] = (PulseLvl_t)pinValue[index];
 }
 
-void pulseSetCount(const uint64_t value, const unsigned int index) {
+void pulseSetCount(const unsigned int index, const uint64_t value) {
   pulseCount[index] = value;
 }
 
@@ -40,8 +47,8 @@ void pulseUpdate(void) {
   unsigned int mask;
   PulseLvl_t   level;
 
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
-    if (0 != pulseCfg[i].active) {
+  for (unsigned int i = 0; i < NUM_OPA; i++) {
+    if (pulseCfg[i].active) {
       mask  = (1 << pulseCfg[i].periods) - 1u;
       level = pulseLvlLast[i];
 

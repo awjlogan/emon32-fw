@@ -11,11 +11,15 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
  * Common configurable options
  *********************************/
 
-#define DELTA_WH_STORE 200u /* Threshold in WH to store to NVM */
-#define DOWNSAMPLE_DSP 1u   /* 0: no downsampling; 1: half band LPF */
-#define NODE_ID        17u  /* Node ID for reports */
-#define PERF_ENABLED   0u /* Performance tracing enabled (1) or disabled (0) */
-#define TX_INDICATE_T  250u /* Transmission indication time (ms) */
+#define DOWNSAMPLE_DSP     1u   /* 0: no downsampling; 1: half band LPF */
+#define NUM_CT_ACTIVE_DEF  6    /* Onboard CTs only */
+#define DELTA_WH_STORE_DEF 200u /* Threshold, in Wh, to store to NVM */
+#define NODE_ID_DEF        17u  /* Node ID for reports */
+#define GROUP_ID_DEF       210u /* Group ID default for OEM */
+#define MAINS_FREQ_DEF     50u  /* Mains frequency */
+#define REPORT_TIME_DEF    9.8f /* Report time, in seconds */
+#define PERF_ENABLED       0u /* Performance tracing enabled (1) or disabled (0) */
+#define TX_INDICATE_T      250u /* Transmission indication time (ms) */
 
 /*********************************
  * Firmware version
@@ -37,14 +41,14 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 typedef struct Emon32Dataset_ {
   uint32_t      msgNum;
   ECMDataset_t *pECM;
-  uint32_t      pulseCnt[NUM_PULSECOUNT];
+  uint32_t      pulseCnt[NUM_OPA];
   int16_t       temp[TEMP_MAX_ONEWIRE];
   unsigned int  numTempSensors;
 } Emon32Dataset_t;
 
 typedef struct __attribute__((__packed__)) Emon32Cumulative_ {
   uint32_t wattHour[NUM_CT];
-  uint32_t pulseCnt[NUM_PULSECOUNT];
+  uint32_t pulseCnt[NUM_OPA];
 } Emon32Cumulative_t;
 
 /* This struct must match the OEM definitions found at:
@@ -56,7 +60,7 @@ typedef struct __attribute__((__packed__)) PackedData_ {
   int16_t  P[NUM_CT];
   int32_t  E[NUM_CT];
   int16_t  T[TEMP_MAX_ONEWIRE];
-  uint32_t pulse[NUM_PULSECOUNT];
+  uint32_t pulse[NUM_OPA];
 } PackedData_t;
 
 typedef struct __attribute__((__packed__)) PackedDataCommon_ {
@@ -68,7 +72,7 @@ typedef struct __attribute__((__packed__)) PackedDataCommon_ {
 
 typedef struct __attribute__((__packed__)) PackedDataLower6_ {
   PackedDataCommon_t common;
-  uint32_t           pulse[NUM_PULSECOUNT];
+  uint32_t           pulse[NUM_OPA];
 } PackedDataLower6_t;
 
 typedef struct __attribute__((__packed__)) PackedDataUpper6_ {

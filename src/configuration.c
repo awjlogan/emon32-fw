@@ -42,9 +42,9 @@ static int      configTimeToCycles(const float time, const int mainsFreq);
 static bool     configureAnalog(void);
 static bool     configureAssumed(void);
 static bool     configureDatalog(void);
-static void     configurePulse(void);
+static void     configureOPA(void);
+static bool     configureRFEnable(void);
 static bool     configureSerialLog(void);
-static bool     configureWhDelta(void);
 static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
 static char    *getLastReset(void);
@@ -72,16 +72,16 @@ static void configDefault(void) {
   config.key = CONFIG_NVM_KEY;
 
   /* Single phase, 50 Hz, 240 VAC, 10 s report period */
-  config.baseCfg.nodeID       = NODE_ID; /* Node ID to transmit */
-  config.baseCfg.mainsFreq    = 50u;     /* Mains frequency */
-  config.baseCfg.reportTime   = 9.8f;
-  config.baseCfg.whDeltaStore = DELTA_WH_STORE; /* 200 */
-  config.baseCfg.dataGrp      = 210u;
+  config.baseCfg.nodeID       = NODE_ID_DEF;
+  config.baseCfg.mainsFreq    = MAINS_FREQ_DEF;
+  config.baseCfg.reportTime   = REPORT_TIME_DEF;
+  config.baseCfg.whDeltaStore = DELTA_WH_STORE_DEF;
+  config.baseCfg.dataGrp      = GROUP_ID_DEF;
   config.baseCfg.logToSerial  = true;
   config.baseCfg.useJson      = false;
-  config.dataTxCfg.txType     = (uint8_t)DATATX_UART;
-  config.dataTxCfg.rfmPwr     = 0x19;
-  config.dataTxCfg.rfmFreq    = 0;
+  config.dataTxCfg.useRFM     = true;
+  config.dataTxCfg.rfmPwr     = RFM_PALEVEL_DEF;
+  config.dataTxCfg.rfmFreq    = RFM_FREQ_DEF;
 
   for (int idxV = 0u; idxV < NUM_V; idxV++) {
     config.voltageCfg[idxV].voltageCal = 100.0f;
@@ -97,16 +97,26 @@ static void configDefault(void) {
     config.ctCfg[idxCT].ctActive = (idxCT < NUM_CT_ACTIVE_DEF);
   }
 
-  /* Pulse counters:
+  /* OneWire/Pulse configuration:
+   * OPA1
+   *   - Pulse input
    *   - Period: 100 ms
    *   - Rising edge trigger
-   *   - All disabled
+   *   - Pull up disabled
    */
-  for (int i = 0u; i < NUM_PULSECOUNT; i++) {
-    config.pulseCfg[i].pulseActive = false;
-    config.pulseCfg[i].period      = 100u;
-    config.pulseCfg[i].edge        = 0u;
-  }
+  config.opaCfg[0].func      = 'r';
+  config.opaCfg[0].opaActive = false;
+  config.opaCfg[0].period    = 100u;
+  config.opaCfg[0].puEn      = false;
+
+  /* OPA2
+   *   - OneWire input
+   *   - Enabled
+   */
+  config.opaCfg[1].func      = 'o';
+  config.opaCfg[1].opaActive = true;
+  config.opaCfg[1].period    = 0;
+  config.opaCfg[1].puEn      = true;
 
   config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2u));
 }
@@ -119,10 +129,9 @@ static void configInitialiseNVM(void) {
   dbgPuts("  - Initialising NVM... ");
 
   configDefault();
-  eepromInitBlock(0, 0, 256);
+  eepromInitBlock(0, 0, EEPROM_WL_OFFSET);
   eepromInitConfig(&config, sizeof(config));
-
-  eepromInitBlock(EEPROM_WL_OFFSET, 0, (EEPROM_SIZE - EEPROM_WL_OFFSET));
+  eepromWLClear();
   dbgPuts("Done!\r\n");
 }
 
@@ -308,7 +317,7 @@ static bool configureDatalog(void) {
   return false;
 }
 
-static void configurePulse(void) {
+static void configureOPA(void) {
   /* String format in inBuffer:
    *      [1] -> ch;
    *      [3] -> active;
@@ -327,7 +336,7 @@ static void configurePulse(void) {
   }
   ch = convI.val - 1;
 
-  if ((ch < 0) || (ch >= NUM_PULSECOUNT)) {
+  if ((ch < 0) || (ch >= NUM_OPA)) {
     return;
   }
 
@@ -350,29 +359,51 @@ static void configurePulse(void) {
 
   /* If inactive, clear active flag, no decode for the rest */
   if (0 == active) {
-    config.pulseCfg[ch].pulseActive = false;
+    config.opaCfg[ch].opaActive = false;
     printf_("> Pulse channel %d disabled.\r\n", (ch + 1u));
     return;
   } else {
-    config.pulseCfg[ch].pulseActive = true;
+    config.opaCfg[ch].opaActive = true;
     printf_("> Pulse channel %d: ", (ch + 1u));
     switch (edge) {
     case 'r':
       dbgPuts("Rising, ");
-      config.pulseCfg[ch].edge = 0u;
+      config.opaCfg[ch].func = 'r';
       break;
     case 'f':
       dbgPuts("Falling, ");
-      config.pulseCfg[ch].edge = 1u;
+      config.opaCfg[ch].func = 'f';
       break;
     case 'b':
       dbgPuts("Both, ");
-      config.pulseCfg[ch].edge = 2u;
+      config.opaCfg[ch].func = 'b';
       break;
     }
-    config.pulseCfg[ch].period = period;
-    printf_("%d ms\r\n", config.pulseCfg[ch].period);
+    config.opaCfg[ch].period = period;
+    printf_("%d ms\r\n", config.opaCfg[ch].period);
   }
+}
+
+static bool configureRFEnable(void) {
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+
+  if (!convI.valid) {
+    return false;
+  }
+
+  if (!((0 == convI.val) || (1 == convI.val))) {
+    return false;
+  }
+
+  config.dataTxCfg.useRFM = (bool)convI.val;
+  dbgPuts("> RF ");
+  if (convI.val) {
+    dbgPuts("enabled.\r\n");
+  } else {
+    dbgPuts("disabled.\r\n");
+  }
+
+  return true;
 }
 
 static bool configureSerialLog(void) {
@@ -381,27 +412,17 @@ static bool configureSerialLog(void) {
    */
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
 
-  if (convI.valid) {
-    config.baseCfg.logToSerial = (bool)convI.val;
-    printf_("> Log to serial: %c\r\n", config.baseCfg.logToSerial ? 'Y' : 'N');
-    return true;
-  }
-  return false;
-}
-
-static bool configureWhDelta(void) {
-  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
-
-  if (convI.val < 10) {
+  if (!convI.valid) {
     return false;
   }
 
-  if (convI.valid) {
-    config.baseCfg.whDeltaStore = convI.val;
-    printf_("> Energy delta set to: %d\r\n", config.baseCfg.whDeltaStore);
-    return true;
+  if (!((0 == convI.val) || (1 == convI.val))) {
+    return false;
   }
-  return false;
+
+  config.baseCfg.logToSerial = (bool)convI.val;
+  printf_("> Log to serial: %c\r\n", config.baseCfg.logToSerial ? 'Y' : 'N');
+  return true;
 }
 
 static void enterBootloader(void) {
@@ -424,18 +445,18 @@ static void enterBootloader(void) {
 }
 
 /*! @brief Get the board revision, software visible changes only
- *  @return : board revision, 0-7
+ *  @return board revision, 0-7
  */
 static uint32_t getBoardRevision(void) {
   uint32_t boardRev = 0;
-  boardRev |= portPinValue(GRP_REV, PIN_REV0);
-  boardRev |= portPinValue(GRP_REV, PIN_REV1) << 1;
-  boardRev |= portPinValue(GRP_REV, PIN_REV2) << 2;
+  boardRev |= portPinValue(GRP_REV0, PIN_REV0);
+  boardRev |= portPinValue(GRP_REV1, PIN_REV1) << 1;
+  boardRev |= portPinValue(GRP_REV2, PIN_REV2) << 2;
   return boardRev;
 }
 
 /*! @brief Get the last reset cause (16.8.14)
- *  @return : null-terminated string with the last cause.
+ *  @return null-terminated string with the last cause.
  */
 static char *getLastReset(void) {
   const RCAUSE_t lastReset = (RCAUSE_t)PM->RCAUSE.reg;
@@ -464,7 +485,7 @@ static char *getLastReset(void) {
 
 /*! @brief Fetch the SAMD's 128bit unique ID
  *  @param [in] idx : index of 32bit word
- *  @return : 32bit word from index
+ *  @return 32bit word from index
  */
 uint32_t getUniqueID(int idx) {
   /* Section 10.3.3 Serial Number */
@@ -485,7 +506,7 @@ static void printSettings(void) {
   putFloat(config.baseCfg.reportTime, 0);
   printf_("\r\nMinimum accumulation (Wh): %d\r\n", config.baseCfg.whDeltaStore);
   dbgPuts("Data transmission:         ");
-  if (DATATX_RFM69 == (TxType_t)config.dataTxCfg.txType) {
+  if (config.dataTxCfg.useRFM) {
     dbgPuts("RFM69, ");
     switch (config.dataTxCfg.rfmFreq) {
     case 0:
@@ -506,19 +527,19 @@ static void printSettings(void) {
           config.baseCfg.useJson ? "JSON" : "Key:Value");
   dbgPuts("\r\n");
 
-  for (unsigned int i = 0; i < NUM_PULSECOUNT; i++) {
-    bool enabled = config.pulseCfg[i].pulseActive;
+  for (unsigned int i = 0; i < NUM_OPA; i++) {
+    bool enabled = config.opaCfg[i].opaActive;
     printf_("Pulse Channel %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
-    printf_("  - Hysteresis (ms): %d\r\n", config.pulseCfg[i].period);
+    printf_("  - Hysteresis (ms): %d\r\n", config.opaCfg[i].period);
     dbgPuts("  - Edge:            ");
-    switch (config.pulseCfg[i].edge) {
-    case 0:
+    switch (config.opaCfg[i].func) {
+    case 'r':
       dbgPuts("Rising");
       break;
-    case 1:
+    case 'f':
       dbgPuts("Falling");
       break;
-    case 2:
+    case 'b':
       dbgPuts("Both");
       break;
     default:
@@ -603,10 +624,9 @@ static char waitForChar(void) {
     if (irqEnabled)
       NVIC_DisableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
 
-    while (0 ==
-           (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC))
+    while (0 == (uartInterruptStatus(SERCOM_UART) & SERCOM_USART_INTFLAG_RXC))
       ;
-    c = uartGetc(SERCOM_UART_DBG);
+    c = uartGetc(SERCOM_UART);
 
     if (irqEnabled)
       NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
@@ -743,19 +763,20 @@ void configProcessCmd(void) {
       "   - v1        : CT voltage channel 1\r\n"
       "   - v2        : CT voltage channel 2\r\n"
       " - l           : list settings\r\n"
-      " - m<w> <x> <y> <z>\r\n"
-      "   - Pulse counting.\r\n"
-      "     - w : pulse channel index\r\n"
-      "     - x = 0: OFF, x = 1, ON.\r\n"
-      "     - y : edge sensitivity (r,f,b). Ignored if x = 0\r\n"
-      "     - z : minimum period (ms). Ignored if x = 0\r\n"
+      " - m<v> <w> <x> <y> <z>\r\n"
+      "   - Configure a OneWire/pulse input.\r\n"
+      "     - v : channel index\r\n"
+      "     - w : function select. w = p: pulse, w = o: OneWire.\r\n"
+      "     - x : edge sensitivity (r,f,b). Ignored if w = o\r\n"
+      "     - y : minimum period (ms). Ignored if w = o\r\n"
+      "     - z : pull-up. z = 1: PULL UP, z = 0: NO PULL UP\r\n"
       " - n<n>        : set node ID [1..60]\r\n"
       " - p<n>        : set the RF power level\r\n"
       " - r           : restore defaults\r\n"
       " - s           : save settings to NVM\r\n"
       " - t           : trigger report on next cycle\r\n"
       " - v           : firmware and board information\r\n"
-      " - w<n>        : minimum difference in energy before saving (Wh)\r\n"
+      " - w<n>        : RF active. n = 0: OFF, n = 1: ON\r\n"
       " - z           : zero energy accumulators\r\n\r\n";
 
   /* Convert \r or \n to 0, and get the length until then. */
@@ -847,7 +868,7 @@ void configProcessCmd(void) {
     printSettings();
     break;
   case 'm':
-    configurePulse();
+    configureOPA();
     unsavedChange = true;
     emon32EventSet(EVT_CONFIG_CHANGED);
     break;
@@ -888,14 +909,13 @@ void configProcessCmd(void) {
     }
     break;
   case 't':
-    /* Trigger processing on set on next cycle complete */
     emon32EventSet(EVT_ECM_TRIG);
     break;
   case 'v':
     configFirmwareBoardInfo();
     break;
   case 'w':
-    if (configureWhDelta()) {
+    if (configureRFEnable()) {
       unsavedChange = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }

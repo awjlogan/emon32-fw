@@ -23,10 +23,18 @@ uint8_t      eeprom[1024];
 unsigned int currentAddrHigh;
 unsigned int currentAddrLow;
 
+uint16_t calcCRC16_ccitt(const void *pSrc, unsigned int n) {
+  (void)pSrc;
+  (void)n;
+  return 0;
+}
+
 uint16_t currentAddr(void) {
   uint32_t r = (((currentAddrHigh >> 1) & 0x3) << 8) | currentAddrLow;
   return (uint16_t)r;
 }
+
+void EMON32_ASSERT(bool val) { assert(val); }
 
 I2CM_Status_t i2cActivate(int inst, uint8_t addr) {
   unsigned int isRead;
@@ -72,9 +80,9 @@ uint8_t i2cDataRead(int inst) {
 
 void i2cAck(int inst, int action, int cmd) {}
 
-int timerDelay_us(int a) { return 0; }
+bool timerDelay_us(int a) { return true; }
 
-int timerDelay_ms(int a) { return 0; }
+bool timerDelay_ms(int a) { return true; }
 
 void timerDisable(void) {}
 
@@ -123,10 +131,12 @@ void checkStatic(void) {
   call++;
 }
 
+uint32_t timerMicros(void) { return 0; }
+uint32_t timerMicrosDelta(uint32_t prevMicros) { return EEPROM_WR_TIME + 1; }
+
 int main(int argc, char *argv[]) {
-  char          str[] = "This is a very long string that will wrap over writes";
-  eepromPktWL_t wlPkt;
-  Emon32CumulativeSave_t cumulative;
+  char str[] = "This is a very long string that will wrap over writes";
+  Emon32Cumulative_t cumulative;
 
   /* Fresh EEPROM is all 1s */
   initMem(0, EEPROM_SIZE_BYTES, 0xFFu);
@@ -149,67 +159,87 @@ int main(int argc, char *argv[]) {
   initMem(0, (EEPROM_WL_OFFSET), 0xFFu);
   /* The wear levelled portion should be set to 0 initially, so that false
    * values are read at the very first time powered on */
-  initMem(EEPROM_WL_OFFSET, (EEPROM_SIZE_BYTES), 0x0u);
+  initMem(EEPROM_WL_OFFSET, (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET), 0x0u);
+  eepromWLReset(sizeof(cumulative));
 
-  wlPkt.idxNextWrite = -1; /* Unknown entrance point */
-  wlPkt.dataSize     = sizeof(Emon32Cumulative_t);
-  wlPkt.pData        = &cumulative;
-
-  cumulative.valid = 0;
-  cumulative.crc   = 0xA5A5;
   for (int i = 0; i < NUM_CT; i++) {
-    cumulative.report.wattHour[i] = i * 16;
+    cumulative.wattHour[i] = i * i;
   }
-  cumulative.report.pulseCnt[0] = 'a';
-  cumulative.report.pulseCnt[0] = 'b';
+  for (int i = 0; i < NUM_OPA; i++) {
+    cumulative.pulseCnt[i] = i * i;
+  }
 
-  for (unsigned int i = 0; i < 12; i++) {
-    eepromWriteWL(&wlPkt);
-    while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
-      ;
-    cumulative.report.pulseCnt[0]++;
+  int idx = 0;
+  /* Check for 0x00 -> 0xFF fill */
+  for (int i = 0; i < (12 * 8); i++) {
+    eepromWriteWL(&cumulative, &idx);
 
     /* Check no over run into non-wear levelled portion
      * and correct valid bytes written */
-    if ((0 == i) && (1 != wlPkt.idxNextWrite)) {
+    checkStatic();
+    if (eeprom[EEPROM_WL_OFFSET +
+               ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))] !=
+        ((1 << (i / 12)) - 1)) {
       dumpMem(EEPROM_WL_OFFSET);
-      printf("  > Incorrect write index found %d, expected 1\n",
-             wlPkt.idxNextWrite);
+      printf("  > Incorrect valid indicator 0x%x at address 0x%x, expected "
+             "0x%x in "
+             "loop %d\n",
+             eeprom[EEPROM_WL_OFFSET +
+                    ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))],
+             (EEPROM_WL_OFFSET +
+              ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))),
+             ((1 << (i / 12)) - 1), i);
       assert(0);
     }
-
-    checkStatic();
-    if (eeprom[EEPROM_WL_OFFSET + i * 64] != 0x0) {
-      dumpMem(EEPROM_WL_OFFSET);
-      printf("  > Incorrect valid indicator %d, expected 0x0\n",
-             eeprom[EEPROM_WL_OFFSET + i * 64]);
-      assert(0);
+    for (int i = 0; i < NUM_CT; i++) {
+      cumulative.wattHour[i] += i;
+    }
+    for (int i = 0; i < NUM_OPA; i++) {
+      cumulative.pulseCnt[i] += i;
     }
   }
 
-  eepromWriteWL(&wlPkt);
-  while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
-    ;
-  cumulative.report.pulseCnt[0]++;
-  checkStatic();
-  if (eeprom[EEPROM_WL_OFFSET] != 0x1) {
+  if (eeprom[EEPROM_WL_OFFSET] != 0xFF) {
     dumpMem(EEPROM_WL_OFFSET);
-    printf("  > Incorrect valid indicator %d, expected 0x1\n",
+    printf("  > Incorrect valid indicator %d, expected 0xFF\n",
            eeprom[EEPROM_WL_OFFSET]);
     assert(0);
   }
 
-  eepromWriteWL(&wlPkt);
-  while (EEPROM_WR_COMPLETE != eepromWrite(0, 0, 0))
-    ;
-  cumulative.report.pulseCnt[0]++;
-  checkStatic();
+  /* Check for 0xFF -> 0x00 fill */
+  for (int i = 0; i < (12 * 8); i++) {
+    eepromWriteWL(&cumulative, &idx);
+
+    checkStatic();
+    if (eeprom[EEPROM_WL_OFFSET +
+               ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))] !=
+        (UINT8_MAX & ~((1 << (i / 12)) - 1))) {
+      dumpMem(EEPROM_WL_OFFSET);
+      printf("  > Incorrect valid indicator 0x%x at address 0x%x, expected "
+             "0x%x in "
+             "loop %d\n",
+             eeprom[EEPROM_WL_OFFSET +
+                    ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))],
+             (EEPROM_WL_OFFSET +
+              ((i * 64) % (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET))),
+             (UINT8_MAX & ~((1 << (i / 12)) - 1)), i);
+      assert(0);
+    }
+
+    for (int i = 0; i < NUM_CT; i++) {
+      cumulative.wattHour[i] += i;
+    }
+    for (int i = 0; i < NUM_OPA; i++) {
+      cumulative.pulseCnt[i] += i;
+    }
+  }
 
   /* Check identifying the last write is successful
    * initialise EEPROM and seed values into the "valid" positions, then
    * find the latest. */
   const unsigned int lastValidPos = 5;
-  initMem(EEPROM_WL_OFFSET, EEPROM_SIZE_BYTES, 0);
+  initMem(EEPROM_WL_OFFSET, (EEPROM_SIZE_BYTES - EEPROM_WL_OFFSET), 0);
+  eepromWLReset(sizeof(cumulative));
   for (unsigned int i = EEPROM_WL_OFFSET; i < EEPROM_SIZE_BYTES; i = i + 64) {
     eeprom[i] = 1;
   }
@@ -217,12 +247,10 @@ int main(int argc, char *argv[]) {
        i     = i + 64) {
     eeprom[i] = 0;
   }
-  wlPkt.idxNextWrite = -1;
-  eepromWriteWL(&wlPkt);
-  if ((lastValidPos + 1u) != wlPkt.idxNextWrite) {
-    dumpMem(EEPROM_WL_OFFSET);
-    printf("  > Incorrect wear level entry position %d, expected %d\n",
-           wlPkt.idxNextWrite, (lastValidPos + 1u));
+  eepromWriteWL(&cumulative, &idx);
+  if (idx != lastValidPos) {
+    printf("\r\n    > Failed. Expected write position to be %d, actual %d\r\n",
+           lastValidPos, idx);
     assert(0);
   }
 

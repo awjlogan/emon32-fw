@@ -15,6 +15,6 @@ typedef enum Calibration_ {
 /*! @brief Return the calibration value from the NVM Calibration Row, described
  *         in Table 9-4
  *  @param [in] cal : enumeration of the calibration value required
- *  @return : calibration value
+ *  @return selected calibration value
  */
 uint32_t samdCalibration(const Calibration_t cal);

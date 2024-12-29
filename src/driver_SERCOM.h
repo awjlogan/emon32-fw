@@ -61,17 +61,10 @@ void sercomExtIntfDisable(void);
 void sercomExtIntfEnable(void);
 
 /*! @brief Status of the external SPI and I2C interfaces */
-int sercomExtIntfEnabled(void);
+bool sercomExtIntfEnabled(void);
 
-/*! @brief configure the serial communication module. This function starts the
- *         debug UART and I2C modules. Further SPI and UART modules are
- *         configured separately
- *  @param [in] pCfg : pointer to the configuration struct
- */
+/*! @brief configure the serial communication modules. */
 void sercomSetup(void);
-
-/*! @brief Configure a SERCOM module for SPI */
-void sercomSetupSPI(const Pin_t sel);
 
 /*! @brief Configure a SERCOM module for UART functions.
  *  @param [in] pCfg : pointer to configuration struct
@@ -99,8 +92,8 @@ void i2cAck(Sercom *sercom, I2CM_Ack_t ack, I2CM_AckCmd_t cmd);
 void i2cDataWrite(Sercom *sercom, uint8_t data);
 
 /*! @brief Read byte from I2C completer
- *  @param [in] : sercom : SERCOM instance
- *  @return : read data
+ *  @param [in] sercom : SERCOM instance
+ *  @return read data
  */
 uint8_t i2cDataRead(Sercom *sercom);
 
@@ -124,12 +117,11 @@ void spiSendBuffer(Sercom *sercom, const void *pSrc, int n);
 /*! @brief Send a byte on the configured SPI channel
  *  @param [in] sercom : pointer to the SERCOM instance
  *  @param [in] b : byte to send
- *  @return : data in the SPI buffer
+ *  @return data in the SPI buffer
  */
 uint8_t spiSendByte(Sercom *sercom, const uint8_t b);
 
-/*! @brief Configure the DMA for non-blocking transactions
- */
+/*! @brief Configure the DMA for non-blocking transactions */
 void uartConfigureDMA(void);
 
 /*! @brief Get a character from the USART data buffer. Only valid when the
@@ -139,7 +131,7 @@ void uartConfigureDMA(void);
 char uartGetc(Sercom *sercom);
 
 /*! @brief Indicate if a byte is waiting in the USART data buffer.
- *  @return : true if waiting, false otherwise
+ *  @return true if waiting, false otherwise
  */
 bool uartGetcReady(const Sercom *sercom);
 
@@ -163,6 +155,7 @@ void uartInterruptEnable(Sercom *sercom, uint32_t interrupt);
 
 /*! @brief Return the interrupt status for the UART instance
  *  @param [in] sercom : SERCOM instance
+ *  @return interrupt status
  */
 uint32_t uartInterruptStatus(const Sercom *sercom);
 

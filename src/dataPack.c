@@ -33,7 +33,7 @@ static void catId(StrN_t *strD, int id, int field, bool json);
 static void catMsg(StrN_t *strD, int msg, bool json);
 static void initFields(StrN_t *pD, char *pS, const int m);
 static int  strnFtoa(StrN_t *strD, const float v);
-static int  strnItoa(StrN_t *strD, const uint32_t v);
+static int  strnItoa(StrN_t *strD, const int32_t v);
 static int  strnCat(StrN_t *strD, const StrN_t *strS);
 static int  strnLen(StrN_t *str);
 
@@ -49,10 +49,11 @@ const StrN_t baseStr[12] = {
     {.str = "\"", .n = 1, .m = 2},    {.str = "{", .n = 1, .m = 2},
     {.str = "}", .n = 1, .m = 2},     {.str = ",", .n = 1, .m = 2}};
 
-/*! @brief "Append <field><id>:" to the string
+/*! @brief Append "<field><id>:" to the string
  *  @param [out] strD : pointer to the fat string
  *  @param [in] id : numeric index
  *  @param [in] field : field name index, e.g. "STR_V"
+ *  @param [in] json : select format
  */
 static void catId(StrN_t *strD, int id, int field, bool json) {
   strD->n += strnCat(strD, &baseStr[STR_COMMA]);
@@ -68,6 +69,11 @@ static void catId(StrN_t *strD, int id, int field, bool json) {
   strD->n += strnCat(strD, &baseStr[STR_COLON]);
 }
 
+/*! @brief Append the MSG field to the fat string
+ *  @param [out] strD : pointer to the destination fat string
+ *  @param [in] msg : message number
+ *  @param [in] json : select format
+ */
 static void catMsg(StrN_t *strD, int msg, bool json) {
   /* <{">MSG<">:<"><#><"> */
 
@@ -84,6 +90,11 @@ static void catMsg(StrN_t *strD, int msg, bool json) {
   strD->n += strnCat(strD, &strConv);
 }
 
+/*! @brief Initialise a fat string
+ *  @param [out] pD : pointer to fat string
+ *  @param [in] pS : pointer to string buffer
+ *  @param [in] m : maximum width of the string
+ */
 static void initFields(StrN_t *pD, char *pS, const int m) {
   /* Setup destination string */
   pD->str = pS;
@@ -97,6 +108,11 @@ static void initFields(StrN_t *pD, char *pS, const int m) {
   strConv.m   = CONV_STR_W;
 }
 
+/*! @brief Add a float to a fat string
+ *  @param [out] strD : pointer to destination fat string
+ *  @param [in] v : value to convert
+ *  @return length of the string
+ */
 static int strnFtoa(StrN_t *strD, const float v) {
 
   /* Zero the destination buffer then convert */
@@ -111,7 +127,12 @@ static int strnFtoa(StrN_t *strD, const float v) {
   return strD->n;
 }
 
-static int strnItoa(StrN_t *strD, const uint32_t v) {
+/*! @brief Add an integer to a fat string
+ *  @param [out] strD : pointer to destination fat string
+ *  @param [in] v : value to convert
+ *  @return length of the string
+ */
+static int strnItoa(StrN_t *strD, const int32_t v) {
   /* Zero the destination buffer then convert */
   memset(strD->str, 0, strD->m);
 
@@ -119,6 +140,11 @@ static int strnItoa(StrN_t *strD, const uint32_t v) {
   return strD->n;
 }
 
+/*! @brief Concatenate two fat strings
+ *  @param [out] strD : pointer to destination string
+ *  @param [in] strS : pointer to string to concatenate onto strD
+ *  @return number of characters concatenated
+ */
 static int strnCat(StrN_t *strD, const StrN_t *strS) {
   /* Check bounds to make sure it won't go over the end. If so, return the
    * actual number of bytes that are copied.
@@ -136,6 +162,9 @@ static int strnCat(StrN_t *strD, const StrN_t *strS) {
   return bytesToCopy;
 }
 
+/*! @brief Get the length of a fat string, not including NULL
+ *  @return length of string, not including NULL. -1 if exceeds buffer length
+ */
 static int strnLen(StrN_t *str) {
   int i = 0;
   while (str->str[i++]) {
@@ -207,7 +236,7 @@ int_fast8_t dataPackPacked(const Emon32Dataset_t *pData, void *pPacked,
 
   if (PACKED_LOWER == range) {
     PackedDataLower6_t *pLower = pPacked;
-    for (int p = 0; p < NUM_PULSECOUNT; p++) {
+    for (int p = 0; p < NUM_OPA; p++) {
       pLower->pulse[p] = pData->pulseCnt[p];
     }
     return sizeof(*pLower);

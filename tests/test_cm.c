@@ -28,7 +28,7 @@ typedef struct wave_ {
 /*! @brief Check the results from a run
  *  @param [in] pData : pointer to dataset
  *  @param [in] pF : gold power factor
- *  @return : true for success, false otherwise
+ *  @return true for success, false otherwise
  */
 static bool checkDataset(ECMDataset_t *pData, float pF);
 
