@@ -1,5 +1,7 @@
 # _emon32_ Firmware
 
+THIS BRANCH ONLY SUPPORTS THE v0.1 BOARDS. VERY LIMITED RUN, YOU PROBABLY WANT MAIN!
+
 This describes the firmware provided for the [_emon32_ energy monitoring](https://github.com/awjlogan/emon32) system. The software is modular, and should be easily portable to other microcontrollers and implementations.
 
 This firmware is intended to be used with the [OpenEnergyMonitor](https://openenergymonitor.org) platform. Hardware systems are available directly from them.
