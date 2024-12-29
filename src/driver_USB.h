@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 /*! @brief Check if the CDC serial is connected
- *  @return true if connected
+ *  @return true if connected, false otherwise
  */
 bool usbCDCIsConnected(void);
 
@@ -12,7 +12,7 @@ bool usbCDCIsConnected(void);
 void usbCDCPutsBlocking(const char *s);
 
 /*! @brief Indicate if any characters are in the CDC buffer
- *  @return true if any characters
+ *  @return true if any characters, false otherwise
  */
 bool usbCDCRxAvailable(void);
 
@@ -24,7 +24,7 @@ uint8_t usbCDCRxGetChar(void);
 /*! @brief Do any required CDC serial tasks */
 void usbCDCTask(void);
 
-/*! @brief Flush the Tx buffer */
+/*! @brief Add character to Tx buffer */
 void usbCDCTxChar(uint8_t c);
 
 /*! @brief Flush the Tx buffer */

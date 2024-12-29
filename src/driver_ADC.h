@@ -3,13 +3,13 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* @brief Get the gain correction value
- * @return : the gain correction value
+/*! @brief Get the gain correction value
+ *  @return gain correction value
  */
 int16_t adcCorrectionGain(void);
 
-/* @brief Get the offset correction value
- * @return : the offset correction value
+/*! @brief Get the offset correction value
+ *  @return offset correction value
  */
 int16_t adcCorrectionOffset(void);
 

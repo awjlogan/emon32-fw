@@ -18,7 +18,6 @@
 #define NUM_CT             12
 #define VCT_TOTAL          (NUM_V + NUM_CT)
 #define CT_RES             1 /* Number of CT channels reserved for future use */
-#define NUM_CT_ACTIVE_DEF  6 /* Onboard CTs only */
 #define SAMPLE_RATE        4800
 #define SAMPLES_IN_SET     2
 #define SAMPLE_BUF_DEPTH   2
@@ -54,29 +53,27 @@
 
 /* Serial Communication Instances */
 
-#define SERCOM_SPI_DATA SERCOM2
+#define SERCOM_SPI      SERCOM2
 #define SERCOM_I2CM_EXT SERCOM3
 #define SERCOM_I2CM     SERCOM4
-#define SERCOM_UART_DBG SERCOM5
+#define SERCOM_UART     SERCOM5
 
 #define SERCOM_SPI_APBCMASK      PM_APBCMASK_SERCOM2
 #define SERCOM_I2CM_EXT_APBCMASK PM_APBCMASK_SERCOM3
 #define SERCOM_I2CM_INT_APBCMASK PM_APBCMASK_SERCOM4
-#define SERCOM_UART_DBG_APBCMASK PM_APBCMASK_SERCOM5
+#define SERCOM_UART_APBCMASK     PM_APBCMASK_SERCOM5
 
 #define SERCOM_SPI_GCLK_ID      SERCOM2_GCLK_ID_CORE
 #define SERCOM_I2CM_EXT_GCLK_ID SERCOM3_GCLK_ID_CORE
 #define SERCOM_I2CM_INT_GCLK_ID SERCOM4_GCLK_ID_CORE
-#define SERCOM_UART_DBG_GCLK_ID SERCOM5_GCLK_ID_CORE
+#define SERCOM_UART_GCLK_ID     SERCOM5_GCLK_ID_CORE
 
-#define SERCOM_I2CM_DMAC_ID_TX     SERCOM4_DMAC_ID_TX
-#define SERCOM_I2CM_DMAC_ID_RX     SERCOM4_DMAC_ID_RX
-#define SERCOM_UART_DBG_DMAC_ID_TX SERCOM5_DMAC_ID_TX
+#define SERCOM_UART_DMAC_ID_TX SERCOM5_DMAC_ID_TX
 
 #define SERCOM_UART_INTERACTIVE_HANDLER irq_handler_sercom5()
 #define SERCOM_UART_INTERACTIVE         SERCOM5
 
-#define SERCOM_UART_DBG_NVIC_IRQn    SERCOM5_IRQn
+#define SERCOM_UART_NVIC_IRQn        SERCOM5_IRQn
 #define SERCOM_UART_INTERACTIVE_IRQn SERCOM5_IRQn
 
 /* Timer Instances */
@@ -184,16 +181,14 @@
 #define PIN_USB_DP 25
 #define PMUX_USB   PORT_PMUX_PMUXE_G
 
-/* Debug UART related defines */
-#define PMUX_UART_DBG0 PORT_PMUX_PMUXE_C /* SERCOM */
-#define PMUX_UART_DBG1 PORT_PMUX_PMUXE_D /* SERCOM-ALT */
-
-#define GRP_SERCOM_UART_DBG0 GRP_PINB
-#define PIN_UART_DBG_RX0     20u
-#define PIN_UART_DBG_TX0     21u
-#define UART_DBG_PAD_RX      1u
-#define UART_DBG_PAD_TX      0u
-#define UART_DBG_BAUD        38400u
+/* UART related defines */
+#define PMUX_UART       PORT_PMUX_PMUXE_C /* SERCOM */
+#define GRP_SERCOM_UART GRP_PINB
+#define PIN_UART_RX     20u
+#define PIN_UART_TX     21u
+#define UART_PAD_RX     1u
+#define UART_PAD_TX     0u
+#define UART_BAUD       38400u
 
 /* RFM related defines */
 #define RFM_PALEVEL_DEF 0x19 /* Safe level if no antenna installed. */
@@ -203,8 +198,8 @@
 #define PIN_SPI_SCK     13u
 #define PIN_SPI_MOSI    15u
 #define PIN_SPI_RFM_SS  14u
-#define SPI_DATA_BAUD   4000000ul
-#define PMUX_SPI_DATA   PORT_PMUX_PMUXE_C
+#define SPI_BAUD        4000000ul
+#define PMUX_SPI        PORT_PMUX_PMUXE_C
 #define GRP_RFM_INTF    GRP_PINB
 #define PIN_RFM_IRQ     14u
 #define PMUX_RFM_IRQ    PORT_PMUX_PMUXE_A
@@ -224,9 +219,7 @@
 #define PMUX_I2CM_EXT      PORT_PMUX_PMUXE_C
 
 /* DMA defines */
-#define NUM_CHAN_DMA      5u
-#define DMA_CHAN_I2CM_EXT 4u
-#define DMA_CHAN_I2CM     3u
-#define DMA_CHAN_UART_DBG 2u
-#define DMA_CHAN_ADC1     1u
-#define DMA_CHAN_ADC0     0u
+#define NUM_CHAN_DMA  3u
+#define DMA_CHAN_UART 2u
+#define DMA_CHAN_ADC1 1u
+#define DMA_CHAN_ADC0 0u

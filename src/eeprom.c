@@ -68,7 +68,7 @@ static uint8_t wlData[WL_PKT_SIZE];
 
 /*! @brief Calculates the LSB and MSB address bytes
  *  @param [in] addrFull : full address of the EEPROM
- *  @return : Address_t struct with MSB and LSB
+ *  @return Address_t struct with MSB and LSB
  */
 static Address_t calcAddress(const unsigned int addrFull) {
   Address_t address;
@@ -254,7 +254,7 @@ void eepromInitConfig(const void *pSrc, const unsigned int n) {
     ;
 }
 
-int eepromRead(unsigned int addr, void *pDst, unsigned int n) {
+bool eepromRead(unsigned int addr, void *pDst, unsigned int n) {
   I2CM_Status_t i2cm_s;
   uint8_t      *pData   = pDst;
   Address_t     address = calcAddress(addr);
@@ -263,7 +263,7 @@ int eepromRead(unsigned int addr, void *pDst, unsigned int n) {
    * byte of address */
   i2cm_s = i2cActivate(SERCOM_I2CM, address.msb);
   if (I2CM_SUCCESS != i2cm_s) {
-    return -1;
+    return false;
   }
   i2cDataWrite(SERCOM_I2CM, address.lsb);
 
@@ -273,7 +273,7 @@ int eepromRead(unsigned int addr, void *pDst, unsigned int n) {
 
   i2cm_s = i2cActivate(SERCOM_I2CM, address.msb);
   if (I2CM_SUCCESS != i2cm_s) {
-    return -1;
+    return false;
   }
 
   while (n--) {
@@ -282,7 +282,7 @@ int eepromRead(unsigned int addr, void *pDst, unsigned int n) {
   }
   i2cAck(SERCOM_I2CM, I2CM_NACK, I2CM_ACK_CMD_STOP);
 
-  return 0;
+  return true;
 }
 
 eepromWLStatus_t eepromReadWL(void *pPktRd, int *pIdx) {

@@ -58,9 +58,9 @@ static void i2cmExtPinsSetup(bool enable) {
 
 static void spiExtPinsSetup(bool enable) {
   if (enable) {
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MISO, PMUX_SPI_DATA);
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI, PMUX_SPI_DATA);
-    portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK, PMUX_SPI_DATA);
+    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MISO, PMUX_SPI);
+    portPinMux(GRP_SERCOM_SPI, PIN_SPI_MOSI, PMUX_SPI);
+    portPinMux(GRP_SERCOM_SPI, PIN_SPI_SCK, PMUX_SPI);
     portPinDir(GRP_SERCOM_SPI, PIN_SPI_RFM_SS, PIN_DIR_OUT);
   } else {
     portPinMuxClear(GRP_SERCOM_SPI, PIN_SPI_MISO);
@@ -97,29 +97,29 @@ void sercomSetup(void) {
       portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT) ? true : false;
 
   UART_Cfg_t uart_dbg_cfg;
-  uart_dbg_cfg.sercom    = SERCOM_UART_DBG;
-  uart_dbg_cfg.baud      = UART_DBG_BAUD;
-  uart_dbg_cfg.apbc_mask = SERCOM_UART_DBG_APBCMASK;
-  uart_dbg_cfg.gclk_id   = SERCOM_UART_DBG_GCLK_ID;
+  uart_dbg_cfg.sercom    = SERCOM_UART;
+  uart_dbg_cfg.baud      = UART_BAUD;
+  uart_dbg_cfg.apbc_mask = SERCOM_UART_APBCMASK;
+  uart_dbg_cfg.gclk_id   = SERCOM_UART_GCLK_ID;
   uart_dbg_cfg.gclk_gen  = 3u;
-  uart_dbg_cfg.pad_tx    = UART_DBG_PAD_TX;
-  uart_dbg_cfg.pad_rx    = UART_DBG_PAD_RX;
+  uart_dbg_cfg.pad_tx    = UART_PAD_TX;
+  uart_dbg_cfg.pad_rx    = UART_PAD_RX;
 
-  uart_dbg_cfg.port_grp = GRP_SERCOM_UART_DBG0;
-  uart_dbg_cfg.pin_tx   = PIN_UART_DBG_TX0;
-  uart_dbg_cfg.pin_rx   = PIN_UART_DBG_RX0;
-  uart_dbg_cfg.pmux     = PMUX_UART_DBG0;
+  uart_dbg_cfg.port_grp = GRP_SERCOM_UART;
+  uart_dbg_cfg.pin_tx   = PIN_UART_TX;
+  uart_dbg_cfg.pin_rx   = PIN_UART_RX;
+  uart_dbg_cfg.pmux     = PMUX_UART;
 
-  uart_dbg_cfg.dmaChannel   = DMA_CHAN_UART_DBG;
+  uart_dbg_cfg.dmaChannel   = DMA_CHAN_UART;
   uart_dbg_cfg.dmaCfg.ctrlb = DMAC_CHCTRLB_LVL(1u) |
-                              DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DBG_DMAC_ID_TX) |
+                              DMAC_CHCTRLB_TRIGSRC(SERCOM_UART_DMAC_ID_TX) |
                               DMAC_CHCTRLB_TRIGACT_BEAT;
   sercomSetupUART(&uart_dbg_cfg);
 
   /* Setup DMAC for non-blocking UART (this is optional, unlike ADC) */
   uartConfigureDMA();
-  uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_RXC);
-  uartInterruptEnable(SERCOM_UART_DBG, SERCOM_USART_INTENSET_ERROR);
+  uartInterruptEnable(SERCOM_UART, SERCOM_USART_INTENSET_RXC);
+  uartInterruptEnable(SERCOM_UART, SERCOM_USART_INTENSET_ERROR);
   NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
 
   /*****************
@@ -225,25 +225,25 @@ static void sercomSetupSPI(void) {
   /* Table 25-2 - driven @ F_REF = F_PERIPH. BAUD = F_REF / 2F_BAUD - 1
    * RFM69 maximum SCK is 10 MHz, so can go at maximum 4 MHz SCK easily.
    */
-  SERCOM_SPI_DATA->SPI.BAUD.reg = 0;
+  SERCOM_SPI->SPI.BAUD.reg = 0;
 
   /* SPI mode 0: CPOL == 0, CPHA == 0 */
-  SERCOM_SPI_DATA->SPI.CTRLA.reg = SERCOM_SPI_CTRLA_MODE_SPI_MASTER |
-                                   SERCOM_SPI_CTRLA_DIPO(0x0) |
-                                   SERCOM_SPI_CTRLA_DOPO(0x2);
+  SERCOM_SPI->SPI.CTRLA.reg = SERCOM_SPI_CTRLA_MODE_SPI_MASTER |
+                              SERCOM_SPI_CTRLA_DIPO(0x0) |
+                              SERCOM_SPI_CTRLA_DOPO(0x2);
 
   /* Enable TX and RX interrupts (complete and empty), not routed to NVIC */
-  SERCOM_SPI_DATA->SPI.INTENSET.reg |= SERCOM_SPI_INTENSET_RXC |
-                                       SERCOM_SPI_INTENSET_TXC |
-                                       SERCOM_SPI_INTENSET_DRE;
+  SERCOM_SPI->SPI.INTENSET.reg |= SERCOM_SPI_INTENSET_RXC |
+                                  SERCOM_SPI_INTENSET_TXC |
+                                  SERCOM_SPI_INTENSET_DRE;
 
   /* While disabled, RXEN will be set immediately. When the SPI SERCOM is
    * enabled, this requires synchronisation before the SPI is ready. See
    * field description in 27.8.2
    */
-  SERCOM_SPI_DATA->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_RXEN;
-  SERCOM_SPI_DATA->SPI.CTRLA.reg |= SERCOM_SPI_CTRLA_ENABLE;
-  while (0 != SERCOM_SPI_DATA->SPI.SYNCBUSY.reg)
+  SERCOM_SPI->SPI.CTRLB.reg = SERCOM_SPI_CTRLB_RXEN;
+  SERCOM_SPI->SPI.CTRLA.reg |= SERCOM_SPI_CTRLA_ENABLE;
+  while (0 != SERCOM_SPI->SPI.SYNCBUSY.reg)
     ;
 }
 
@@ -265,12 +265,12 @@ void uartPutsBlocking(Sercom *sercom, const char *s) {
 }
 
 void uartConfigureDMA(void) {
-  volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(DMA_CHAN_UART_DBG);
+  volatile DmacDescriptor *dmacDesc = dmacGetDescriptor(DMA_CHAN_UART);
   dmacDesc->BTCTRL.reg = DMAC_BTCTRL_VALID | DMAC_BTCTRL_BLOCKACT_NOACT |
                          DMAC_BTCTRL_STEPSIZE_X1 | DMAC_BTCTRL_STEPSEL_SRC |
                          DMAC_BTCTRL_SRCINC | DMAC_BTCTRL_BEATSIZE_BYTE;
 
-  dmacDesc->DSTADDR.reg  = (uint32_t)&SERCOM_UART_DBG->USART.DATA;
+  dmacDesc->DSTADDR.reg  = (uint32_t)&SERCOM_UART->USART.DATA;
   dmacDesc->DESCADDR.reg = 0u;
 }
 

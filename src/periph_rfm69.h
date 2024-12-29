@@ -28,7 +28,7 @@ uint8_t *rfmGetBuffer(void);
 
 /*! @brief Initialise the RFM69 module
  *  @param [in] pOpt : pointer to configuration struct
- *  @return : true if successful, false otherwise
+ *  @return true if successful, false otherwise
  */
 bool rfmInit(const RFMOpt_t *pOpt);
 
@@ -37,7 +37,7 @@ void rfmInterrupt(void);
 
 /*! @brief Send data through the RFM69
  *  @param [in] : number of bytes to be sent
- *  @return : result of the attempt to send
+ *  @return status of the attempt to send
  */
 RFMSend_t rfmSendBuffer(const int_fast8_t n);
 

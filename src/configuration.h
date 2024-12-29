@@ -87,8 +87,7 @@ void configFirmwareBoardInfo(void);
  */
 Emon32Config_t *configGetConfig(void);
 
-/*! @brief This functions loads the default configuration and from NVM.
- */
+/*! @brief This functions loads the default configuration and from NVM. */
 void configLoadFromNVM(void);
 
 /*! @brief Process a pending command from the UART */

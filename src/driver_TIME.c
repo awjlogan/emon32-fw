@@ -15,7 +15,7 @@ static volatile uint32_t timeSecondsCounter = 0;
 
 /* Function pointer for non-blocking timer callback */
 void (*tc2_cb)();
-static unsigned int TIMER_DELAYInUse = 0;
+static bool TIMER_DELAYInUse = false;
 
 static void commonSetup(uint32_t delay) {
   /* Unmask match interrrupt, zero counter, set compare value */
@@ -35,15 +35,15 @@ uint16_t timerADCPeriod(void) {
   return (F_TIMER_ADC / SAMPLE_RATE / VCT_TOTAL);
 }
 
-int timerDelay_ms(uint16_t delay) { return timerDelay_us(delay * 1000u); }
+bool timerDelay_ms(uint16_t delay) { return timerDelay_us(delay * 1000u); }
 
-int timerDelay_us(uint32_t delay) {
+bool timerDelay_us(uint32_t delay) {
   /* Return -1 if timer is already in use */
   if (TIMER_DELAYInUse) {
-    return -1;
+    return false;
   }
 
-  TIMER_DELAYInUse = 1;
+  TIMER_DELAYInUse = true;
   commonSetup(delay);
 
   /* Wait for timer to complete, then disable */
@@ -54,7 +54,7 @@ int timerDelay_us(uint32_t delay) {
   TIMER_DELAY->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
 
   TIMER_DELAYInUse = 0;
-  return 0;
+  return true;
 }
 
 void timerDisable(void) {
@@ -62,13 +62,13 @@ void timerDisable(void) {
   NVIC_DisableIRQ(TIMER_DELAY_IRQn);
 }
 
-int timerElapsedStart(void) {
+bool timerElapsedStart(void) {
   /* Return -1 if timer is already in use */
   if (TIMER_DELAYInUse) {
-    return -1;
+    return false;
   }
 
-  TIMER_DELAYInUse = 1;
+  TIMER_DELAYInUse = true;
   /* Mask match interrupt, zero counter, and start */
   TIMER_DELAY->COUNT32.INTENCLR.reg |= TC_INTENCLR_MC0;
   TIMER_DELAY->COUNT32.COUNT.reg = 0u;
@@ -78,8 +78,8 @@ int timerElapsedStart(void) {
   while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
     ;
 
-  TIMER_DELAYInUse = 0;
-  return 0;
+  TIMER_DELAYInUse = false;
+  return true;
 }
 
 uint32_t timerElapsedStop(void) {

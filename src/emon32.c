@@ -11,7 +11,6 @@
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
 #include "driver_USB.h"
-#include "driver_WDT.h"
 
 #include "configuration.h"
 #include "dataPack.h"
@@ -59,7 +58,7 @@ static void         datasetAddPulse(Emon32Dataset_t *pDst);
 static void         ecmConfigure(const Emon32Config_t *pCfg);
 static void         ecmDmaCallback(void);
 static void         evtKiloHertz(void);
-static uint32_t     evtPending(EVTSRC_t evt);
+static bool         evtPending(EVTSRC_t evt);
 static void         pulseConfigure(const Emon32Config_t *pCfg);
 void                putchar_(char c);
 static void         putsDbgNonBlocking(const char *const s, uint16_t len);
@@ -75,10 +74,10 @@ static void ucSetup(void);
  * Functions
  *************************************/
 
-/*! @brief Load cumulative energy and pulse values
- *  @param [in] pEEPROM : pointer to EEPROM configuration
- *  @param [in] pData : pointer to current dataset
- *  @return : total Wh stored in NVM
+/*! @brief Load cumulative energy and pulse values from NVM
+ *  @param [in] pPkt : pointer to cumulative energy structure
+ *  @param [out] pData : pointer to current dataset
+ *  @return total Wh stored in NVM
  */
 static unsigned int cumulativeNVMLoad(Emon32Cumulative_t *pPkt,
                                       Emon32Dataset_t    *pData) {
@@ -171,7 +170,7 @@ void dbgPuts(const char *s) {
   if (usbCDCIsConnected()) {
     usbCDCPutsBlocking(s);
   }
-  uartPutsBlocking(SERCOM_UART_DBG, s);
+  uartPutsBlocking(SERCOM_UART, s);
 }
 
 /*! @brief Configure the continuous energy monitoring system
@@ -263,11 +262,6 @@ static void evtKiloHertz(void) {
   static volatile uint32_t msLast          = 0;
   static unsigned int      statLedOff_time = 0;
 
-  /* Feed watchdog - placed in the event handler to allow reset of stuck
-   * processing rather than entering the interrupt reliably.
-   */
-  wdtFeed();
-
   /* Update the pulse counters, looking on different edges */
   pulseUpdate();
 
@@ -297,11 +291,9 @@ static void evtKiloHertz(void) {
 
 /*! @brief Check if an event source is active
  *  @param [in] : event source to check
- *  @return : 1 if pending, 0 otherwise
+ *  @return true if pending, false otherwise
  */
-static uint32_t evtPending(EVTSRC_t evt) {
-  return (evtPend & (1u << evt)) ? 1u : 0;
-}
+static bool evtPending(EVTSRC_t evt) { return (evtPend & (1u << evt)) != 0; }
 
 /*! @brief Configure any pulse counter interfaces
  *  @param [in] pCfg : pointer to the configuration struct
@@ -335,14 +327,14 @@ void putchar_(char c) {
   if (usbCDCIsConnected()) {
     usbCDCTxChar(c);
   }
-  uartPutcBlocking(SERCOM_UART_DBG, c);
+  uartPutcBlocking(SERCOM_UART, c);
 }
 
 static void putsDbgNonBlocking(const char *const s, uint16_t len) {
   if (usbCDCIsConnected()) {
     usbCDCPutsBlocking(s);
   }
-  uartPutsNonBlocking(DMA_CHAN_UART_DBG, s, len);
+  uartPutsNonBlocking(DMA_CHAN_UART, s, len);
 }
 
 static bool rfmConfigure(const Emon32Config_t *pCfg) {
@@ -362,10 +354,8 @@ static bool rfmConfigure(const Emon32Config_t *pCfg) {
 
 /*! @brief Setup the SSD1306 display, if present. Display a basic message */
 static void ssd1306Setup(void) {
-  SSD1306_Status_t s;
-  PosXY_t          a = {44, 0};
-  s                  = ssd1306Init(SERCOM_I2CM_EXT);
-  if (SSD1306_SUCCESS == s) {
+  PosXY_t a = {44, 0};
+  if (SSD1306_SUCCESS == ssd1306Init(SERCOM_I2CM_EXT)) {
     ssd1306SetPosition(a);
     ssd1306DrawString("emonPi3");
     ssd1306DisplayUpdate();
@@ -373,7 +363,7 @@ static void ssd1306Setup(void) {
 }
 
 /*! @brief Initialises the temperature sensors
- *  @return : number of temperature sensors found
+ *  @return number of temperature sensors found
  */
 static uint32_t tempSetup(const Emon32Config_t *pCfg) {
   const uint8_t opaPins[NUM_OPA] = {PIN_OPA1, PIN_OPA2};
@@ -398,7 +388,7 @@ static uint32_t tempSetup(const Emon32Config_t *pCfg) {
 
 /*! @brief Total energy across all CTs
  *  @param [in] pData : pointer to data setup
- *  @return : sum of Wh for all CTs
+ *  @return sum of Wh for all CTs
  */
 static uint32_t totalEnergy(const Emon32Dataset_t *pData) {
   EMON32_ASSERT(pData);
@@ -448,7 +438,6 @@ static void ucSetup(void) {
   adcSetup();
   evsysSetup();
   usbSetup();
-  // wdtSetup    (WDT_PER_4K);
 }
 
 int main(void) {

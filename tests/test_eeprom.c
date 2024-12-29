@@ -80,9 +80,9 @@ uint8_t i2cDataRead(int inst) {
 
 void i2cAck(int inst, int action, int cmd) {}
 
-int timerDelay_us(int a) { return 0; }
+bool timerDelay_us(int a) { return true; }
 
-int timerDelay_ms(int a) { return 0; }
+bool timerDelay_ms(int a) { return true; }
 
 void timerDisable(void) {}
 

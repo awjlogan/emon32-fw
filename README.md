@@ -31,13 +31,33 @@ Contributions are welcome! Small PRs can be accepted at any time. Please get in 
 
 ## Functional Description
 
+### Default Configuration
+
+Most default parameters can be adjusted in `emon32.h`.
+
+> [!NOTE]
+> This section assumes you are using the [emonPi3](https://github.com/awjlogan/emon32).
+
+The following default values are set out of the box.
+
+| Parameter           | Value     | Comment                                   |
+|---------------------|-----------|-------------------------------------------|
+| DELTA_WH_STORE_DEF  | 200       | Minimum accumulation in Wh before saving  |
+| NODE_ID_DEF         | 17        | Node ID used.                             |
+| GROUP_ID_DEF        | 210       | Fixed for OpenEnergyMonitor               |
+| MAINS_FREQ_DEF      | 50        | Mains frequency in Hz                     |
+| REPORT_TIME_DEF     | 9.8       | Time between reports in seconds           |
+| NUM_CT_ACTIVE_DEF   | 6         | Only onboard CT sensors in use            |
+
+OPA1 is configured as a pulse input and OPA2 is configured as a OneWire input.
+
 ### Version information
 
 The firmware version numbering follows [semantic versioning](https://semver.org/). That is, for version `X.Y.Z`:
 
-- `X` : major version with no guaranteed backward compatibility with previous major versions
-- `Y` : minor version where any added functionality has backward compatibility
-- `Z` : improvements and bug fixes
+- `X` : major version with no guaranteed backward compatibility with previous major versions.
+- `Y` : minor version where any added functionality has backward compatibility.
+- `Z` : improvements and bug fixes.
 
 Any firmware with `X == 0` is considered unstable and subject to change without notice.
 
@@ -75,7 +95,6 @@ The following options are added:
 |o&lt;_x_&gt; |Auto calibrate CT lead for channel _x_                 |
 |t            |Trigger a data set processing event                    |
 |v            |Print firmware and board information                   |
-|w&lt;_n_&gt; |Minimum energy difference, _n_ Wh, before saving       |
 
 ### Data acquisition
 
@@ -132,7 +151,7 @@ The emonPi3 comes preloaded with a [UF2 bootloader](https://microsoft.github.io/
 
   1. Connect to the host computer through the USB-C port.
   2. Quickly double press the `RESET` button.
-    - The **PROG** LED will pulse slowly to indicate it has entered bootloader mode,
+    - The LED will pulse slowly to indicate it has entered bootloader mode,
     - The drive `EMONBOOT` will appear on the host computer.
   3. Copy `bin/emon32-vX.Y.Z-(commit[-dirty]).uf2` to the `EMONBOOT` drive. The board will reset and enter the main program.
 
@@ -167,13 +186,6 @@ Below is a list of the compile time options, grouped by location. The value for 
   - **NUM_CT**: The number of CT channels. These must be contiguous from the lowest index above the voltage channels, but can be less than the number of physical channels. **12** \[1..12\]
   - **NUM_V**: The number of physical voltage channels. Due to the ADC and software architecture, this must always be the physical number of voltage channels even when only using a single phase. **3**, \[1..3\]
   - **SAMPLE_RATE**: Sample rate, in Hz, for each channel _before_ any downsampling. This is typically restricted by the -3dB point of the anti-aliasing filter. The total ADC sampling rate is (**SAMPLE_RATE** \* (**NUM_V** + **NUM_CT**)). **4800**, \[4800\]
-  - **ZEROX_HW_SPT**: **0** use software zero crossing detection; **1** use hardware zero crossing detection. **1**, \{0, 1\}
-- `src/emon32.h`; values constrained by software implementation.
-  - **DELTA_WH_STORE**: the energy difference, in Wh, to accumulate before storing in NVM. This can be changed at run time. **200** \[1.. \]
-  - **DOWNSAMPLE_DSP**: 0: no DSP used, just drop samples; 1: half band LPF filter. **1**, \[0, 1\]
-  - **NODE-ID**: the default node ID. This can be changed at run time.
-  - **PERF_ENABLE**: enable performance reporting. **0**, \[0, 1\]
-  - **TX_INDICATE_T**: time, in milliseconds, to blink the status LED when a transmission is occuring. Useful visual check for activity. **250** \[1.. \]
 
 ### Digital filter
 
@@ -190,7 +202,7 @@ Assertions are [implemented](https://interrupt.memfault.com/blog/asserts-in-embe
 
 ### Tests
 
-A test program is available for the `emon_CM` module. This is the energy monitoring system and is completely abstracted from the underlying hardware. In _./tests_, run `make cm` to build the tests (tested on macOS and Linux) and then run `./cm.test`.
+Test programs are available for the `emon_CM` and `eeprom` modules, abstracted from the underlying hardware. In _./tests_, run `make cm` or `make eeprom` followed by `./cm.test` or `./eeprom.test` respectively.
 
 ## Hardware Description
 
@@ -200,18 +212,19 @@ The following table lists the peripherals used in the SAMD21.
 
 |Peripheral       | Alias           | Description                   | Usage                             |
 |-----------------|-----------------|-------------------------------|-----------------------------------|
-|ADC              |ADC              |Analog-to-digital converter    |Acquire analog signals             |
+|ADC              |                 |Analog-to-digital converter    |Acquire analog signals             |
 |DMAC             |                 |DMA Controller                 |ADC->buffer and UART TX            |
-|EIC              |                 |External interrupt controller  |Input from zero-crossing detector  |
+|EIC              |                 |External interrupt controller  |External device sense              |
 |EVSYS            |                 |Event System                   |Asynchronous event handling        |
 |PORT             |                 |GPIO handling                  |                                   |
-|SERCOM2          |SERCOM_UART_DBG  |UART (Debug)                   |Configuration and debug UART       |
+|SERCOM2          |SERCOM_UART      |UART                           |Configuration and data UART        |
 |SERCOM3          |SERCOM_I2CM      |I2C (internal)                 |I2C for internal peripherals       |
-|SERCOM4          |SERCOM_SPI_DATA  |SPI                            |Drive RFM module                   |
-|SERCOM5          |SERCOM_I2M_EXT   |I2C (external)                 |Drive display module               |
+|SERCOM4          |SERCOM_SPI       |SPI                            |Drives RFM module                  |
+|SERCOM5          |SERCOM_I2M_EXT   |I2C (external)                 |Drives display module              |
 |TC3              |TIMER_ADC        |Timer/Counter (16bit)          |ADC sample trigger                 |
 |TC4+5            |TIMER_DELAY      |Timer/Counter (32bit)          |Delay timer                        |
 |TC6+7            |TIMER_TICK       |Timer/Counter (32bit)          |Global time (micro/millisecond)    |
+|USB              |                 |USB interface                  |USB CDC (serial) emulation         |
 
 ### Designing a new board
 

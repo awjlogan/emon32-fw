@@ -11,9 +11,13 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
  * Common configurable options
  *********************************/
 
-#define DELTA_WH_STORE_DEF 200u /* Threshold in WH to store to NVM */
 #define DOWNSAMPLE_DSP     1u   /* 0: no downsampling; 1: half band LPF */
+#define NUM_CT_ACTIVE_DEF  6    /* Onboard CTs only */
+#define DELTA_WH_STORE_DEF 200u /* Threshold, in Wh, to store to NVM */
 #define NODE_ID_DEF        17u  /* Node ID for reports */
+#define GROUP_ID_DEF       210u /* Group ID default for OEM */
+#define MAINS_FREQ_DEF     50u  /* Mains frequency */
+#define REPORT_TIME_DEF    9.8f /* Report time, in seconds */
 #define PERF_ENABLED       0u /* Performance tracing enabled (1) or disabled (0) */
 #define TX_INDICATE_T      250u /* Transmission indication time (ms) */
 

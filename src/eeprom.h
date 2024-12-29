@@ -15,12 +15,11 @@ typedef enum eepromWrStatus_ {
 } eepromWrStatus_t;
 
 /*! @brief Discover the size of the EEPROM
- *  @return : size (in bytes) of the EEPROM. This should be a power-of-2.
+ *  @return size (in bytes) of the EEPROM. This should be a power-of-2.
  */
 unsigned int eepromDiscoverSize(void);
 
-/*! @brief Dump all the EEPROM data out on to the debug UART
- */
+/*! @brief Dump all the EEPROM data out on to the debug UART */
 void eepromDump(void);
 
 /*! @brief Set all data within a block to uniform value
@@ -41,13 +40,14 @@ void eepromInitConfig(const void *pSrc, const unsigned int n);
  *  @param [in] addr : base address of EEPROM read
  *  @param [out] pDst : pointer to read destination
  *  @param [in] n : number of bytes to read
- *  @return 0 for success, -1 for failure
+ *  @return true for success, false otherwise
  */
-int eepromRead(unsigned int addr, void *pDst, unsigned int n);
+bool eepromRead(unsigned int addr, void *pDst, unsigned int n);
 
 /*! @brief Read data from EEPROM with wear leveling
  *  @param [out] pPktRd : pointer to read packet
  *  @param [out] pIdx : pointer to the value of index that has read
+ *  @return status of the read
  */
 eepromWLStatus_t eepromReadWL(void *pPktRd, int *pIdx);
 
@@ -77,6 +77,7 @@ eepromWrStatus_t eepromWrite(unsigned int addr, const void *pSrc,
                              unsigned int n);
 
 /*! @brief Continue a multi page write to EEPROM
+ *  @return status of the write
  */
 eepromWrStatus_t eepromWriteContinue(void);
 

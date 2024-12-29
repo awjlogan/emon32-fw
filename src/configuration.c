@@ -72,11 +72,11 @@ static void configDefault(void) {
   config.key = CONFIG_NVM_KEY;
 
   /* Single phase, 50 Hz, 240 VAC, 10 s report period */
-  config.baseCfg.nodeID       = NODE_ID_DEF; /* Node ID to transmit */
-  config.baseCfg.mainsFreq    = 50u;         /* Mains frequency */
-  config.baseCfg.reportTime   = 9.8f;
+  config.baseCfg.nodeID       = NODE_ID_DEF;
+  config.baseCfg.mainsFreq    = MAINS_FREQ_DEF;
+  config.baseCfg.reportTime   = REPORT_TIME_DEF;
   config.baseCfg.whDeltaStore = DELTA_WH_STORE_DEF;
-  config.baseCfg.dataGrp      = 210u;
+  config.baseCfg.dataGrp      = GROUP_ID_DEF;
   config.baseCfg.logToSerial  = true;
   config.baseCfg.useJson      = false;
   config.dataTxCfg.useRFM     = true;
@@ -445,7 +445,7 @@ static void enterBootloader(void) {
 }
 
 /*! @brief Get the board revision, software visible changes only
- *  @return : board revision, 0-7
+ *  @return board revision, 0-7
  */
 static uint32_t getBoardRevision(void) {
   uint32_t boardRev = 0;
@@ -456,7 +456,7 @@ static uint32_t getBoardRevision(void) {
 }
 
 /*! @brief Get the last reset cause (16.8.14)
- *  @return : null-terminated string with the last cause.
+ *  @return null-terminated string with the last cause.
  */
 static char *getLastReset(void) {
   const RCAUSE_t lastReset = (RCAUSE_t)PM->RCAUSE.reg;
@@ -485,7 +485,7 @@ static char *getLastReset(void) {
 
 /*! @brief Fetch the SAMD's 128bit unique ID
  *  @param [in] idx : index of 32bit word
- *  @return : 32bit word from index
+ *  @return 32bit word from index
  */
 uint32_t getUniqueID(int idx) {
   /* Section 10.3.3 Serial Number */
@@ -624,10 +624,9 @@ static char waitForChar(void) {
     if (irqEnabled)
       NVIC_DisableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
 
-    while (0 ==
-           (uartInterruptStatus(SERCOM_UART_DBG) & SERCOM_USART_INTFLAG_RXC))
+    while (0 == (uartInterruptStatus(SERCOM_UART) & SERCOM_USART_INTFLAG_RXC))
       ;
-    c = uartGetc(SERCOM_UART_DBG);
+    c = uartGetc(SERCOM_UART);
 
     if (irqEnabled)
       NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);

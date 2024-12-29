@@ -40,7 +40,7 @@ void clkSetup(void) {
   SYSCTRL->BOD33.reg |= SYSCTRL_BOD33_ACTION_RESET;
 
   /* Boost OSC8M to 8 MHz from initial 1 MHz */
-  SYSCTRL->OSC8M.bit.PRESC = 0;
+  SYSCTRL->OSC8M.bit.PRESC = SYSCTRL_OSC8M_PRESC_0_Val;
 
   /* 48 MHz DFLL for core with USB clock recovery
    *  1. Enable OSC32K clock (assuming no external crystal)

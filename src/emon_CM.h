@@ -136,7 +136,7 @@ typedef struct AutoPhaseRes_ {
 void ecmClearEnergy(void);
 
 /*! @brief Get the pointer to the configuration struct
- *  @return : pointer to Emon CM configuration struct
+ *  @return pointer to Emon CM configuration struct
  */
 ECMCfg_t *ecmConfigGet(void);
 
@@ -156,7 +156,7 @@ void ecmConfigInit(void);
 void ecmConfigReportCycles(int reportCycles);
 
 /*! @brief Returns a pointer to the ADC data buffer
- *  @return : pointer to the active ADC data buffer.
+ *  @return pointer to the active ADC data buffer.
  */
 volatile RawSampleSetPacked_t *ecmDataBuffer(void);
 
@@ -176,12 +176,11 @@ void ecmFilterSample(SampleSet_t *pDst) RAMFUNC;
 /*! @brief Flush all data and reset the equilibration cycle count */
 void ecmFlush(void);
 
-/*! @brief Injects a raw sample from the ADC into the accumulators.
- */
+/*! @brief Injects a raw sample from the ADC into the accumulators. */
 ECM_STATUS_t ecmInjectSample(void) RAMFUNC;
 
 /*! @brief Gets the performance counter
- *  @return : pointer to the performance counter
+ *  @return pointer to the performance counter
  */
 ECMPerformance_t *ecmPerformance(void);
 
@@ -190,8 +189,7 @@ ECMPerformance_t *ecmPerformance(void);
  */
 void ecmPhaseCalibrate(AutoPhaseRes_t *pDst);
 
-/*! @brief Processes a whole cycle
- */
+/*! @brief Processes a whole cycle */
 ECM_STATUS_t ecmProcessCycle(void) RAMFUNC;
 
 /*! @brief Processes a whole data set

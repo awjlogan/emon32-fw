@@ -204,13 +204,13 @@ static SSD1306_Status_t bufUpdatePos(void) {
 
   if (x_nxt > COL_ADDR_END) {
     if (y > PAGE_ADDR_END) {
-      return -1;
+      return SSD1306_FAIL;
     } else if (y < (PAGE_ADDR_END - 1u)) {
       posBuf = (y + 1u) << 7;
     }
   }
 
-  return 0;
+  return SSD1306_SUCCESS;
 }
 
 static SSD1306_Status_t drawChar(const char c) {

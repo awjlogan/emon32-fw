@@ -327,7 +327,7 @@ RAMFUNC bool zeroCrossingSW(q15_t smpV) {
  *         abstract value into the real value, accounting for ADC width.
  *  @param [in] cal : the calibration value
  *  @param [in] isV : true for voltage, false for CT
- *  @return : the scaled calibration value
+ *  @return the scaled calibration value
  */
 static float calibrationAmplitude(float cal, bool isV) {
   const float vCalRef  = CAL_V * ADC_VREF;
@@ -345,7 +345,7 @@ static float calibrationAmplitude(float cal, bool isV) {
  *         interpolation.
  *  @param [in] phase : CT lead phase in degrees.
  *  @param [in] idxCT : physical index (0-based) of the CT
- *  @return : structure with the X/Y fixed point coefficients.
+ *  @return structure with the X/Y fixed point coefficients.
  */
 static void calibrationPhase(PhaseXY_t *pPh, float phase, int_fast8_t idxCT) {
   int_fast8_t idxMapped = ecmCfg.mapCTLog[idxCT];

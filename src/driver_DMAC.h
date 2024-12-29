@@ -15,7 +15,9 @@ void dmacSetup(void);
  */
 volatile DmacDescriptor *dmacGetDescriptor(unsigned int ch);
 
-/*! @brief Set the callback when the DMA has filled the sample buffer */
+/*! @brief Set the callback when the DMA has filled the sample buffer
+ *  @param [in] cb : pointer to the callback function
+ */
 void dmacCallbackBufferFill(void (*cb)(void));
 
 /*! @brief Disable a DMAC channel
@@ -28,27 +30,11 @@ void dmacChannelDisable(unsigned int ch);
  */
 void dmacChannelEnable(unsigned int ch);
 
-/*! @brief Get channel transfer status
- *  @param [in] ch : channel number
- *  @return 1 if channel ch is busy. 0 otherwise
- */
-unsigned int dmacChannelBusy(unsigned int ch);
-
 /*! @brief Configure a DMA channel
  *  @param [in] ch : channel to configure
  *  @param [in] pCfg : pointer to configuration details
  */
 void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg);
-
-/*! @brief Resume a DMA channel
- *  @param [in] ch : channel to resume
- */
-void dmacChannelResume(unsigned int ch);
-
-/*! @brief Suspend a DMA channel
- *  @param [in] ch : channel to suspend
- */
-void dmacChannelSuspend(unsigned int ch);
 
 /*! @brief Enable DMAC channel interrupt
  *  @param [in] ch : channel to enable interrupt for

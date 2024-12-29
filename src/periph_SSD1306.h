@@ -21,8 +21,13 @@ SSD1306_Status_t ssd1306DisplayUpdate(void);
 /*! @brief Draw a string at the current buffer position */
 SSD1306_Status_t ssd1306DrawString(const char *s);
 
-/*! @brief Initialise the SSD1306 OLED display */
+/*! @brief Initialise the SSD1306 OLED display
+ *  @param [in] pSercomI2C : SERCOM instance to use
+ *  @return status of the initialisation
+ */
 SSD1306_Status_t ssd1306Init(Sercom *pSercomI2C);
 
-/*! @brief Set the position in the buffer */
+/*! @brief Set the position in the buffer
+ *  @param [in] pos : X-Y coordinations
+ */
 void ssd1306SetPosition(const PosXY_t pos);

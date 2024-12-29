@@ -122,9 +122,9 @@ static void rfmWriteReg(const unsigned int addr, const uint8_t data) {
   spiDeSelect(sel);
 }
 
-static uint8_t spiRx(void) { return spiSendByte(SERCOM_SPI_DATA, 0x00); }
+static uint8_t spiRx(void) { return spiSendByte(SERCOM_SPI, 0x00); }
 
-static void spiTx(const uint8_t b) { (void)spiSendByte(SERCOM_SPI_DATA, b); }
+static void spiTx(const uint8_t b) { (void)spiSendByte(SERCOM_SPI, b); }
 
 void rfmSetAESKey(const char *aes) {
 
@@ -137,7 +137,7 @@ void rfmSetAESKey(const char *aes) {
   if (key) {
     spiSelect(sel);
     spiTx(REG_AESKEY1 | 0x80);
-    spiSendBuffer(SERCOM_SPI_DATA, aes, 16);
+    spiSendBuffer(SERCOM_SPI, aes, 16);
     spiDeSelect(sel);
   }
 
@@ -206,7 +206,7 @@ static RFMSend_t rfmSendWithRetry(uint8_t n) {
     spiTx(5); // from OEM Tx
     spiTx((uint8_t)address);
     spiTx(RFM69_CTL_REQACK); // CTL byte
-    spiSendBuffer(SERCOM_SPI_DATA, rfmBuffer, n);
+    spiSendBuffer(SERCOM_SPI, rfmBuffer, n);
     spiDeSelect(sel);
 
     rfmSetMode(RFM69_MODE_TX);

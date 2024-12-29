@@ -19,7 +19,7 @@ typedef enum PackedRange_ {
  *  @param [out] pDst : pointer to the destination buffer
  *  @param [in] m : width of the destination buffer
  *  @param [in] json : false -> K:V; true -> JSON
- *  @return : the number of the characters that would be packed
+ *  @return the number of the characters that would be packed
  */
 int dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json);
 
@@ -28,7 +28,7 @@ int dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json);
  *  @param [in] pData : pointer to the raw data
  *  @param [out] pPacked : pointer to the destination packet
  *  @param [in] range : select the packing range when packet size > buffer
- *  @return : number of bytes in the packet
+ *  @return number of bytes in the packet
  */
 int_fast8_t dataPackPacked(const Emon32Dataset_t *restrict pData,
                            void *restrict pPacked, PackedRange_t range);
