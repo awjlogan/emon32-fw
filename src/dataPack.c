@@ -4,6 +4,7 @@
 
 #include "dataPack.h"
 #include "emon32_assert.h"
+#include "temperature.h"
 #include "util.h"
 
 #include "qfplib-m0-full.h"
@@ -204,7 +205,17 @@ int dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json) {
     strn.n += strnCat(&strn, &strConv);
   }
 
-  /* REVIST : pulse and temperature */
+  for (int i = 0; i < NUM_OPA; i++) {
+    catId(&strn, (i + 1), STR_PULSE, json);
+    (void)strnItoa(&strConv, pData->pulseCnt[i]);
+    strn.n += strnCat(&strn, &strConv);
+  }
+
+  for (int i = 0; i < TEMP_MAX_ONEWIRE; i++) {
+    catId(&strn, (i + 1), STR_TEMP, json);
+    (void)strnFtoa(&strConv, tempAsFloat(TEMP_INTF_ONEWIRE, pData->temp[i]));
+    strn.n += strnCat(&strn, &strConv);
+  }
 
   /* Terminate with } for JSON and \r\n */
   if (json) {

@@ -43,7 +43,6 @@ typedef struct Emon32Dataset_ {
   ECMDataset_t *pECM;
   uint32_t      pulseCnt[NUM_OPA];
   int16_t       temp[TEMP_MAX_ONEWIRE];
-  unsigned int  numTempSensors;
 } Emon32Dataset_t;
 
 typedef struct __attribute__((__packed__)) Emon32Cumulative_ {

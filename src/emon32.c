@@ -506,8 +506,7 @@ int main(void) {
 
   /* Set up pulse and temperature sensors, if present. */
   pulseConfigure();
-  numTempSensors         = tempSetup();
-  dataset.numTempSensors = numTempSensors;
+  numTempSensors = tempSetup();
 
   /* Wait 1s to allow USB to enumerate as serial. Not always possible, but gives
    * the possibility. The board information can be accessed through the serial
