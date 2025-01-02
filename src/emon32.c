@@ -520,9 +520,6 @@ int main(void) {
   ecmFlush();
   adcDMACStart();
 
-  timerDelay_ms(1000);
-  configFirmwareBoardInfo();
-
   for (;;) {
     /* While there is an event pending (may be set while another is
      * handled), keep looping. Enter sleep (WFI) when done.

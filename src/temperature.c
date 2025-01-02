@@ -48,6 +48,13 @@ TempRead_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev) {
   return res;
 }
 
+TempDev_t tempReadSerial(const TEMP_INTF_t intf, const uint8_t dev) {
+  if (TEMP_INTF_ONEWIRE == intf) {
+    return ds18b20ReadSerial(dev);
+  }
+  return (TempDev_t){.id = 0, .intf = TEMP_INTF_NONE};
+}
+
 TempStatus_t tempStartSample(const TEMP_INTF_t intf, const uint32_t dev) {
 
   if (0 == numSensors) {

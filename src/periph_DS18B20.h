@@ -30,6 +30,12 @@ bool ds18b20StartSample(const int opaIdx);
  */
 TempRead_t ds18b20ReadSample(const unsigned int dev);
 
+/*! @brief Read the serial number from a OneWire device
+ *  @param [in] dev : index of the OneWire device
+ *  @return the device's serial number and interface ID
+ */
+TempDev_t ds18b20ReadSerial(const unsigned int dev);
+
 /*! @brief Convert the DS18B20 value into a float
  *  @param [in] fix : 8.4 fixed point value
  *  @return temperature in C

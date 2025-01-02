@@ -4,7 +4,13 @@
 
 #define TEMP_CONVERSION_T 750 /* Minimum temperature sample time */
 
-typedef enum TEMP_INTF_ { TEMP_INTF_ONEWIRE, TEMP_INTF_I2C } TEMP_INTF_t;
+typedef enum TEMP_INTF_ {
+  TEMP_INTF_NONE,
+  TEMP_INTF_ONEWIRE,
+  TEMP_INTF_I2C,
+  TEMP_INTF_OPA1,
+  TEMP_INTF_OPA2
+} TEMP_INTF_t;
 
 typedef enum TempStatus_ {
   TEMP_OK,
@@ -17,6 +23,11 @@ typedef enum TempStatus_ {
   TEMP_BAD_CRC,
   TEMP_BAD_SENSOR
 } TempStatus_t;
+
+typedef struct TempDev_ {
+  TEMP_INTF_t intf;
+  uint64_t    id;
+} TempDev_t;
 
 typedef struct TempRead_ {
   TempStatus_t status;
@@ -43,6 +54,13 @@ unsigned int tempInitSensors(const TEMP_INTF_t intf, const void *pParams);
  *  @return TempRead struct
  */
 TempRead_t tempReadSample(const TEMP_INTF_t intf, const uint8_t dev);
+
+/*! @brief Read the temperature sensor's serial number
+ *  @param [in] intf : interface type
+ *  @param [in] dev : device index
+ *  @return interface and device ID
+ */
+TempDev_t tempReadSerial(const TEMP_INTF_t intf, const uint8_t dev);
 
 /*! @brief Start a temperature sample
  *  @param [in] intf : interface type

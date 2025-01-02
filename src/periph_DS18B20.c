@@ -395,6 +395,15 @@ TempRead_t ds18b20ReadSample(const unsigned int dev) {
   return tempRes;
 }
 
+TempDev_t ds18b20ReadSerial(const unsigned int dev) {
+  TempDev_t device;
+
+  device.id   = devTable[dev].address;
+  device.intf = (0 == devTable[dev].opaIdx) ? TEMP_INTF_OPA1 : TEMP_INTF_OPA2;
+
+  return device;
+}
+
 float ds18b20SampleToCelsius(const int16_t fix) {
   return qfp_fix2float(fix, 4);
 }
