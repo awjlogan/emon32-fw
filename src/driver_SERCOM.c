@@ -1,11 +1,11 @@
 #include "emon32_samd.h"
 
+#include "configuration.h"
 #include "driver_DMAC.h"
 #include "driver_PORT.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
-
-#include "configuration.h"
+#include "emon32.h"
 
 #define I2CM_ACTIVATE_TIMEOUT_US 200u /* Time to wait for I2C bus */
 
@@ -75,12 +75,14 @@ static void spiExtPinsSetup(bool enable) {
 }
 
 void sercomExtIntfDisable(void) {
+  debugPuts("External interfaces disabled.");
   extIntfEnabled = false;
   i2cmExtPinsSetup(false);
   spiExtPinsSetup(false);
 }
 
 void sercomExtIntfEnable(void) {
+  debugPuts("External interfaces enabled.");
   extIntfEnabled = true;
   i2cmExtPinsSetup(true);
   spiExtPinsSetup(true);
@@ -211,9 +213,6 @@ void sercomSetupUART(const UART_Cfg_t *pCfg) {
 }
 
 static void sercomSetupSPI(void) {
-  /**********************
-   * SPI Setup (for RFM69)
-   ***********************/
 
   spiExtPinsSetup(extIntfEnabled);
 

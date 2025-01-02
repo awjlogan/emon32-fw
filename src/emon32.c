@@ -40,8 +40,9 @@ typedef struct TransmitOpt_ {
  *************************************/
 
 static volatile uint32_t evtPend;
-static unsigned int      lastStoredWh;
 AssertInfo_t             g_assert_info;
+static unsigned int      lastStoredWh;
+Emon32Config_t          *pConfig = 0;
 
 /*************************************
  * Static function prototypes
@@ -55,16 +56,16 @@ static void         cumulativeProcess(Emon32Cumulative_t    *pPkt,
                                       const Emon32Dataset_t *pData,
                                       const unsigned int     whDeltaStore);
 static void         datasetAddPulse(Emon32Dataset_t *pDst);
-static void         ecmConfigure(const Emon32Config_t *pCfg);
+static void         ecmConfigure(void);
 static void         ecmDmaCallback(void);
 static void         evtKiloHertz(void);
 static bool         evtPending(EVTSRC_t evt);
-static void         pulseConfigure(const Emon32Config_t *pCfg);
+static void         pulseConfigure(void);
 void                putchar_(char c);
-static void         putsDbgNonBlocking(const char *const s, uint16_t len);
-static bool         rfmConfigure(const Emon32Config_t *pCfg);
+static void         serialPutsNonBlocking(const char *const s, uint16_t len);
+static bool         rfmConfigure(void);
 static void         ssd1306Setup(void);
-static uint32_t     tempSetup(const Emon32Config_t *pCfg);
+static uint32_t     tempSetup(void);
 static uint32_t     totalEnergy(const Emon32Dataset_t *pData);
 static void transmitData(const Emon32Dataset_t *pSrc, const TransmitOpt_t *pOpt,
                          char *txBuffer);
@@ -164,31 +165,32 @@ static void datasetAddPulse(Emon32Dataset_t *pDst) {
   }
 }
 
-void dbgPuts(const char *s) {
-  EMON32_ASSERT(s);
-
-  if (usbCDCIsConnected()) {
-    usbCDCPutsBlocking(s);
+void debugPuts(const char *s) {
+  if (pConfig->baseCfg.debugSerial) {
+    char tBuf[12];
+    serialPuts("DBG:");
+    utilItoa(tBuf, timerMillis(), ITOA_BASE10);
+    serialPuts(tBuf);
+    serialPuts(":");
+    serialPuts(s);
   }
-  uartPutsBlocking(SERCOM_UART, s);
 }
 
 /*! @brief Configure the continuous energy monitoring system
  *  @param [in] pCfg : pointer to the configuration struct
  */
-void ecmConfigure(const Emon32Config_t *pCfg) {
+void ecmConfigure(void) {
   /* Makes the continuous monitoring setup agnostic to the data strcuture
    * used for storage, and avoids any awkward alignment from packing.
    */
-  EMON32_ASSERT(pCfg);
 
   extern const int_fast8_t ainRemap[NUM_CT];
 
   ECMCfg_t *ecmCfg = ecmConfigGet();
 
   ecmCfg->downsample      = DOWNSAMPLE_DSP;
-  ecmCfg->reportCycles    = pCfg->baseCfg.reportCycles;
-  ecmCfg->mainsFreq       = pCfg->baseCfg.mainsFreq;
+  ecmCfg->reportCycles    = pConfig->baseCfg.reportCycles;
+  ecmCfg->mainsFreq       = pConfig->baseCfg.mainsFreq;
   ecmCfg->samplePeriod    = timerADCPeriod();
   ecmCfg->timeMicros      = &timerMicros;
   ecmCfg->timeMicrosDelta = &timerMicrosDelta;
@@ -202,16 +204,16 @@ void ecmConfigure(const Emon32Config_t *pCfg) {
   }
 
   for (unsigned int i = 0; i < NUM_V; i++) {
-    ecmCfg->vCfg[i].voltageCalRaw = pCfg->voltageCfg[i].voltageCal;
-    ecmCfg->vCfg[i].vActive       = pCfg->voltageCfg[i].vActive;
+    ecmCfg->vCfg[i].voltageCalRaw = pConfig->voltageCfg[i].voltageCal;
+    ecmCfg->vCfg[i].vActive       = pConfig->voltageCfg[i].vActive;
   }
 
   for (unsigned int i = 0; i < NUM_CT; i++) {
-    ecmCfg->ctCfg[i].phCal    = pCfg->ctCfg[i].phase;
-    ecmCfg->ctCfg[i].ctCalRaw = pCfg->ctCfg[i].ctCal;
-    ecmCfg->ctCfg[i].active   = pCfg->ctCfg[i].ctActive;
-    ecmCfg->ctCfg[i].vChan1   = pCfg->ctCfg[i].vChan1;
-    ecmCfg->ctCfg[i].vChan2   = pCfg->ctCfg[i].vChan2;
+    ecmCfg->ctCfg[i].phCal    = pConfig->ctCfg[i].phase;
+    ecmCfg->ctCfg[i].ctCalRaw = pConfig->ctCfg[i].ctCal;
+    ecmCfg->ctCfg[i].active   = pConfig->ctCfg[i].ctActive;
+    ecmCfg->ctCfg[i].vChan1   = pConfig->ctCfg[i].vChan1;
+    ecmCfg->ctCfg[i].vChan2   = pConfig->ctCfg[i].vChan2;
   }
 
   for (int i = 0; i < NUM_CT; i++) {
@@ -298,21 +300,20 @@ static bool evtPending(EVTSRC_t evt) { return (evtPend & (1u << evt)) != 0; }
 /*! @brief Configure any pulse counter interfaces
  *  @param [in] pCfg : pointer to the configuration struct
  */
-static void pulseConfigure(const Emon32Config_t *pCfg) {
-  EMON32_ASSERT(pCfg);
+static void pulseConfigure(void) {
 
   uint8_t pinsPulse[][2] = {{GRP_OPA, PIN_OPA1}, {GRP_OPA, PIN_OPA2}};
 
   for (unsigned int i = 0; i < NUM_OPA; i++) {
     PulseCfg_t *pulseCfg = pulseGetCfg(i);
 
-    if ((0 != pulseCfg) && ('o' != pCfg->opaCfg[i].func) &&
-        (pCfg->opaCfg[i].opaActive)) {
-      pulseCfg->edge    = (PulseEdge_t)pCfg->opaCfg[i].func;
+    if ((0 != pulseCfg) && ('o' != pConfig->opaCfg[i].func) &&
+        (pConfig->opaCfg[i].opaActive)) {
+      pulseCfg->edge    = (PulseEdge_t)pConfig->opaCfg[i].func;
       pulseCfg->grp     = pinsPulse[i][0];
       pulseCfg->pin     = pinsPulse[i][1];
-      pulseCfg->periods = pCfg->opaCfg[i].period;
-      pulseCfg->puEn    = pCfg->opaCfg[i].puEn;
+      pulseCfg->periods = pConfig->opaCfg[i].period;
+      pulseCfg->puEn    = pConfig->opaCfg[i].puEn;
       pulseCfg->active  = true;
 
       pulseInit(i);
@@ -330,19 +331,19 @@ void putchar_(char c) {
   uartPutcBlocking(SERCOM_UART, c);
 }
 
-static void putsDbgNonBlocking(const char *const s, uint16_t len) {
+static void serialPutsNonBlocking(const char *const s, uint16_t len) {
   if (usbCDCIsConnected()) {
     usbCDCPutsBlocking(s);
   }
   uartPutsNonBlocking(DMA_CHAN_UART, s, len);
 }
 
-static bool rfmConfigure(const Emon32Config_t *pCfg) {
+static bool rfmConfigure(void) {
   RFMOpt_t rfmOpt = {0};
-  rfmOpt.freq     = (RFM_Freq_t)pCfg->dataTxCfg.rfmFreq;
-  rfmOpt.group    = pCfg->baseCfg.dataGrp;
-  rfmOpt.nodeID   = pCfg->baseCfg.nodeID;
-  rfmOpt.paLevel  = pCfg->dataTxCfg.rfmPwr;
+  rfmOpt.freq     = (RFM_Freq_t)pConfig->dataTxCfg.rfmFreq;
+  rfmOpt.group    = pConfig->baseCfg.dataGrp;
+  rfmOpt.nodeID   = pConfig->baseCfg.nodeID;
+  rfmOpt.paLevel  = pConfig->dataTxCfg.rfmPwr;
 
   if (rfmInit(&rfmOpt)) {
     rfmSetAESKey("89txbe4p8aik5kt3"); /* Default OEM AES key */
@@ -350,6 +351,15 @@ static bool rfmConfigure(const Emon32Config_t *pCfg) {
   }
 
   return false;
+}
+
+void serialPuts(const char *s) {
+  EMON32_ASSERT(s);
+
+  if (usbCDCIsConnected()) {
+    usbCDCPutsBlocking(s);
+  }
+  uartPutsBlocking(SERCOM_UART, s);
 }
 
 /*! @brief Setup the SSD1306 display, if present. Display a basic message */
@@ -365,7 +375,7 @@ static void ssd1306Setup(void) {
 /*! @brief Initialises the temperature sensors
  *  @return number of temperature sensors found
  */
-static uint32_t tempSetup(const Emon32Config_t *pCfg) {
+static uint32_t tempSetup(void) {
   const uint8_t opaPins[NUM_OPA] = {PIN_OPA1, PIN_OPA2};
   const uint8_t opaPUs[NUM_OPA]  = {PIN_OPA1_PU, PIN_OPA2_PU};
 
@@ -375,7 +385,7 @@ static uint32_t tempSetup(const Emon32Config_t *pCfg) {
   dsCfg.t_wait_us               = 5;
 
   for (int i = 0; i < NUM_OPA; i++) {
-    if ('o' == pCfg->opaCfg[i].func && (pCfg->opaCfg[i].opaActive)) {
+    if ('o' == pConfig->opaCfg[i].func && (pConfig->opaCfg[i].opaActive)) {
       dsCfg.opaIdx = i;
       dsCfg.pin    = opaPins[i];
       dsCfg.pinPU  = opaPUs[i];
@@ -407,20 +417,40 @@ static void transmitData(const Emon32Dataset_t *pSrc, const TransmitOpt_t *pOpt,
 
   if (pOpt->useRFM) {
     if (sercomExtIntfEnabled()) {
+      int         retryCount = 0;
+      RFMSend_t   rfmResult;
       int_fast8_t nPacked = dataPackPacked(pSrc, rfmGetBuffer(), PACKED_LOWER);
+      bool        timeout = false;
+
       rfmSetAddress(pOpt->node);
-      if (RFM_SUCCESS == rfmSendBuffer(nPacked)) {
+
+      debugPuts("RFM sending packet 1.\r\n");
+      rfmResult = rfmSendBuffer(nPacked, RFM_RETRIES, &retryCount);
+
+      if (RFM_SUCCESS == rfmResult) {
         nPacked = dataPackPacked(pSrc, rfmGetBuffer(), PACKED_UPPER);
         rfmSetAddress(pOpt->node + 1);
-        rfmSendBuffer(nPacked);
+        debugPuts("RFM sending packet 2.\r\n");
+        rfmResult = rfmSendBuffer(nPacked, RFM_RETRIES, &retryCount);
+        if (RFM_TIMED_OUT == rfmResult) {
+          timeout = true;
+        }
+      } else if (RFM_TIMED_OUT == rfmResult) {
+        timeout = true;
+      }
+
+      if (!timeout) {
+        debugPuts("RFM complete.\r\n");
+      } else {
+        debugPuts("RFM timed out.\r\n");
       }
     }
 
     if (pOpt->logSerial) {
-      putsDbgNonBlocking(txBuffer, nSerial);
+      serialPutsNonBlocking(txBuffer, nSerial);
     }
   } else {
-    putsDbgNonBlocking(txBuffer, nSerial);
+    serialPutsNonBlocking(txBuffer, nSerial);
   }
 }
 
@@ -442,7 +472,6 @@ static void ucSetup(void) {
 
 int main(void) {
 
-  Emon32Config_t    *pConfig               = 0;
   Emon32Dataset_t    dataset               = {0};
   unsigned int       numTempSensors        = 0;
   Emon32Cumulative_t nvmCumulative         = {0};
@@ -463,9 +492,8 @@ int main(void) {
    * non-volatile memory (NVM). If the NVM has not been used before then
    * store default configuration and 0 energy accumulator area.
    */
-  dbgPuts("> Reading configuration and accumulators from NVM...\r\n");
-  configLoadFromNVM();
-  pConfig = configGetConfig();
+  serialPuts("> Reading configuration and accumulators from NVM...\r\n");
+  pConfig = configLoadFromNVM();
 
   /* Load the accumulated energy and pulse values from NVM. */
   lastStoredWh = cumulativeNVMLoad(&nvmCumulative, &dataset);
@@ -474,11 +502,11 @@ int main(void) {
    * successful, set OEM's AES key. */
   pConfig->dataTxCfg.rfmFreq = RFM_FREQ_DEF;
   pConfig->dataTxCfg.rfmPwr  = RFM_PALEVEL_DEF;
-  rfmConfigure(pConfig);
+  rfmConfigure();
 
   /* Set up pulse and temperature sensors, if present. */
-  pulseConfigure(pConfig);
-  numTempSensors         = tempSetup(pConfig);
+  pulseConfigure();
+  numTempSensors         = tempSetup();
   dataset.numTempSensors = numTempSensors;
 
   /* Wait 1s to allow USB to enumerate as serial. Not always possible, but gives
@@ -488,7 +516,7 @@ int main(void) {
   configFirmwareBoardInfo();
 
   /* Set up buffers for ADC data, configure energy processing, and start */
-  ecmConfigure(pConfig);
+  ecmConfigure();
   dmacCallbackBufferFill(&ecmDmaCallback);
   ecmFlush();
   adcDMACStart();

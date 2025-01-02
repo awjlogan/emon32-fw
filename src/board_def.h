@@ -204,7 +204,7 @@
 #define PIN_RFM_IRQ     14u
 #define PMUX_RFM_IRQ    PORT_PMUX_PMUXE_A
 #define PIN_RFM_RST     15u
-#define RFM_RETRIES     8
+#define RFM_RETRIES     4
 #define RFM_TIMEOUT     30
 
 /* I2C related defines */

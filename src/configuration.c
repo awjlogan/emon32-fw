@@ -9,6 +9,7 @@
 #include "driver_TIME.h"
 #include "driver_USB.h"
 
+#include "bist.h"
 #include "configuration.h"
 #include "eeprom.h"
 #include "emon32.h"
@@ -126,13 +127,13 @@ static void configDefault(void) {
  */
 static void configInitialiseNVM(void) {
 
-  dbgPuts("  - Initialising NVM... ");
+  serialPuts("  - Initialising NVM... ");
 
   configDefault();
   eepromInitBlock(0, 0, EEPROM_WL_OFFSET);
   eepromInitConfig(&config, sizeof(config));
   eepromWLClear();
-  dbgPuts("Done!\r\n");
+  serialPuts("Done!\r\n");
 }
 
 static bool configureAnalog(void) {
@@ -225,7 +226,7 @@ static bool configureAnalog(void) {
 
     printf_("> V%d calibration set to: ", (ch + 1));
     putFloat(config.voltageCfg[ch].voltageCal, 0);
-    dbgPuts("\r\n");
+    serialPuts("\r\n");
 
     ecmConfigChannel(ch);
     return true;
@@ -266,13 +267,13 @@ static bool configureAnalog(void) {
   ecmCfg->ctCfg[ch].ctCalRaw = calAmpl;
   printf_("> CT%d calibration set to: ", (ch + 1));
   putFloat(config.ctCfg[ch].ctCal, 0);
-  dbgPuts("\r\n");
+  serialPuts("\r\n");
 
   config.ctCfg[ch].phase  = calPhase;
   ecmCfg->ctCfg[ch].phCal = calPhase;
   printf_("> CT%d phase set to: ", (ch + 1));
   putFloat(config.ctCfg[ch].phase, 0);
-  dbgPuts("\r\n");
+  serialPuts("\r\n");
 
   config.ctCfg[ch].vChan1  = vCh1 - 1;
   ecmCfg->ctCfg[ch].vChan1 = vCh1 - 1;
@@ -302,15 +303,15 @@ static bool configureDatalog(void) {
   /* Set the datalog period (s) in range 0.5 <= t <= 600 */
   if (convF.valid) {
     if ((convF.val < 0.5f) || (convF.val > 600.0f)) {
-      dbgPuts("> Log report time out of range.\r\n");
+      serialPuts("> Log report time out of range.\r\n");
     } else {
       config.baseCfg.reportTime = convF.val;
       ecmConfigReportCycles(
           configTimeToCycles(convF.val, config.baseCfg.mainsFreq));
 
-      dbgPuts("> Data log report time set to: ");
+      serialPuts("> Data log report time set to: ");
       putFloat(config.baseCfg.reportTime, 0);
-      dbgPuts("\r\n");
+      serialPuts("\r\n");
       return true;
     }
   }
@@ -367,15 +368,15 @@ static void configureOPA(void) {
     printf_("> Pulse channel %d: ", (ch + 1u));
     switch (edge) {
     case 'r':
-      dbgPuts("Rising, ");
+      serialPuts("Rising, ");
       config.opaCfg[ch].func = 'r';
       break;
     case 'f':
-      dbgPuts("Falling, ");
+      serialPuts("Falling, ");
       config.opaCfg[ch].func = 'f';
       break;
     case 'b':
-      dbgPuts("Both, ");
+      serialPuts("Both, ");
       config.opaCfg[ch].func = 'b';
       break;
     }
@@ -396,11 +397,11 @@ static bool configureRFEnable(void) {
   }
 
   config.dataTxCfg.useRFM = (bool)convI.val;
-  dbgPuts("> RF ");
+  serialPuts("> RF ");
   if (convI.val) {
-    dbgPuts("enabled.\r\n");
+    serialPuts("enabled.\r\n");
   } else {
-    dbgPuts("disabled.\r\n");
+    serialPuts("disabled.\r\n");
   }
 
   return true;
@@ -433,14 +434,14 @@ static void enterBootloader(void) {
       (volatile uint32_t *)(HMCRAMC0_ADDR + HMCRAMC0_SIZE - 4);
   // Key is uf2-samdx1/inc/uf2.h:DBL_TAP_MAGIC
   const uint32_t blsm_key = 0xF01669EF;
-  dbgPuts("> Enter bootloader? All unsaved changes will be lost. 'y' to "
-          "proceed.\r\n");
+  serialPuts("> Enter bootloader? All unsaved changes will be lost. 'y' to "
+             "proceed.\r\n");
   c = waitForChar();
   if ('y' == c) {
     *p_blsm = blsm_key;
     NVIC_SystemReset();
   } else {
-    dbgPuts("    - Cancelled.");
+    serialPuts("    - Cancelled.");
   }
 }
 
@@ -500,77 +501,77 @@ static void inBufferClear(int n) {
 }
 
 static void printSettings(void) {
-  dbgPuts("\r\n\r\n==== Settings ====\r\n\r\n");
+  serialPuts("\r\n\r\n==== Settings ====\r\n\r\n");
   printf_("Mains frequency (Hz)       %d\r\n", config.baseCfg.mainsFreq);
-  dbgPuts("Data log time (s):         ");
+  serialPuts("Data log time (s):         ");
   putFloat(config.baseCfg.reportTime, 0);
   printf_("\r\nMinimum accumulation (Wh): %d\r\n", config.baseCfg.whDeltaStore);
-  dbgPuts("Data transmission:         ");
+  serialPuts("Data transmission:         ");
   if (config.dataTxCfg.useRFM) {
-    dbgPuts("RFM69, ");
+    serialPuts("RFM69, ");
     switch (config.dataTxCfg.rfmFreq) {
     case 0:
-      dbgPuts("868");
+      serialPuts("868");
       break;
     case 1:
-      dbgPuts("915");
+      serialPuts("915");
       break;
     case 2:
-      dbgPuts("433");
+      serialPuts("433");
       break;
     }
     printf_(" MHz, power %d\r\n", config.dataTxCfg.rfmPwr);
   } else {
-    dbgPuts("Serial\r\n");
+    serialPuts("Serial\r\n");
   }
   printf_("Data format:               %s\r\n",
           config.baseCfg.useJson ? "JSON" : "Key:Value");
-  dbgPuts("\r\n");
+  serialPuts("\r\n");
 
   for (unsigned int i = 0; i < NUM_OPA; i++) {
     bool enabled = config.opaCfg[i].opaActive;
     printf_("Pulse Channel %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
     printf_("  - Hysteresis (ms): %d\r\n", config.opaCfg[i].period);
-    dbgPuts("  - Edge:            ");
+    serialPuts("  - Edge:            ");
     switch (config.opaCfg[i].func) {
     case 'r':
-      dbgPuts("Rising");
+      serialPuts("Rising");
       break;
     case 'f':
-      dbgPuts("Falling");
+      serialPuts("Falling");
       break;
     case 'b':
-      dbgPuts("Both");
+      serialPuts("Both");
       break;
     default:
-      dbgPuts("Unknown");
+      serialPuts("Unknown");
     }
-    dbgPuts("\r\n\r\n");
+    serialPuts("\r\n\r\n");
   }
 
-  dbgPuts(
+  serialPuts(
       "| Ref | Channel | Active | Calibration | Phase  | In 1 | In 2 |\r\n");
-  dbgPuts(
+  serialPuts(
       "+=====+=========+========+=============+========+======+======+\r\n");
   for (int i = 0; i < NUM_V; i++) {
     printf_("| %2d  |  V %2d   | %c      | ", (i + 1), (i + 1),
             (config.voltageCfg[i].vActive ? 'Y' : 'N'));
     putFloat(config.voltageCfg[i].voltageCal, 6);
-    dbgPuts("      |        |      |      |\r\n");
+    serialPuts("      |        |      |      |\r\n");
   }
   for (int i = 0; i < NUM_CT; i++) {
     printf_("| %2d  | CT %2d   | %c      | ", (i + 1 + NUM_V), (i + 1),
             (config.ctCfg[i].ctActive ? 'Y' : 'N'));
     putFloat(config.ctCfg[i].ctCal, 6);
-    dbgPuts("      | ");
+    serialPuts("      | ");
     putFloat(config.ctCfg[i].phase, 6);
     printf_(" | %d    | %d    |\r\n", (config.ctCfg[i].vChan1 + 1),
             (config.ctCfg[i].vChan2 + 1));
   }
-  dbgPuts("\r\n");
+  serialPuts("\r\n");
 
   if (unsavedChange) {
-    dbgPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
+    serialPuts("There are unsaved changes. Command \"s\" to save.\r\n\r\n");
   }
 }
 
@@ -582,11 +583,11 @@ static void putFloat(float val, int flt_len) {
     int fillSpace = flt_len - ftoalen;
 
     while (fillSpace--) {
-      dbgPuts(" ");
+      serialPuts(" ");
     }
   }
 
-  dbgPuts(strBuffer);
+  serialPuts(strBuffer);
 }
 
 static void printUptime(void) {
@@ -640,15 +641,16 @@ static char waitForChar(void) {
  */
 static bool zeroAccumulators(void) {
   char c;
-  dbgPuts("> Zero accumulators. This can not be undone. 'y' to proceed.\r\n");
+  serialPuts(
+      "> Zero accumulators. This can not be undone. 'y' to proceed.\r\n");
 
   c = waitForChar();
   if ('y' == c) {
     eepromInitBlock(EEPROM_WL_OFFSET, 0, (1024 - EEPROM_WL_OFFSET));
-    dbgPuts("    - Accumulators cleared.\r\n");
+    serialPuts("    - Accumulators cleared.\r\n");
     return true;
   } else {
-    dbgPuts("    - Cancelled.\r\n");
+    serialPuts("    - Cancelled.\r\n");
     return false;
   }
 }
@@ -656,12 +658,12 @@ static bool zeroAccumulators(void) {
 void configCmdChar(const uint8_t c) {
   if (('\r' == c) || ('\n' == c)) {
     if (!cmdPending) {
-      dbgPuts("\r\n");
+      serialPuts("\r\n");
       cmdPending = true;
       emon32EventSet(EVT_PROCESS_CMD);
     }
   } else if ('\b' == c) {
-    dbgPuts("\b \b");
+    serialPuts("\b \b");
     if (0 != inBufferIdx) {
       inBufferIdx--;
       inBuffer[inBufferIdx] = 0;
@@ -670,59 +672,58 @@ void configCmdChar(const uint8_t c) {
     inBuffer[inBufferIdx++] = c;
   } else {
     inBufferClear(IN_BUFFER_W);
-    dbgPuts("\r\n");
+    serialPuts("\r\n");
   }
 }
 
 void configFirmwareBoardInfo(void) {
-  dbgPuts("\033c==== emon32 ====\r\n\r\n");
+  serialPuts("\033c==== emon32 ====\r\n\r\n");
 
-  dbgPuts("> Board:\r\n");
+  serialPuts("> Board:\r\n");
   printf_("  - emonPi3     (arch. rev. %" PRIu32 ")\r\n", getBoardRevision());
   printf_("  - Serial:     0x%02x%02x%02x%02x\r\n",
           (unsigned int)getUniqueID(0), (unsigned int)getUniqueID(1),
           (unsigned int)getUniqueID(2), (unsigned int)getUniqueID(3));
   printf_("  - Last reset: %s\r\n", getLastReset());
-  dbgPuts("  - Uptime    : ");
+  serialPuts("  - Uptime    : ");
   printUptime();
-  dbgPuts("\r\n");
+  serialPuts("\r\n");
 
-  dbgPuts("> Firmware:\r\n");
+  serialPuts("> Firmware:\r\n");
   printf_("  - Version:    %d.%d.%d\r\n", VERSION_FW_MAJ, VERSION_FW_MIN,
           VERSION_FW_REV);
-  dbgPuts("  - Build:      ");
-  dbgPuts(emon32_build_info_string());
-  dbgPuts("\r\n\r\n");
-  dbgPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
-  dbgPuts("  - emon32 Copyright (C) 2023-24 Angus Logan\r\n");
-  dbgPuts("  - For Bear and Moose\r\n\r\n");
+  serialPuts("  - Build:      ");
+  serialPuts(emon32_build_info_string());
+  serialPuts("\r\n\r\n");
+  serialPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
+  serialPuts("  - emon32 Copyright (C) 2023-24 Angus Logan\r\n");
+  serialPuts("  - For Bear and Moose\r\n\r\n");
 }
 
-Emon32Config_t *configGetConfig(void) { return &config; }
-
-void configLoadFromNVM(void) {
+Emon32Config_t *configLoadFromNVM(void) {
 
   const uint32_t cfgSize     = sizeof(config);
   uint16_t       crc16_ccitt = 0;
   char           c           = 0;
 
   /* Load from "static" part of EEPROM. If the key does not match
-   * CONFIG_NVM_KEY, write the default configuration to the EEPROM and zero
-   * wear levelled portion. Otherwise, read configuration from EEPROM.
+   * CONFIG_NVM_KEY as this is the first time it has been run, run the built in
+   * self test, write the default configuration to the EEPROM and zero wear
+   * levelled portion before resetting.
    */
   eepromRead(0, &config, cfgSize);
 
   if (CONFIG_NVM_KEY != config.key) {
+    bistRun();
     configInitialiseNVM();
+    NVIC_SystemReset();
   } else {
     /* Check the CRC and raise a warning if not matched. -2 from the base
      * size to account for the stored 16 bit CRC.
      */
     crc16_ccitt = calcCRC16_ccitt(&config, cfgSize - 2u);
     if (crc16_ccitt != config.crc16_ccitt) {
-      printf_("  - CRC mismatch. Found: 0x%04x -- Expected: 0x%04x\r\n",
-              config.crc16_ccitt, crc16_ccitt);
-      dbgPuts("    - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
+      serialPuts("  - NVM may be corrupt. Overwrite with default? (y/n)\r\n");
       while ('y' != c && 'n' != c) {
         c = waitForChar();
       }
@@ -734,6 +735,8 @@ void configLoadFromNVM(void) {
 
   config.baseCfg.reportCycles =
       configTimeToCycles(config.baseCfg.reportTime, config.baseCfg.mainsFreq);
+
+  return &config;
 }
 
 void configProcessCmd(void) {
@@ -796,7 +799,7 @@ void configProcessCmd(void) {
   switch (inBuffer[0]) {
   case '?':
     /* Print help text */
-    dbgPuts(helpText);
+    serialPuts(helpText);
     break;
   case 'a':
     if (configureAssumed()) {
@@ -874,7 +877,7 @@ void configProcessCmd(void) {
     break;
   case 'o':
     /* Start auto calibration of CT<x> lead */
-    dbgPuts("> Reserved for auto calibration. Not yet implemented.\r\n");
+    serialPuts("> Reserved for auto calibration. Not yet implemented.\r\n");
     break;
   case 'p':
     /* Configure RF power */
@@ -885,7 +888,7 @@ void configProcessCmd(void) {
   case 'r':
     configDefault();
 
-    dbgPuts("> Restored default values.\r\n");
+    serialPuts("> Restored default values.\r\n");
 
     unsavedChange = true;
     resetReq      = true;
@@ -897,9 +900,9 @@ void configProcessCmd(void) {
      */
     config.crc16_ccitt = calcCRC16_ccitt(&config, (sizeof(config) - 2));
 
-    dbgPuts("> Saving configuration to NVM... ");
+    serialPuts("> Saving configuration to NVM... ");
     eepromInitConfig(&config, sizeof(config));
-    dbgPuts("Done!\r\n");
+    serialPuts("Done!\r\n");
 
     unsavedChange = false;
     if (!resetReq) {

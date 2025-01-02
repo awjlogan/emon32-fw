@@ -36,10 +36,13 @@ bool rfmInit(const RFMOpt_t *pOpt);
 void rfmInterrupt(void);
 
 /*! @brief Send data through the RFM69
- *  @param [in] : number of bytes to be sent
+ *  @param [in] n : number of bytes to be sent
+ *  @param [in] retries : number of retry attempts
+ *  @param [out] pRetryCount : number of retry attempts for logging
  *  @return status of the attempt to send
  */
-RFMSend_t rfmSendBuffer(const int_fast8_t n);
+RFMSend_t rfmSendBuffer(const int_fast8_t n, const uint8_t retries,
+                        int *pRetryCount);
 
 /*! @brief Sets the RFM69's address
  *  @param [in] addr : address to set the RFM69

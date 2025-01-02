@@ -16,8 +16,9 @@ typedef struct __attribute__((__packed__)) BaseCfg_ {
   uint8_t  dataGrp;      /* Transmission group - default 210 */
   bool     logToSerial;  /* Log data to serial output */
   bool     useJson;      /* JSON format for serial output */
-  uint8_t  assumedVrms;  /* Assumed RMS voltage if not present */
-  uint8_t  res0[10];
+  uint16_t assumedVrms;  /* Assumed RMS voltage if not present */
+  bool     debugSerial;  /* Verbose debug logged to serial */
+  uint8_t  res0[8];
   float    reportTime; /* Time between reports */
 } BaseCfg_t;
 
@@ -82,13 +83,10 @@ void configCmdChar(const uint8_t c);
 /*! @brief Print the board and firmware information to serial */
 void configFirmwareBoardInfo(void);
 
-/*! @brief Get the configuration pointer
- *  @return pointer to the configuration struct
+/*! @brief This functions loads the default configuration and from NVM.
+ *  @return Pointer to the configuration structure
  */
-Emon32Config_t *configGetConfig(void);
-
-/*! @brief This functions loads the default configuration and from NVM. */
-void configLoadFromNVM(void);
+Emon32Config_t *configLoadFromNVM(void);
 
 /*! @brief Process a pending command from the UART */
 void configProcessCmd(void);

@@ -27,7 +27,8 @@ static uint8_t   rfmReadReg(const unsigned int addr);
 static int16_t   rfmReadRSSI(void);
 static void      rfmRxBegin(void);
 static bool      rfmRxDone(void);
-static RFMSend_t rfmSendWithRetry(uint8_t n);
+static RFMSend_t rfmSendWithRetry(uint8_t n, const uint8_t retries,
+                                  int *pRetryCount);
 static void      rfmSetMode(int_fast8_t mode);
 static void      rfmSleep(void);
 static bool      rfmTxAvailable(void);
@@ -181,11 +182,20 @@ static bool rfmRxDone(void) {
   return false;
 }
 
-static RFMSend_t rfmSendWithRetry(uint8_t n) {
+/*! @brief Send packet with optional retrys
+ *  @param [in] n : number of bytes to send
+ *  @param [in] retries : number of retries to attempt
+ *  @param [out] pRetryCount : pointer to store number of retries for logging
+ *  @return status of sending the packet
+ */
+static RFMSend_t rfmSendWithRetry(uint8_t n, const uint8_t retries,
+                                  int *pRetryCount) {
 
-  for (int r = 0; r < RFM_RETRIES; r++) {
+  for (int r = 0; r < retries; r++) {
     uint32_t tNow;
     uint32_t tSent;
+
+    *pRetryCount = *pRetryCount + 1;
 
     // "send" in LPL
     rfmWriteReg(REG_PACKETCONFIG2, ((rfmReadReg(REG_PACKETCONFIG2) & 0xFB) |
@@ -308,7 +318,8 @@ bool rfmInit(const RFMOpt_t *pOpt) {
   return true;
 }
 
-RFMSend_t rfmSendBuffer(const int_fast8_t n) {
+RFMSend_t rfmSendBuffer(const int_fast8_t n, const uint8_t retries,
+                        int *pRetryCount) {
   if (n > 61) {
     return RFM_N_TOO_LARGE;
   }
@@ -317,7 +328,7 @@ RFMSend_t rfmSendBuffer(const int_fast8_t n) {
     return RFM_NO_INIT;
   }
 
-  return rfmSendWithRetry(n);
+  return rfmSendWithRetry(n, retries, pRetryCount);
 }
 
 void rfmSetAddress(const uint16_t addr) {

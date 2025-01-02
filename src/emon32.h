@@ -118,11 +118,11 @@ typedef enum EVTSRC_ {
   EVT_ECM_TRIG        = 24
 } EVTSRC_t;
 
-/*! @brief Output a string to the debug destination. If the USB CDC is connected
- *         this is the destination, otherwise through hardware UART.
+/*! @brief When enabled, output debug message to serial (USB if available, and
+ *         hardware UART) including a millisecond timestamp.
  *  @param [in] s: pointer to null terminated string
  */
-void dbgPuts(const char *s);
+void debugPuts(const char *s);
 
 /*! @brief Clear a pending event/interrupt flag after the task has been handled
  *  @param [in] Event source in enum
@@ -134,3 +134,8 @@ void emon32EventClr(const EVTSRC_t evt);
  *  @param [in] evt : Event source in enum
  */
 void emon32EventSet(const EVTSRC_t evt);
+
+/*! @brief Output to serial (USB if available, and hardware UART).
+ *  @param [in] s: pointer to null terminated string
+ */
+void serialPuts(const char *s);
