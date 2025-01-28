@@ -304,6 +304,7 @@ SSD1306_Status_t ssd1306Init(Sercom *pSercomI2C) {
 
   i2cm_s = i2cActivate(pSercom, SSD1306_ADDR << 1);
   if (i2cm_s != I2CM_SUCCESS) {
+    i2cAck(pSercom, I2CM_NACK, I2CM_ACK_CMD_STOP);
     return SSD1306_FAIL;
   }
   for (unsigned int i = 0; i < SSD1306_NUM_INIT_CMDS; i++) {
