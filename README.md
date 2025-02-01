@@ -149,11 +149,11 @@ The `-dirty` tag (if present) indicates that there are uncommitted changes when 
 
 The emonPi3 comes preloaded with a [UF2 bootloader](https://microsoft.github.io/uf2/). This allows the firmware to be updated over USB without any specialised hardware. The following procedure should be used:
 
-  1. Connect to the host computer through the USB-C port.
-  2. Quickly double press the `RESET` button.
-    - The LED will pulse slowly to indicate it has entered bootloader mode,
-    - The drive `EMONBOOT` will appear on the host computer.
-  3. Copy `bin/emon32-vX.Y.Z-(commit[-dirty]).uf2` to the `EMONBOOT` drive. The board will reset and enter the main program.
+1. Connect to the host computer through the USB-C port.
+2. Quickly double press the `RESET` button.
+   - The LED will pulse slowly to indicate it has entered bootloader mode,
+   - The drive `EMONBOOT` will appear on the host computer.
+3. Copy `bin/emon32-vX.Y.Z-(commit[-dirty]).uf2` to the `EMONBOOT` drive. The board will reset and enter the main program.
 
 #### Updating the bootloader
 
