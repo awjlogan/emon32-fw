@@ -21,12 +21,11 @@ void clkSetup(void) {
     ;
 
   /* Configure BOD to watch the system voltage @3V3
-   *   - Vmin = Vmin = 2V77 - 2V84 (Table 37-21)
-   *   - Take no action
+   *   - Vmin = 3.07 V (typical, Table 37-21)
    *   - Enable hysteresis
    */
   SYSCTRL->BOD33.reg =
-      SYSCTRL_BOD33_LEVEL(39) | SYSCTRL_BOD33_ACTION_NONE | SYSCTRL_BOD33_HYST;
+      SYSCTRL_BOD33_LEVEL(48) | SYSCTRL_BOD33_ACTION_NONE | SYSCTRL_BOD33_HYST;
 
   SYSCTRL->BOD33.reg |= SYSCTRL_BOD33_ENABLE;
   while (!(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_B33SRDY))
@@ -37,7 +36,13 @@ void clkSetup(void) {
     ;
 
   /* Now at ~3V3, set BOD33 to reset the micro on brown out */
+  SYSCTRL->BOD33.reg &= ~SYSCTRL_BOD33_ENABLE;
+  while (!(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_B33SRDY))
+    ;
   SYSCTRL->BOD33.reg |= SYSCTRL_BOD33_ACTION_RESET;
+  SYSCTRL->BOD33.reg |= SYSCTRL_BOD33_ENABLE;
+  while (!(SYSCTRL->PCLKSR.reg & SYSCTRL_PCLKSR_B33SRDY))
+    ;
 
   /* Boost OSC8M to 8 MHz from initial 1 MHz */
   SYSCTRL->OSC8M.bit.PRESC = SYSCTRL_OSC8M_PRESC_0_Val;
