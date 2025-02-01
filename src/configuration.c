@@ -484,10 +484,6 @@ static char *getLastReset(void) {
   return "Unknown";
 }
 
-/*! @brief Fetch the SAMD's 128bit unique ID
- *  @param [in] idx : index of 32bit word
- *  @return 32bit word from index
- */
 uint32_t getUniqueID(int idx) {
   /* Section 10.3.3 Serial Number */
   const uint32_t id_addr_lut[4] = {0x0080A00C, 0x0080A040, 0x0080A044,

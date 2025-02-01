@@ -74,4 +74,16 @@ void usbSetup(void) {
   tud_init(0);
 }
 
+/* Used by TinyUSB for the board's serial number. Use the SAMD's full 128 bit
+ * unique code for this. Note that the maximum length is typically 16, so fix at
+ * that value. */
+size_t board_get_unique_id(uint8_t id[], size_t max_len) {
+  (void)max_len;
+  uint32_t *pId = (uint32_t *)id;
+  for (int i = 0; i < 4; i++) {
+    *pId++ = getUniqueID(i);
+  }
+  return 16;
+}
+
 void irq_handler_usb(void) { tud_int_handler(0); }
