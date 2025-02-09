@@ -42,6 +42,7 @@ static void     configInitialiseNVM(void);
 static int      configTimeToCycles(const float time, const int mainsFreq);
 static bool     configureAnalog(void);
 static bool     configureAssumed(void);
+static void     configureBackup(void);
 static bool     configureDatalog(void);
 static void     configureOPA(void);
 static bool     configureRFEnable(void);
@@ -296,6 +297,57 @@ static bool configureAssumed(void) {
     return true;
   }
   return false;
+}
+
+static void configureBackup(void) {
+  /* Send all configuration values as JSON over the serial link. */
+  char strBuf[8] = {0};
+
+  /* Open JSON block */
+  serialPuts("{");
+  /* {board_info} dict */
+  serialPuts("\"board_info\":{");
+  printf_("\"revision\":%d,", (int)getBoardRevision());
+  printf_("\"serial\":\"0x%02x%02x%02x%02x\",", (unsigned int)getUniqueID(0),
+          (unsigned int)getUniqueID(1), (unsigned int)getUniqueID(2),
+          (unsigned int)getUniqueID(3));
+  printf_("\"fw\":\"%d.%d.%d\"},", VERSION_FW_MAJ, VERSION_FW_MIN,
+          VERSION_FW_REV);
+
+  /* {board_config} dict */
+  utilFtoa(strBuf, config.baseCfg.reportTime);
+  printf_("\"board_config\":{\"f_mains\":%d,\"t_report\":%s},",
+          config.baseCfg.mainsFreq, strBuf);
+
+  /* {v_config} list of dicts */
+  serialPuts("\"v_config\":[");
+  for (int i = 0; i < NUM_V; i++) {
+    utilFtoa(strBuf, config.voltageCfg[i].voltageCal);
+    printf_("{\"active\":%s,\"cal\":%s}",
+            (config.voltageCfg[i].vActive ? "true" : "false"), strBuf);
+    if (i != (NUM_V - 1)) {
+      serialPuts(",");
+    }
+  }
+  serialPuts("],");
+
+  /* {ct_config} list of dicts */
+  serialPuts("\"ct_config\":[");
+  for (int i = 0; i < NUM_CT; i++) {
+    utilFtoa(strBuf, config.ctCfg[i].ctCal);
+    printf_("{\"active\":%s,\"cal\":%s,",
+            (config.ctCfg[i].ctActive ? "true" : "false"), strBuf);
+    utilFtoa(strBuf, config.ctCfg[i].phase);
+    printf_("\"phase\":%s,\"vChan1\":%d,\"vChan2\":%d}", strBuf,
+            (config.ctCfg[i].vChan1 + 1), (config.ctCfg[i].vChan2 + 1));
+    if (i != (NUM_CT - 1)) {
+      serialPuts(",");
+    }
+  }
+  serialPuts("]");
+
+  /* Close JSON block*/
+  serialPuts("}\r\n");
 }
 
 static bool configureDatalog(void) {
@@ -746,10 +798,11 @@ void configProcessCmd(void) {
       "emon32 information and configuration commands\r\n\r\n"
       " - ?           : show this text again\r\n"
       " - a<n>        : set the assumed RMS voltage as integer\r\n"
+      " - b           : backup to serial\r\n"
       " - c<n>        : log to serial output. n = 0: OFF, n = 1: ON\r\n"
       " - d<x.x>      : data log period (s)\r\n"
-      " - f<n>        : line frequency (Hz)\r\n"
       " - e           : enter bootloader\r\n"
+      " - f<n>        : line frequency (Hz)\r\n"
       " - g<n>        : set network group (default = 210)\r\n"
       " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
       " - k<x> <a> <y.y> <z.z> v1 v2\r\n"
@@ -801,6 +854,9 @@ void configProcessCmd(void) {
       unsavedChange = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
+    break;
+  case 'b':
+    configureBackup();
     break;
   case 'c':
     if (configureSerialLog()) {

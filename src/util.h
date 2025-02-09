@@ -6,13 +6,13 @@
 typedef enum ITOA_BASE_ { ITOA_BASE10, ITOA_BASE16 } ITOA_BASE_t;
 
 typedef struct ConvFloat_ {
-  bool  valid;
-  float val;
+  bool  valid; /* true if the value in val is valid */
+  float val;   /* converted float value */
 } ConvFloat_t;
 
 typedef struct ConvInt_ {
-  bool    valid;
-  int32_t val;
+  bool    valid; /* true if the value in val is valid */
+  int32_t val;   /* converted integer value */
 } ConvInt_t;
 
 /*! @brief Convert null terminated string to float, returns the value.
