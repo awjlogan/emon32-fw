@@ -283,7 +283,7 @@ bool rfmInit(const RFMOpt_t *pOpt) {
       {REG_SYNCVALUE2, pOpt->group}, /* Group ID; OEM is default 210 */
       {REG_NODEADRS, pOpt->nodeID},  /* Node ID */
       {REG_PACKETCONFIG1,
-       0x00}, /* PktConfig: fixed, !DC free, !CRC, !CRCClear */
+       0x90}, /* PktConfig: fixed, !DC free, CRC, !CRCClear */
       {0xFF, 0}};
 
   uint_fast8_t tStart = timerMillis();

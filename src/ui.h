@@ -1,9 +1,5 @@
 #pragma once
 
-typedef enum Led_ { LED_PROG, LED_STATUS, LED_USER0, LED_USER1 } Led_t;
+typedef enum Led_ { LED_OFF, LED_RED, LED_YELLOW, LED_GREEN } Led_t;
 
-void uiLedOn(Led_t led);
-
-void uiLedOff(Led_t led);
-
-void uiLedToggle(Led_t led);
+void uiLedColour(Led_t led);

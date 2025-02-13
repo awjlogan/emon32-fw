@@ -2,36 +2,23 @@
 #include "board_def.h"
 #include "driver_PORT.h"
 
-static Pin_t ledToPin(Led_t led);
-
-static Pin_t ledToPin(Led_t led) {
-  Pin_t p;
+void uiLedColour(Led_t led) {
   switch (led) {
-  case LED_PROG:
-    p.grp = GRP_LED_PROG;
-    p.pin = PIN_LED_PROG;
+  case LED_OFF:
+    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_SET);
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
     break;
-  case LED_STATUS:
-    p.grp = GRP_LED_STATUS;
-    p.pin = PIN_LED_STATUS;
+  case LED_GREEN:
+    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_SET);
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_CLR);
     break;
-  default:
+  case LED_RED:
+    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_CLR);
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_SET);
+    break;
+  case LED_YELLOW:
+    portPinDrv(GRP_LED_PROG, PIN_LED_PROG, PIN_DRV_CLR);
+    portPinDrv(GRP_LED_STATUS, PIN_LED_STATUS, PIN_DRV_CLR);
     break;
   }
-  return p;
-}
-
-void uiLedOn(Led_t led) {
-  Pin_t p = ledToPin(led);
-  portPinDrv(p.grp, p.pin, PIN_DRV_CLR);
-}
-
-void uiLedOff(Led_t led) {
-  Pin_t p = ledToPin(led);
-  portPinDrv(p.grp, p.pin, PIN_DRV_SET);
-}
-
-void uiLedToggle(Led_t led) {
-  Pin_t p = ledToPin(led);
-  portPinDrv(p.grp, p.pin, PIN_DRV_TGL);
 }

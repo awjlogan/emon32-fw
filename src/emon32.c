@@ -35,6 +35,11 @@ typedef struct TransmitOpt_ {
   uint8_t node;
 } TransmitOpt_t;
 
+typedef struct TxBlink_ {
+  bool         txIndicate;
+  unsigned int timeBlink;
+} TxBlink_t;
+
 /*************************************
  * Persistent state variables
  *************************************/
@@ -42,6 +47,7 @@ typedef struct TransmitOpt_ {
 static volatile uint32_t evtPend;
 AssertInfo_t             g_assert_info;
 static unsigned int      lastStoredWh;
+static TxBlink_t         txBlink;
 Emon32Config_t          *pConfig = 0;
 
 /*************************************
@@ -261,21 +267,16 @@ void emon32EventSet(const EVTSRC_t evt) {
  */
 static void evtKiloHertz(void) {
   uint32_t                 msDelta;
-  static volatile uint32_t msLast          = 0;
-  static unsigned int      statLedOff_time = 0;
+  static volatile uint32_t msLast = 0;
 
   /* Update the pulse counters, looking on different edges */
   pulseUpdate();
 
-  /* When there is a TX to the outside world, blink the STATUS LED for
-   * time TX_INDICATE_T to show there is activity.
-   */
-  if (portPinValue(GRP_LED_STATUS, PIN_LED_STATUS) && (0 == statLedOff_time)) {
-    statLedOff_time = timerMillis();
-  }
-  if (timerMillisDelta(statLedOff_time) > TX_INDICATE_T) {
-    statLedOff_time = 0;
-    uiLedOn(LED_STATUS);
+  /* Blink LED red for TX_INDICATE_T before going back to green */
+  if (txBlink.txIndicate &&
+      (timerMillisDelta(txBlink.timeBlink) > TX_INDICATE_T)) {
+    txBlink.txIndicate = false;
+    uiLedColour(LED_GREEN);
   }
 
   /* Track milliseconds to indicate uptime */
@@ -479,7 +480,7 @@ int main(void) {
   char               txBuffer[TX_BUFFER_W] = {0};
 
   ucSetup();
-  uiLedOn(LED_STATUS);
+  uiLedColour(LED_YELLOW);
 
   /* If the system is booted while it is connected to an active Pi, then make
    * sure the external I2C and SPI interfaces are disabled. */
@@ -515,6 +516,7 @@ int main(void) {
   configFirmwareBoardInfo();
 
   /* Set up buffers for ADC data, configure energy processing, and start */
+  uiLedColour(LED_GREEN);
   ecmConfigure();
   dmacCallbackBufferFill(&ecmDmaCallback);
   ecmFlush();
@@ -629,7 +631,9 @@ int main(void) {
                           pConfig->baseCfg.whDeltaStore);
 
         /* Blink the STATUS LED, and clear the event. */
-        uiLedOff(LED_STATUS);
+        uiLedColour(LED_RED);
+        txBlink.timeBlink  = timerMillis();
+        txBlink.txIndicate = true;
         emon32EventClr(EVT_PROCESS_DATASET);
       }
 
@@ -643,11 +647,9 @@ int main(void) {
         emon32EventClr(EVT_PROCESS_CMD);
       }
       if (evtPending(EVT_CONFIG_CHANGED)) {
-        uiLedOn(LED_PROG);
         emon32EventClr(EVT_CONFIG_CHANGED);
       }
       if (evtPending(EVT_CONFIG_SAVED)) {
-        uiLedOff(LED_PROG);
         emon32EventClr(EVT_CONFIG_SAVED);
       }
 

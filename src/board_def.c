@@ -7,7 +7,7 @@
  */
 
 const uint8_t pinsGPIO_Out[][2] = {{GRP_PINB, PIN_LED_STATUS},
-                                   {GRP_PINA, PIN_LED_PROG},
+                                   {GRP_PINB, PIN_LED_PROG},
                                    {GRP_PINA, PIN_SPI_RFM_SS},
                                    {0xFF, 0}};
 
