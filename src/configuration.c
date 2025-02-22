@@ -44,8 +44,13 @@ static bool     configureAnalog(void);
 static bool     configureAssumed(void);
 static void     configureBackup(void);
 static bool     configureDatalog(void);
-static void     configureOPA(void);
+static bool     configureGroupID(void);
+static bool     configureJSON(void);
+static bool     configureLineFrequency(void);
+static bool     configureOPA(void);
+static bool     configureNodeID(void);
 static bool     configureRFEnable(void);
+static bool     configureRFPower(void);
 static bool     configureSerialLog(void);
 static void     enterBootloader(void);
 static uint32_t getBoardRevision(void);
@@ -370,74 +375,22 @@ static bool configureDatalog(void) {
   return false;
 }
 
-static void configureOPA(void) {
-  /* String format in inBuffer:
-   *      [1] -> ch;
-   *      [3] -> active;
-   *      [5] -> edge (rising, falling, both)
-   *      [7] -> NULL: blank time
-   */
-  ConvInt_t convI;
-  int       ch     = 0;
-  int       active = 0;
-  int       period = 0;
-  char      edge   = 0;
+static bool configureGroupID(void) {
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
 
-  convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (!convI.valid) {
-    return;
-  }
-  ch = convI.val - 1;
-
-  if ((ch < 0) || (ch >= NUM_OPA)) {
-    return;
+    return false;
   }
 
-  convI = utilAtoi(inBuffer + 3, ITOA_BASE10);
-  if (!convI.valid) {
-    return;
-  }
-  active = (bool)convI.val;
-
-  convI = utilAtoi((inBuffer + 7), ITOA_BASE10);
-  if (!convI.valid) {
-    return;
-  }
-  period = convI.val;
-
-  edge = inBuffer[5];
-  if (!(('r' == edge) || ('f' == edge) || ('b' == edge))) {
-    return;
+  if ((convI.val < 0) || (convI.val > 255)) {
+    return false;
   }
 
-  /* If inactive, clear active flag, no decode for the rest */
-  if (0 == active) {
-    config.opaCfg[ch].opaActive = false;
-    printf_("> Pulse channel %d disabled.\r\n", (ch + 1u));
-    return;
-  } else {
-    config.opaCfg[ch].opaActive = true;
-    printf_("> Pulse channel %d: ", (ch + 1u));
-    switch (edge) {
-    case 'r':
-      serialPuts("Rising, ");
-      config.opaCfg[ch].func = 'r';
-      break;
-    case 'f':
-      serialPuts("Falling, ");
-      config.opaCfg[ch].func = 'f';
-      break;
-    case 'b':
-      serialPuts("Both, ");
-      config.opaCfg[ch].func = 'b';
-      break;
-    }
-    config.opaCfg[ch].period = period;
-    printf_("%d ms\r\n", config.opaCfg[ch].period);
-  }
+  config.baseCfg.dataGrp = convI.val;
+  return true;
 }
 
-static bool configureRFEnable(void) {
+static bool configureJSON(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
 
   if (!convI.valid) {
@@ -448,14 +401,192 @@ static bool configureRFEnable(void) {
     return false;
   }
 
-  config.dataTxCfg.useRFM = (bool)convI.val;
+  config.baseCfg.useJson = (bool)convI.val;
+  printf_("> Use JSON: %c\r\n", config.baseCfg.useJson ? 'Y' : 'N');
+  return true;
+}
+
+static bool configureLineFrequency(void) {
+  /* f<n>
+   * n must be 50 or 60
+   */
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+
+  if (!((50 == convI.val) || (60 == convI.val))) {
+    return false;
+  }
+
+  printf_("> Mains frequency set to: %d\r\n", config.baseCfg.mainsFreq);
+  config.baseCfg.mainsFreq = convI.val;
+  return true;
+}
+
+static bool configureOPA(void) {
+  /* String format in inBuffer:
+   *  m<v> <w> <x> <y> <z>
+   *      v[1] -> ch
+   *      w[3] -> active
+   *      x[5] -> function / edge
+   *      (ignore below for OneWire/analog)
+   *      y[7] -> pull up enabled
+   *      z[9] -> NULL: hysteresis
+   */
+  const int posCh     = 1;
+  const int posActive = 3;
+  const int posFunc   = 5;
+  const int posPu     = 7;
+  const int posPeriod = 9;
+
+  ConvInt_t convI;
+  int       ch     = 0;
+  bool      active = 0;
+  char      func   = 0;
+  bool      pu     = false;
+  int       period = 0;
+
+  /* Form a group of null-terminated strings */
+  for (int i = 0; i < IN_BUFFER_W; i++) {
+    if (0 == inBuffer[i]) {
+      break;
+    }
+    if (' ' == inBuffer[i]) {
+      inBuffer[i] = 0;
+    }
+  }
+
+  /* Channel index */
+  convI = utilAtoi(inBuffer + posCh, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+  ch = convI.val - 1;
+
+  if ((ch < 0) || (ch >= NUM_OPA)) {
+    return false;
+  }
+
+  /* Check if the channel is active or inactive */
+  convI = utilAtoi(inBuffer + posActive, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+  active = (bool)convI.val;
+
+  if (!active) {
+    config.opaCfg[ch].opaActive = false;
+    printf_("> OPA channel %d disabled.\r\n", (ch + 1u));
+    return true;
+  }
+  config.opaCfg[ch].opaActive = true;
+
+  /* Check for the function. Must be a valid type and if a pulse must also have
+   * a hysteresis period applied. */
+  func = inBuffer[posFunc];
+  if (!(('b' == func) || ('f' == func) || ('o' == func) || ('r' == func))) {
+    return false;
+  }
+
+  if ('o' != func) {
+    convI = utilAtoi((inBuffer + posPu), ITOA_BASE10);
+    if (!convI.valid) {
+      return false;
+    }
+    pu = (bool)convI.val;
+
+    convI = utilAtoi((inBuffer + posPeriod), ITOA_BASE10);
+    if (!convI.valid) {
+      return false;
+    }
+    period = convI.val;
+  }
+
+  printf_("> OPA channel %d: ", (ch + 1u));
+
+  /* OneWire requires a reset if changed to find any OneWire sensors. */
+  if ('o' == func) {
+    serialPuts("OneWire\r\n");
+    config.opaCfg[ch].func = 'o';
+    if ('o' != config.opaCfg[ch].func) {
+      resetReq = true;
+    }
+    return true;
+  }
+
+  serialPuts("Pulse (");
+  switch (func) {
+  case 'b':
+    serialPuts("both edges");
+    break;
+  case 'f':
+    serialPuts("falling edge");
+    break;
+  case 'r':
+    serialPuts("rising edge");
+    break;
+  default:
+    break;
+  }
+  printf_(", %s, %d ms)\r\n", (pu ? "pull-up" : "no pull-up"), period);
+
+  config.opaCfg[ch].func   = func;
+  config.opaCfg[ch].period = period;
+  config.opaCfg[ch].puEn   = pu;
+
+  resetReq = true;
+  return true;
+}
+
+static bool configureNodeID(void) {
+  /* n<n>
+   * Valid range is 1..60.
+   */
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+
+  if ((convI.val < 1) || (convI.val > 60)) {
+    return false;
+  }
+  config.baseCfg.nodeID = convI.val;
+  return true;
+}
+
+static bool configureRFEnable(void) {
+  int val = inBuffer[1] - '0';
+
+  if (!((0 == val) || (1 == val))) {
+    return false;
+  }
+
+  config.dataTxCfg.useRFM = (bool)val;
   serialPuts("> RF ");
-  if (convI.val) {
+  if (val) {
     serialPuts("enabled.\r\n");
   } else {
     serialPuts("disabled.\r\n");
   }
 
+  return true;
+}
+
+static bool configureRFPower(void) {
+  /* p<n>
+   * n is in range: 0-31
+   */
+  ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
+  if (!convI.valid) {
+    return false;
+  }
+
+  if ((convI.val < 0) || (convI.val > 31)) {
+    return false;
+  }
+
+  config.dataTxCfg.rfmPwr = convI.val;
   return true;
 }
 
@@ -568,9 +699,11 @@ static void printSettings(void) {
       serialPuts("433");
       break;
     }
-    printf_(" MHz, power %d\r\n", config.dataTxCfg.rfmPwr);
+    printf_(" MHz @ %ddb\r\n", (-18 + config.dataTxCfg.rfmPwr));
+    printf_("  - Data group:            %d\r\n", config.baseCfg.dataGrp);
+    printf_("  - Node ID:               %d\r\n", config.baseCfg.nodeID);
   } else {
-    serialPuts("Serial\r\n");
+    serialPuts("Serial only\r\n");
   }
   printf_("Data format:               %s\r\n",
           config.baseCfg.useJson ? "JSON" : "Key:Value");
@@ -578,23 +711,31 @@ static void printSettings(void) {
 
   for (unsigned int i = 0; i < NUM_OPA; i++) {
     bool enabled = config.opaCfg[i].opaActive;
-    printf_("Pulse Channel %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
-    printf_("  - Hysteresis (ms): %d\r\n", config.opaCfg[i].period);
-    serialPuts("  - Edge:            ");
-    switch (config.opaCfg[i].func) {
-    case 'r':
-      serialPuts("Rising");
-      break;
-    case 'f':
-      serialPuts("Falling");
-      break;
-    case 'b':
-      serialPuts("Both");
-      break;
-    default:
-      serialPuts("Unknown");
+    printf_("OPA %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
+    if ('o' == config.opaCfg[i].func) {
+      serialPuts("  - OneWire interface");
+    } else {
+      printf_("  - Hysteresis (ms): %d\r\n", config.opaCfg[i].period);
+      serialPuts("  - Edge:            ");
+      switch (config.opaCfg[i].func) {
+      case 'b':
+        serialPuts("Both");
+        break;
+      case 'f':
+        serialPuts("Falling");
+        break;
+      case 'o':
+        break;
+      case 'r':
+        serialPuts("Rising");
+        break;
+      default:
+        serialPuts("Unknown");
+      }
+      printf_("\r\n  - Pull up:         %s\r\n",
+              config.opaCfg[i].puEn ? "Yes" : "No");
     }
-    serialPuts("\r\n\r\n");
+    serialPuts("\r\n");
   }
 
   serialPuts(
@@ -790,7 +931,6 @@ Emon32Config_t *configLoadFromNVM(void) {
 void configProcessCmd(void) {
   unsigned int arglen    = 0;
   bool         termFound = false;
-  ConvInt_t    convI     = {false, 0};
 
   /* Help text - serves as documentation interally as well */
   const char helpText[] =
@@ -806,7 +946,7 @@ void configProcessCmd(void) {
       " - g<n>        : set network group (default = 210)\r\n"
       " - j<n>        : JSON serial format. n = 0: OFF, n = 1: ON\r\n"
       " - k<x> <a> <y.y> <z.z> v1 v2\r\n"
-      "   - Configure an analogue input\r\n"
+      "   - Configure an analog input\r\n"
       "   - x:        : channel (1-3 -> V; 4... -> CT)\r\n"
       "   - a:        : channel active. a = 0: DISABLED, a = 1: ENABLED\r\n"
       "   - y.y       : V/CT calibration constant\r\n"
@@ -817,10 +957,10 @@ void configProcessCmd(void) {
       " - m<v> <w> <x> <y> <z>\r\n"
       "   - Configure a OneWire/pulse input.\r\n"
       "     - v : channel index\r\n"
-      "     - w : function select. w = p: pulse, w = o: OneWire.\r\n"
-      "     - x : edge sensitivity (r,f,b). Ignored if w = o\r\n"
-      "     - y : minimum period (ms). Ignored if w = o\r\n"
-      "     - z : pull-up. z = 1: PULL UP, z = 0: NO PULL UP\r\n"
+      "     - w : channel active. a = 0: DISABLED, a = 1: ENABLED\r\n"
+      "     - x : function select. w = [b,f,r]: pulse, w = o: OneWire.\r\n"
+      "     - y : pull-up. y = 0: OFF, y = 1: ON\r\n"
+      "     - z : minimum period (ms). Ignored if w = o\r\n"
       " - n<n>        : set node ID [1..60]\r\n"
       " - p<n>        : set the RF power level\r\n"
       " - r           : restore defaults\r\n"
@@ -878,36 +1018,21 @@ void configProcessCmd(void) {
     /* Set line frequency.
      * Format: f50 | f60
      */
-    if (3u == arglen) {
-      convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
-      if (!convI.valid) {
-        break;
-      }
-
-      if (!((50 == convI.val) || (60 == convI.val))) {
-        break;
-      }
-
-      config.baseCfg.mainsFreq = convI.val;
-
-      printf_("> Mains frequency set to: %d\r\n", config.baseCfg.mainsFreq);
-
+    if (configureLineFrequency()) {
+      unsavedChange = true;
+      resetReq      = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
+    }
+    break;
+  case 'g':
+    if (configureGroupID()) {
       unsavedChange = true;
       resetReq      = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;
   case 'j':
-    if (2u == arglen) {
-      convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
-      if (!convI.valid) {
-        break;
-      }
-
-      config.baseCfg.useJson = (bool)convI.val;
-
-      printf_("> Use JSON: %c\r\n", config.baseCfg.useJson ? 'Y' : 'N');
-
+    if (configureJSON()) {
       unsavedChange = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
@@ -922,19 +1047,30 @@ void configProcessCmd(void) {
     printSettings();
     break;
   case 'm':
-    configureOPA();
-    unsavedChange = true;
-    emon32EventSet(EVT_CONFIG_CHANGED);
+    if (configureOPA()) {
+      unsavedChange = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
+    }
     break;
   case 'o':
     /* Start auto calibration of CT<x> lead */
     serialPuts("> Reserved for auto calibration. Not yet implemented.\r\n");
     break;
+  case 'n':
+    /* Set the node ID */
+    if (configureNodeID()) {
+      resetReq      = true;
+      unsavedChange = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
+    }
+    break;
   case 'p':
     /* Configure RF power */
-    resetReq      = true;
-    unsavedChange = true;
-    emon32EventSet(EVT_CONFIG_CHANGED);
+    if (configureRFPower()) {
+      resetReq      = true;
+      unsavedChange = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
+    }
     break;
   case 'r':
     configDefault();
