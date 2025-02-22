@@ -109,11 +109,11 @@
 
 /* Revision information */
 #define GRP_REV0 GRP_PINA
-#define GRP_REV1 GRP_PINB
-#define GRP_REV2 GRP_PINA
-#define PIN_REV0 0u
-#define PIN_REV1 17u
-#define PIN_REV2 1u
+#define GRP_REV1 GRP_PINA
+#define GRP_REV2 GRP_PINB
+#define PIN_REV0 27u
+#define PIN_REV1 28u
+#define PIN_REV2 17u
 
 /* LEDs */
 #define GRP_LED_STATUS GRP_PINB
@@ -165,6 +165,8 @@
 #define PIN_ADC_CT10   6u
 #define GRP_ADC_CT11   GRP_PINB
 #define PIN_ADC_CT11   7u
+#define GRP_ADC_CT12   GRP_PINA
+#define PIN_ADC_CT12   5u
 #define GRP_ADC_AIN    GRP_PINA
 #define PIN_ADC_AIN    9u
 #define GRP_ADC_VCAL_H GRP_PINA
