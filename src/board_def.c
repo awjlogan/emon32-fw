@@ -19,7 +19,7 @@ const uint8_t pinsGPIO_In[][2] = {{GRP_OPA, PIN_OPA1},
                                   {GRP_RFM_INTF, PIN_RFM_RST},
                                   {GRP_PINA, PIN_REV0},
                                   {GRP_PINA, PIN_REV1},
-                                  {GRP_PINA, PIN_REV2},
+                                  {GRP_PINB, PIN_REV2},
                                   {GRP_nDISABLE_EXT, PIN_nDISABLE_EXT},
                                   {0xFF, 0}};
 

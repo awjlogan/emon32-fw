@@ -466,7 +466,8 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
     for (int_fast8_t ch = 0; ch < VCT_TOTAL; ch++) {
       q15_t result;
       bool  active = (ch < NUM_V) ? channelActive[ch]
-                                  : channelActive[mapLogCT[ch - NUM_V]];
+                                  : channelActive[mapLogCT[ch - NUM_V] + NUM_V];
+
       if (active) {
         int32_t intRes = coeffMid * dspBuffer[idxMid].smp[ch];
 

@@ -165,7 +165,7 @@ int main(int argc, char *argv[]) {
   }
 
   for (int i = 0; i < NUM_CT; i++) {
-    pEcmCfg->ctCfg[i].active   = (i < 2);
+    pEcmCfg->ctCfg[i].active   = (i < 6);
     pEcmCfg->ctCfg[i].ctCalRaw = 20.0f;
     pEcmCfg->ctCfg[i].phCal    = 4.2f;
     pEcmCfg->ctCfg[i].vChan1   = 0;
@@ -319,16 +319,17 @@ static q15_t generateWave(wave_t *w, int tMicros) {
 }
 
 static void printReport(int reportNum, int64_t time, ECMDataset_t *pDataset) {
+  const int  ct    = 0;
   static int prevE = 0;
   int        thisE;
 
-  thisE = pDataset->CT[0].wattHour;
+  thisE = pDataset->CT[ct].wattHour;
   printf("    Report %d (t = %.2f s):\r\n", reportNum++, (time / 1000000.0));
   printf("      Vrms (V) : %.2f\r\n", pDataset->rmsV[0]);
-  printf("      Irms (A) : %.2f\r\n", pDataset->CT[0].rmsI);
-  printf("      P    (W) : %d\r\n", pDataset->CT[0].realPower);
+  printf("      Irms (A) : %.2f\r\n", pDataset->CT[ct].rmsI);
+  printf("      P    (W) : %d\r\n", pDataset->CT[ct].realPower);
   printf("      E    (Wh): %d (delta: %d)\r\n", thisE, (thisE - prevE));
-  printf("      pF       : %.2f\r\n", pDataset->CT[0].pf);
+  printf("      pF       : %.2f\r\n", pDataset->CT[ct].pf);
   prevE = thisE;
 }
 
