@@ -386,7 +386,7 @@ static uint32_t tempSetup(void) {
   dsCfg.t_wait_us               = 5;
 
   for (int i = 0; i < NUM_OPA; i++) {
-    if ('o' == pConfig->opaCfg[i].func && (pConfig->opaCfg[i].opaActive)) {
+    if (('o' == pConfig->opaCfg[i].func) && pConfig->opaCfg[i].opaActive) {
       dsCfg.opaIdx = i;
       dsCfg.pin    = opaPins[i];
       dsCfg.pinPU  = opaPUs[i];
@@ -557,10 +557,12 @@ int main(void) {
        * the last temperature sample, start a temperature sample as well.
        */
       if (evtPending(EVT_ECM_TRIG)) {
-        for (int i = 0; i < NUM_OPA; i++) {
-          if (('o' == pConfig->opaCfg[i].func) &&
-              pConfig->opaCfg[i].opaActive) {
-            (void)tempStartSample(TEMP_INTF_ONEWIRE, i);
+        if (numTempSensors > 0) {
+          for (int i = 0; i < NUM_OPA; i++) {
+            if (('o' == pConfig->opaCfg[i].func) &&
+                pConfig->opaCfg[i].opaActive) {
+              (void)tempStartSample(TEMP_INTF_ONEWIRE, i);
+            }
           }
         }
         ecmProcessSetTrigger();
@@ -569,10 +571,12 @@ int main(void) {
 
       /* Trigger a temperature sample 1 s before the report is due. */
       if (evtPending(EVT_ECM_PEND_1S)) {
-        for (int i = 0; i < NUM_OPA; i++) {
-          if (('o' == pConfig->opaCfg[i].func) &&
-              pConfig->opaCfg[i].opaActive) {
-            (void)tempStartSample(TEMP_INTF_ONEWIRE, i);
+        if (numTempSensors > 0) {
+          for (int i = 0; i < NUM_OPA; i++) {
+            if (('o' == pConfig->opaCfg[i].func) &&
+                pConfig->opaCfg[i].opaActive) {
+              (void)tempStartSample(TEMP_INTF_ONEWIRE, i);
+            }
           }
         }
         emon32EventClr(EVT_ECM_PEND_1S);

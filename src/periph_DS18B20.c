@@ -291,10 +291,11 @@ unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg) {
 
   uint8_t      opaIdx       = pCfg->opaIdx;
   unsigned int deviceCount  = 0;
-  int          searchResult = 0;
+  bool         searchResult = false;
 
   cfg[opaIdx].grp       = pCfg->grp;
   cfg[opaIdx].pin       = pCfg->pin;
+  cfg[opaIdx].pinPU     = pCfg->pinPU;
   /* If not overridden, default to 5 us pull low */
   cfg[opaIdx].t_wait_us = pCfg->t_wait_us ? pCfg->t_wait_us : 5u;
 
@@ -304,7 +305,7 @@ unsigned int ds18b20InitSensors(const DS18B20_conf_t *pCfg) {
   portPinDrv(cfg[opaIdx].grp, cfg[opaIdx].pin, PIN_DRV_CLR);
   searchResult = oneWireFirst(opaIdx);
 
-  while ((0 != searchResult) && (deviceCount < TEMP_MAX_ONEWIRE)) {
+  while (searchResult && (deviceCount < TEMP_MAX_ONEWIRE)) {
 
     /* Only count DS18B20 devices. */
     if (DS18B_FAMILY_CODE == (uint8_t)ROM_NO) {
