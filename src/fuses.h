@@ -84,3 +84,5 @@ typedef struct {
 } NVM_OTP4_Type;
 
 #define OTP4_FUSES ((NVM_OTP4_Type *)NVMCTRL_OTP4)
+
+void checkBootProtection(void);

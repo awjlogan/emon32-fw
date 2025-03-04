@@ -14,6 +14,8 @@
 #define F_TIMER_ADC F_PERIPH / 8
 #define F_TIMER2    F_PERIPH / 8
 
+#define BOOTPROT_SAMD 0x2 /* 8KB bootloader protection, Table 22-2 */
+
 #define NUM_V              3
 #define NUM_CT             12
 #define VCT_TOTAL          (NUM_V + NUM_CT)

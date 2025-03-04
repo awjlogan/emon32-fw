@@ -713,7 +713,7 @@ static void printSettings(void) {
     bool enabled = config.opaCfg[i].opaActive;
     printf_("OPA %d (%sactive)\r\n", (i + 1), enabled ? "" : "in");
     if ('o' == config.opaCfg[i].func) {
-      serialPuts("  - OneWire interface");
+      serialPuts("  - OneWire interface\r\n");
     } else {
       printf_("  - Hysteresis (ms): %d\r\n", config.opaCfg[i].period);
       serialPuts("  - Edge:            ");
