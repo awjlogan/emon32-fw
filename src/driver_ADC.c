@@ -55,6 +55,7 @@ static void adcCalibrate(void) {
   expScale34 = adcCalibrateSmp(AIN_VCAL_H);
 
   ADC->CTRLA.reg &= ~ADC_CTRLA_ENABLE;
+  ADC->AVGCTRL.reg = 0;
   adcSync();
 
   /* The corrected value is:
@@ -179,17 +180,14 @@ void adcSetup(void) {
    * averaging. Requires synchronisation after write (33.6.15)
    */
   ADC->CTRLB.reg =
-      ADC_CTRLB_PRESCALER_DIV4 | ADC_CTRLB_DIFFMODE | ADC_CTRLB_RESSEL_16BIT;
+      ADC_CTRLB_PRESCALER_DIV4 | ADC_CTRLB_DIFFMODE | ADC_CTRLB_RESSEL_12BIT;
   adcSync();
 
-  /* Conversion time is 3.5 us, target 6 us total conversion time
-   * Setup 2.5 us conversion time: SAMPLEN = (2T * f_clk) - 1
-   * (2 * 2.5E-6 * 2E6) - 1 = 9
+  /* Conversion time is 3.5 us (7 ADC cycles @ 2 MHz), target 12 us total
+   * conversion time, therefore 8.5 us sampling length:
+   * SAMPLEN = (2T * f_clk) - 1 (2 * 8.5E-6 * 2E6) - 1 = 33
    */
-  ADC->SAMPCTRL.reg = 0x9u;
-
-  /* 2x oversampling */
-  ADC->AVGCTRL.reg = ADC_AVGCTRL_SAMPLENUM_2;
+  ADC->SAMPCTRL.reg = 0x21u;
 
   /* Input control - requires synchronisation (33.6.15) */
   ADC->INPUTCTRL.reg = ADC_INPUTCTRL_MUXPOS_PIN2 |

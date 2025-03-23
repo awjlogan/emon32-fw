@@ -885,7 +885,7 @@ void configFirmwareBoardInfo(void) {
   serialPuts(emon32_build_info_string());
   serialPuts("\r\n\r\n");
   serialPuts("  - Distributed under GPL3 license, see COPYING.md\r\n");
-  serialPuts("  - emon32 Copyright (C) 2023-24 Angus Logan\r\n");
+  serialPuts("  - emon32 Copyright (C) 2023-25 Angus Logan\r\n");
   serialPuts("  - For Bear and Moose\r\n\r\n");
 }
 
