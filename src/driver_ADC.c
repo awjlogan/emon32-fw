@@ -176,8 +176,8 @@ void adcSetup(void) {
 
   adcCalibrate();
 
-  /* Differential mode, /4 prescale of F_PERIPH, right aligned, enable
-   * averaging. Requires synchronisation after write (33.6.15)
+  /* Differential mode, /4 prescale of F_PERIPH. Requires synchronisation after
+   * write (33.6.15).
    */
   ADC->CTRLB.reg =
       ADC_CTRLB_PRESCALER_DIV4 | ADC_CTRLB_DIFFMODE | ADC_CTRLB_RESSEL_12BIT;
