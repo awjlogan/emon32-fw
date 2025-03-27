@@ -1,5 +1,7 @@
 #pragma once
 
+#include <stdbool.h>
+
 typedef enum eepromWLStatus_ {
   EEPROM_WL_OK,
   EEPROM_WL_CRC_BAD,

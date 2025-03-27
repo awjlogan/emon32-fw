@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "emon32.h"
 #include "emon_CM.h"
@@ -17,6 +18,7 @@
 #define SMP_TICK    1000000u / SAMPLE_RATE / (VCT_TOTAL)
 #define TEST_TIME   100E6 /* Time to run in microseconds */
 #define VRMS_GOLD   235.0f
+#define MAX_A       (1 << (ADC_RES_BITS - 1))
 
 typedef struct wave_ {
   double omega;  /* Angular velocity */
@@ -24,6 +26,12 @@ typedef struct wave_ {
   double s;      /* Scale (0 < s <= 1.0) */
   int    offset; /* Constant offset, clamped if outside range */
 } wave_t;
+
+typedef struct noise_ {
+  bool   en;    /* Noise enabled */
+  double mu;    /* mean */
+  double sigma; /* std dev */
+} noise_t;
 
 /*! @brief Check the results from a run
  *  @param [in] pData : pointer to dataset
@@ -40,7 +48,7 @@ static bool checkDataset(ECMDataset_t *pData, float pF);
  */
 static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w);
 
-static void dynamicRun(int reports, bool prtReports);
+static void dynamicRun(int reports, bool prtReports, noise_t *noise);
 
 /*! @brief Generates a Q11 [-1024, 1023] wave with configurable parameters
  *  @param [in] w       : pointer to wave information
@@ -48,12 +56,19 @@ static void dynamicRun(int reports, bool prtReports);
  */
 static q15_t generateWave(wave_t *w, int tMicros);
 
+/*! @brief Generate noise with normal distribution
+ *  @param [in] mu : mean value
+ *  @param [in] sigma : std dev
+ *  @return random integer
+ */
+static int noiseNormal(double mu, double sigma);
+
 /*! @brief Print the output from the emonCM report
  *  @param [in] reportNum   Report number
- *  @param [in] time        Simulation time in us
+ *  @param [in] tick        Simulation tick in us
  *  @param [in] pDataset    Pointer to the dataset
  */
-static void printReport(int reportNum, int64_t time, ECMDataset_t *pDataset);
+static void printReport(int reportNum, int64_t tick, ECMDataset_t *pDataset);
 
 /*! @brief Convert a voltage into a wave description
  *  @param [in] vRMS : RMS voltage
@@ -61,7 +76,7 @@ static void printReport(int reportNum, int64_t time, ECMDataset_t *pDataset);
  */
 static void voltageToWave(double vRMS, wave_t *w);
 
-static uint32_t time = 0;
+static uint32_t tick = 0;
 ECM_STATUS_t    status;
 SampleSet_t     smpProc;
 unsigned int    smpIdx = 0;
@@ -70,8 +85,8 @@ ECMDataset_t   *dataset;
 volatile RawSampleSetPacked_t *volatile smpRaw[2];
 wave_t wave[VCT_TOTAL];
 
-static uint32_t timeMicros(void) { return time; }
-static uint32_t timeMicrosDelta(uint32_t timePrev) { return time - timePrev; }
+static uint32_t timeMicros(void) { return tick; }
+static uint32_t timeMicrosDelta(uint32_t tickPrev) { return tick - tickPrev; }
 
 static bool checkDataset(ECMDataset_t *pData, float pF) {
 
@@ -90,15 +105,17 @@ static bool checkDataset(ECMDataset_t *pData, float pF) {
   return true;
 }
 
-static void dynamicRun(int reports, bool prtReport) {
+static void dynamicRun(int reports, bool prtReport, noise_t *noise) {
   int reportNum = 0;
 
   while (reportNum < reports) {
 
     for (int j = 0; j < 2; j++) {
       for (int i = 0; i < VCT_TOTAL; i++) {
-        smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], time);
-        time += SMP_TICK;
+        smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], tick);
+        smpRaw[smpIdx]->samples[j].smp[i] +=
+            (noise->en ? noiseNormal(noise->mu, noise->sigma) : 0);
+        tick += SMP_TICK;
       }
     }
     smpIdx = !smpIdx;
@@ -108,7 +125,7 @@ static void dynamicRun(int reports, bool prtReport) {
     if (ECM_REPORT_COMPLETE == status) {
       dataset = ecmProcessSet();
       if (prtReport) {
-        printReport(reportNum, time, dataset);
+        printReport(reportNum, tick, dataset);
       }
       reportNum++;
     }
@@ -120,6 +137,17 @@ int main(int argc, char *argv[]) {
 
   FILE     *fptr;
   ECMCfg_t *pEcmCfg;
+  noise_t   noise = {0};
+
+  srandom(time(NULL));
+  if (argc > 1) {
+    noise.en = true;
+    noise.mu = atof(argv[1]);
+  }
+  if (argc > 2) {
+    noise.sigma = atof(argv[2]);
+  }
+  printf("%c %f %f\n\n", noise.en ? '+' : '-', noise.mu, noise.sigma);
 
   /* Copy and fold the half band coefficients */
   const int lutDepth = (numCoeffUnique - 1) * 2;
@@ -137,8 +165,13 @@ int main(int argc, char *argv[]) {
     wave[i].phi = M_PI * 120 * i / 180;
   }
 
+  /* Set CTs 1-3 as 3.5 A, 4-12 active but zero current */
   for (int i = NUM_V; i < VCT_TOTAL; i++) {
-    currentToWave(3.5, 5, 5.0, &wave[i]);
+    if (i - NUM_V < 3) {
+      currentToWave(3.5, 5, 5.0, &wave[i]);
+    } else {
+      currentToWave(0, 5, 5.0, &wave[i]);
+    }
   }
 
   pEcmCfg = ecmConfigGet();
@@ -254,39 +287,40 @@ int main(int argc, char *argv[]) {
    */
   printf("  Dynamic test...\n\n");
   printf("    - Phase 0°, PF = 1 ... ");
-  dynamicRun(4, false);
+  dynamicRun(4, false, &noise);
   if (!checkDataset(dataset, 1.0f))
     return 1;
   printf("Done!\n");
 
   printf("    - Phase 90°, PF = 0 ... ");
   wave[NUM_V].phi = M_PI / 2;
-  time            = 0;
-  dynamicRun(4, false);
+  tick            = 0;
+  dynamicRun(4, false, &noise);
   if (!checkDataset(dataset, 0.0f))
     return 1;
   printf("Done!\n");
 
   printf("    - Phase 180°, PF = -1 ... ");
   wave[NUM_V].phi = M_PI;
-  time            = 0;
-  dynamicRun(4, false);
+  tick            = 0;
+  dynamicRun(4, false, &noise);
   if (!checkDataset(dataset, -1.0f))
     ;
-  printf("Done!\n");
+  printf("Done!\n\n");
 
   printf("    - 600 s report period ... ");
+  fflush(stdout);
   pEcmCfg->reportCycles = 600 * 50;
   wave[NUM_V].phi       = M_PI * 4.2f / 180;
-  time                  = 0;
-  dynamicRun(1, false);
+  tick                  = 0;
+  dynamicRun(1, false, &noise);
   checkDataset(dataset, 1.0f);
   printf("Done!\n");
 
   printf("    - 0.5 s report period ... ");
   pEcmCfg->reportCycles = 25;
-  time                  = 0;
-  dynamicRun(1, false);
+  tick                  = 0;
+  dynamicRun(1, false, &noise);
   checkDataset(dataset, 1.0f);
   printf("Done!\n");
 
@@ -302,29 +336,35 @@ static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {
   w->s       = iPk / scaleCT;
 }
 
+static int noiseNormal(double mu, double sigma) {
+  double x = (double)random() / RAND_MAX;
+  double y = (double)random() / RAND_MAX;
+  return (int)sqrt(-2 * log(x)) * cos(2 * M_PI * y);
+}
+
 static q15_t generateWave(wave_t *w, int tMicros) {
-  assert((w->s > 0.0) && (w->s <= 1.0));
+  assert((w->s >= 0.0) && (w->s <= 1.0));
   q15_t  wave;
   double a = sin(((w->omega * tMicros) / 1000000.0) + w->phi) * w->s;
-  wave     = (q15_t)(a * 2048);
+  wave     = (q15_t)(a * MAX_A);
   wave += w->offset;
 
   /* Clip if the offset exceeds the bounds */
-  if (wave < -2048) {
-    wave = -2048;
-  } else if (wave > 2047) {
-    wave = 2047;
+  if (wave < -MAX_A) {
+    wave = -MAX_A;
+  } else if (wave > (MAX_A - 1)) {
+    wave = (MAX_A - 1);
   }
   return wave;
 }
 
-static void printReport(int reportNum, int64_t time, ECMDataset_t *pDataset) {
+static void printReport(int reportNum, int64_t tick, ECMDataset_t *pDataset) {
   const int  ct    = 0;
   static int prevE = 0;
   int        thisE;
 
   thisE = pDataset->CT[ct].wattHour;
-  printf("    Report %d (t = %.2f s):\r\n", reportNum++, (time / 1000000.0));
+  printf("    Report %d (t = %.2f s):\r\n", reportNum++, (tick / 1000000.0));
   printf("      Vrms (V) : %.2f\r\n", pDataset->rmsV[0]);
   printf("      Irms (A) : %.2f\r\n", pDataset->CT[ct].rmsI);
   printf("      P    (W) : %d\r\n", pDataset->CT[ct].realPower);
