@@ -160,9 +160,6 @@ int main(int argc, char *argv[]) {
     noise.alpha = atof(argv[3]);
   }
 
-  printf("%c %f %f %f\n\n", noise.en ? '+' : '-', noise.mu, noise.sigma,
-         noise.alpha);
-
   srandom(time(NULL));
   /* Copy and fold the half band coefficients */
   const int lutDepth = (numCoeffUnique - 1) * 2;
@@ -235,6 +232,10 @@ int main(int argc, char *argv[]) {
   /* Sanity check by dumping a CSV of 10 cycles @ mains freq */
   printf("  Generating test sine...");
   fptr = fopen("cm-test-sine.csv", "w");
+  if (!fptr) {
+    printf("Failed\n  Failed to open output\n");
+    return 1;
+  }
   for (int t = 0; t < ((1000000 * 10) / MAINS_FREQ);
        t += (SMP_TICK * (VCT_TOTAL))) {
     q15_t a = generateWave(&wave[0], t);
@@ -251,6 +252,12 @@ int main(int argc, char *argv[]) {
   printf("    - DSP enabled     : %s\n", pEcmCfg->downsample ? "Yes" : "No");
   printf("    - Report time     : %.2f s\n", REPORT_TIME);
   printf("    - Sample tick     : %d us\n", SMP_TICK);
+  printf("    - Noise           : %s\n", noise.en ? "Yes" : "No");
+  if (noise.en) {
+    printf("                        mu    : %f\n", noise.mu);
+    printf("                        sigma : %f\n", noise.sigma);
+    printf("                        alpha : %f\n", noise.alpha);
+  }
   printf("\n");
 
   /* ============ START : HALF BAND TEST ============ */
@@ -340,11 +347,6 @@ int main(int argc, char *argv[]) {
   printf("Done!\n");
 
   printf("\n  Finished!\n\n");
-
-  for (int i = 0; i < (1 << 14); i++) {
-    printf("%f ", randSkewNormal(&noise));
-  }
-  printf("\n");
 
   return 0;
 }
