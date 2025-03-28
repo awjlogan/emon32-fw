@@ -31,6 +31,7 @@ typedef struct noise_ {
   bool   en;    /* Noise enabled */
   double mu;    /* mean */
   double sigma; /* std dev */
+  double alpha; /* skew */
 } noise_t;
 
 /*! @brief Check the results from a run
@@ -56,12 +57,17 @@ static void dynamicRun(int reports, bool prtReports, noise_t *noise);
  */
 static q15_t generateWave(wave_t *w, int tMicros);
 
-/*! @brief Generate noise with normal distribution
- *  @param [in] mu : mean value
- *  @param [in] sigma : std dev
- *  @return random integer
+/*! @brief Generate number from normal distribution
+ *  @param [in] noise : pointer to noise struct
+ *  @return random number from normal distribution
  */
-static int noiseNormal(double mu, double sigma);
+static double randNormal(noise_t *noise);
+
+/*! @brief Generate number from skew normal distribution
+ *  @param [in] noise : pointer to noise struct
+ *  @return random number from skew normal distribution
+ */
+static double randSkewNormal(noise_t *noise);
 
 /*! @brief Print the output from the emonCM report
  *  @param [in] reportNum   Report number
@@ -114,7 +120,9 @@ static void dynamicRun(int reports, bool prtReport, noise_t *noise) {
       for (int i = 0; i < VCT_TOTAL; i++) {
         smpRaw[smpIdx]->samples[j].smp[i] = generateWave(&wave[i], tick);
         smpRaw[smpIdx]->samples[j].smp[i] +=
-            (noise->en ? noiseNormal(noise->mu, noise->sigma) : 0);
+            (noise->en ? (noise->alpha == 0.0) ? (int)randNormal(noise)
+                                               : (int)randSkewNormal(noise)
+                       : 0);
         tick += SMP_TICK;
       }
     }
@@ -133,13 +141,14 @@ static void dynamicRun(int reports, bool prtReport, noise_t *noise) {
   ecmFlush();
 }
 
+/* usage: cm.test mu sigma alpha */
 int main(int argc, char *argv[]) {
 
   FILE     *fptr;
   ECMCfg_t *pEcmCfg;
   noise_t   noise = {0};
 
-  srandom(time(NULL));
+  /* Collect noise parameters*/
   if (argc > 1) {
     noise.en = true;
     noise.mu = atof(argv[1]);
@@ -147,8 +156,14 @@ int main(int argc, char *argv[]) {
   if (argc > 2) {
     noise.sigma = atof(argv[2]);
   }
-  printf("%c %f %f\n\n", noise.en ? '+' : '-', noise.mu, noise.sigma);
+  if (argc > 3) {
+    noise.alpha = atof(argv[3]);
+  }
 
+  printf("%c %f %f %f\n\n", noise.en ? '+' : '-', noise.mu, noise.sigma,
+         noise.alpha);
+
+  srandom(time(NULL));
   /* Copy and fold the half band coefficients */
   const int lutDepth = (numCoeffUnique - 1) * 2;
   int16_t   coeffLut[lutDepth];
@@ -325,6 +340,12 @@ int main(int argc, char *argv[]) {
   printf("Done!\n");
 
   printf("\n  Finished!\n\n");
+
+  for (int i = 0; i < (1 << 14); i++) {
+    printf("%f ", randSkewNormal(&noise));
+  }
+  printf("\n");
+
   return 0;
 }
 
@@ -334,12 +355,6 @@ static void currentToWave(double IRMS, int scaleCT, double phase, wave_t *w) {
   w->omega   = 2 * M_PI * MAINS_FREQ;
   w->phi     = M_PI * phase / 180;
   w->s       = iPk / scaleCT;
-}
-
-static int noiseNormal(double mu, double sigma) {
-  double x = (double)random() / RAND_MAX;
-  double y = (double)random() / RAND_MAX;
-  return (int)sqrt(-2 * log(x)) * cos(2 * M_PI * y);
 }
 
 static q15_t generateWave(wave_t *w, int tMicros) {
@@ -371,6 +386,24 @@ static void printReport(int reportNum, int64_t tick, ECMDataset_t *pDataset) {
   printf("      E    (Wh): %d (delta: %d)\r\n", thisE, (thisE - prevE));
   printf("      pF       : %.2f\r\n", pDataset->CT[ct].pf);
   prevE = thisE;
+}
+
+static double randNormal(noise_t *noise) {
+  double x = (double)random() / RAND_MAX;
+  double y = (double)random() / RAND_MAX;
+  return (noise->mu + noise->sigma * sqrt(-2 * log(x)) * cos(2 * M_PI * y));
+}
+
+static double randSkewNormal(noise_t *noise) {
+  double sigma = noise->alpha / sqrt(1.0 + noise->alpha * noise->alpha);
+  double u0    = randNormal(&(noise_t){.mu = 0, .sigma = 1});
+  double v     = randNormal(&(noise_t){.mu = 0, .sigma = 1});
+  double u1    = sigma * u0 + sqrt(1.0 - sigma * sigma) * v;
+  if (u0 >= 0) {
+    return u1 + noise->mu;
+  } else {
+    return (-u1 + noise->mu);
+  }
 }
 
 static void voltageToWave(double vRMS, wave_t *w) {
