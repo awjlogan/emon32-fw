@@ -141,8 +141,8 @@ unsigned int utilFtoa(char *pBuf, float val) {
     isNegative = true;
     val        = qfp_fmul(val, -1.0f);
   }
-  decimals = qfp_float2int(qfp_fmul(val, 100.0f)) % 100;
-  units    = qfp_float2int(val);
+  decimals = qfp_float2int_z(qfp_fmul(val, 100.0f)) % 100;
+  units    = qfp_float2int_z(val);
 
   charCnt += 3u;
   *pBuf++  = (decimals % 10) + '0';

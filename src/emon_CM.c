@@ -727,13 +727,14 @@ RAMFUNC ECMDataset_t *ecmProcessSet(void) {
       datasetProc.CT[idxCT].pf = pf_b ? 0.0f : pf;
 
       // Energy and power, rounding to nearest integer
-      datasetProc.CT[idxCT].realPower = qfp_float2int(qfp_fadd(powerNow, 0.5f));
-      datasetProc.CT[idxCT].apparentPower = qfp_float2int(qfp_fadd(VA, 0.5f));
+      datasetProc.CT[idxCT].realPower =
+          qfp_float2int_z(qfp_fadd(powerNow, 0.5f));
+      datasetProc.CT[idxCT].apparentPower = qfp_float2int_z(qfp_fadd(VA, 0.5f));
 
       // REVISIT : Consider double precision here, some truncation observed
       float energyNow = qfp_fmul(powerNow, timeTotal);
       energyNow = qfp_fadd(energyNow, datasetProc.CT[idxCT].residualEnergy);
-      int whNow = qfp_float2int(qfp_fdiv(energyNow, 3600.0f));
+      int whNow = qfp_float2int_z(qfp_fdiv(energyNow, 3600.0f));
 
       datasetProc.CT[idxCT].wattHour += whNow;
       datasetProc.CT[idxCT].residualEnergy =

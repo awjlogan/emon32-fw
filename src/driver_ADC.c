@@ -71,10 +71,10 @@ static void adcCalibrate(void) {
                      qfp_int2float((expScale14 - expScale34)));
   gain    = qfp_float2fix(gain_fp, 11);
 
-  offset_inter[0] = qfp_float2int(qfp_fadd(
+  offset_inter[0] = qfp_float2int_z(qfp_fadd(
                         0.5f, qfp_fdiv(qfp_int2float(refScale14), gain_fp))) -
                     expScale14;
-  offset_inter[1] = qfp_float2int(qfp_fadd(
+  offset_inter[1] = qfp_float2int_z(qfp_fadd(
                         0.5f, qfp_fdiv(qfp_int2float(refScale34), gain_fp))) -
                     expScale34;
   offset = (offset_inter[0] + offset_inter[1]) / 2;

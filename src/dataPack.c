@@ -237,7 +237,7 @@ int_fast8_t dataPackPacked(const Emon32Dataset_t *pData, void *pPacked,
   pCommon->msg                = pData->msgNum;
 
   for (int v = 0; v < NUM_V; v++) {
-    pCommon->V[v] = qfp_float2int(qfp_fmul(pData->pECM->rmsV[v], 100.0f));
+    pCommon->V[v] = qfp_float2int_z(qfp_fmul(pData->pECM->rmsV[v], 100.0f));
   }
 
   for (int i = 0; i < (NUM_CT / 2); i++) {
