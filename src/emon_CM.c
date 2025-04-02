@@ -275,6 +275,8 @@ static volatile RawSampleSetPacked_t adcSamples[SAMPLE_BUF_DEPTH];
 static volatile RawSampleSetPacked_t *volatile adcActive = adcSamples;
 static volatile RawSampleSetPacked_t *volatile adcProc   = adcSamples + 1;
 
+static float residualEnergy[NUM_CT] = {0};
+
 void ecmDataBufferSwap(void) {
   swapPtr((void **)&adcActive, (void **)&adcProc);
 }
@@ -364,8 +366,8 @@ static void calibrationPhase(PhaseXY_t *pPh, float phase, int_fast8_t idxCT) {
 
 void ecmClearEnergy(void) {
   for (int i = 0; i < NUM_CT; i++) {
-    datasetProc.CT[i].wattHour       = 0;
-    datasetProc.CT[i].residualEnergy = 0.0f;
+    datasetProc.CT[i].wattHour = 0;
+    residualEnergy[i]          = 0.0f;
   }
 }
 
@@ -386,6 +388,7 @@ void ecmFlush(void) {
   memset(accumBuffer, 0, (2 * sizeof(*accumBuffer)));
   // memset(sampleRingBuffer, 0, (PROC_DEPTH * sizeof(*sampleRingBuffer)));
   memset(dspBuffer, 0, (DOWNSAMPLE_TAPS * sizeof(*dspBuffer)));
+  memset(&residualEnergy, 0, (sizeof(*residualEnergy) * NUM_CT));
 }
 
 RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
@@ -733,12 +736,12 @@ RAMFUNC ECMDataset_t *ecmProcessSet(void) {
 
       // REVISIT : Consider double precision here, some truncation observed
       float energyNow = qfp_fmul(powerNow, timeTotal);
-      energyNow = qfp_fadd(energyNow, datasetProc.CT[idxCT].residualEnergy);
-      int whNow = qfp_float2int_z(qfp_fdiv(energyNow, 3600.0f));
+      energyNow       = qfp_fadd(energyNow, residualEnergy[idxCT]);
+      int whNow       = qfp_float2int_z(qfp_fdiv(energyNow, 3600.0f));
 
       datasetProc.CT[idxCT].wattHour += whNow;
-      datasetProc.CT[idxCT].residualEnergy =
-          qfp_fsub(energyNow, qfp_int2float(whNow * 3600));
+      residualEnergy[idxCT] = qfp_fsub(energyNow, qfp_int2float(whNow * 3600));
+
     } else {
       /* Zero all values otherwise */
       memset(&datasetProc.CT[idxCT], 0, sizeof(*datasetProc.CT));

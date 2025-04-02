@@ -104,7 +104,6 @@ typedef struct DataCT_ {
   int   realPower;
   int   apparentPower;
   int   wattHour;
-  float residualEnergy; /* Energy held over to next set */
 } DataCT_t;
 
 typedef struct ECMDataset_ {
