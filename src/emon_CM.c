@@ -528,20 +528,21 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
     }
   }
 
-  /* 3-phase L-L values */
+  /* 3-phase L-L values. Conventionally, line crossings go 1->2->3, so capture
+   * correct differences. */
   if (threePhase) {
     int32_t v1   = smpSet.smpV[0];
     int32_t v2   = smpSet.smpV[1];
     int32_t v3   = smpSet.smpV[2];
     int32_t v1v2 = v1 - v2;
-    int32_t v1v3 = v1 - v3;
     int32_t v2v3 = v2 - v3;
+    int32_t v3v1 = v3 - v1;
     accumCollecting->processV[3].sumV_sqr += (int64_t)(v1v2 * v1v2);
     accumCollecting->processV[3].sumV_deltas += v1v2;
-    accumCollecting->processV[4].sumV_sqr += (int64_t)(v1v3 * v1v3);
-    accumCollecting->processV[4].sumV_deltas += v1v3;
-    accumCollecting->processV[5].sumV_sqr += (int64_t)(v2v3 * v2v3);
-    accumCollecting->processV[5].sumV_deltas += v2v3;
+    accumCollecting->processV[4].sumV_sqr += (int64_t)(v2v3 * v2v3);
+    accumCollecting->processV[4].sumV_deltas += v2v3;
+    accumCollecting->processV[5].sumV_sqr += (int64_t)(v3v1 * v3v1);
+    accumCollecting->processV[5].sumV_deltas += v3v1;
   }
 
   for (int_fast8_t idxCT = 0; idxCT < NUM_CT; idxCT++) {
