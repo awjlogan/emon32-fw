@@ -232,9 +232,9 @@ static void sercomSetupSPI(void) {
                               SERCOM_SPI_CTRLA_DOPO(0x2);
 
   /* Enable TX and RX interrupts (complete and empty), not routed to NVIC */
-  SERCOM_SPI->SPI.INTENSET.reg |= SERCOM_SPI_INTENSET_RXC |
-                                  SERCOM_SPI_INTENSET_TXC |
-                                  SERCOM_SPI_INTENSET_DRE;
+  SERCOM_SPI->SPI.INTENSET.reg = SERCOM_SPI_INTENSET_RXC |
+                                 SERCOM_SPI_INTENSET_TXC |
+                                 SERCOM_SPI_INTENSET_DRE;
 
   /* While disabled, RXEN will be set immediately. When the SPI SERCOM is
    * enabled, this requires synchronisation before the SPI is ready. See
@@ -254,8 +254,8 @@ static void sercomSetupSPI(void) {
 void uartPutcBlocking(Sercom *sercom, char c) {
   while (!(sercom->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_DRE))
     ;
-  sercom->USART.DATA.reg = c;
-  sercom->USART.INTFLAG.reg |= SERCOM_USART_INTFLAG_DRE;
+  sercom->USART.DATA.reg    = c;
+  sercom->USART.INTFLAG.reg = SERCOM_USART_INTFLAG_DRE;
 }
 
 void uartPutsBlocking(Sercom *sercom, const char *s) {
@@ -284,7 +284,7 @@ void uartPutsNonBlocking(unsigned int dma_chan, const char *const s,
 }
 
 char uartGetc(Sercom *sercom) {
-  sercom->USART.INTFLAG.reg |= SERCOM_USART_INTFLAG_RXC;
+  sercom->USART.INTFLAG.reg = SERCOM_USART_INTFLAG_RXC;
   return sercom->USART.DATA.reg;
 }
 
@@ -293,11 +293,11 @@ bool uartGetcReady(const Sercom *sercom) {
 }
 
 void uartInterruptEnable(Sercom *sercom, uint32_t interrupt) {
-  sercom->USART.INTENSET.reg |= interrupt;
+  sercom->USART.INTENSET.reg = interrupt;
 }
 
 void uartInterruptDisable(Sercom *sercom, uint32_t interrupt) {
-  sercom->USART.INTENCLR.reg |= interrupt;
+  sercom->USART.INTENCLR.reg = interrupt;
 }
 
 uint32_t uartInterruptStatus(const Sercom *sercom) {
@@ -305,7 +305,7 @@ uint32_t uartInterruptStatus(const Sercom *sercom) {
 }
 
 void uartInterruptClear(Sercom *sercom, uint32_t interrupt) {
-  sercom->USART.INTFLAG.reg |= interrupt;
+  sercom->USART.INTFLAG.reg = interrupt;
 }
 
 /*

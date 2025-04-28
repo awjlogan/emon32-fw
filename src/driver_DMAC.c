@@ -54,8 +54,8 @@ void dmacDisableChannelInterrupt(unsigned int ch) {
 }
 
 void dmacClearChannelInterrupt(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHINTFLAG.reg |= DMAC_CHINTFLAG_TCMPL;
+  DMAC->CHID.reg      = ch;
+  DMAC->CHINTFLAG.reg = DMAC_CHINTFLAG_TCMPL;
 }
 
 void dmacChannelConfigure(unsigned int ch, const DMACCfgCh_t *pCfg) {

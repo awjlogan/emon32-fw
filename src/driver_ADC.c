@@ -89,8 +89,8 @@ static void adcCalibrate(void) {
 
 static int16_t adcCalibrateSmp(int pin) {
   ADC->INPUTCTRL.reg = ADC_INPUTCTRL_MUXNEG_PIN0 | pin;
-  ADC->INTFLAG.reg |= ADC_INTFLAG_RESRDY;
-  ADC->SWTRIG.reg = ADC_SWTRIG_START;
+  ADC->INTFLAG.reg   = ADC_INTFLAG_RESRDY;
+  ADC->SWTRIG.reg    = ADC_SWTRIG_START;
   while (0 == (ADC->INTFLAG.reg & ADC_INTFLAG_RESRDY))
     ;
   return ADC->RESULT.reg;

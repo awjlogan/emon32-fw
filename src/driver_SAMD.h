@@ -18,3 +18,6 @@ typedef enum Calibration_ {
  *  @return selected calibration value
  */
 uint32_t samdCalibration(const Calibration_t cal);
+
+/*! @brief Put the microcontroller into IDLE sleep. */
+void samdSleepIdle(void);

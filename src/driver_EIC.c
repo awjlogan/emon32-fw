@@ -59,11 +59,11 @@ void irq_handler_eic(void) {
     } else {
       sercomExtIntfDisable();
     }
-    EIC->INTFLAG.reg |= EIC_INTFLAG_EXTINT0;
+    EIC->INTFLAG.reg = EIC_INTFLAG_EXTINT0;
   }
 
   if (EIC->INTFLAG.reg & EIC_INTFLAG_EXTINT14) {
     rfmInterrupt();
-    EIC->INTFLAG.reg |= EIC_INTFLAG_EXTINT14;
+    EIC->INTFLAG.reg = EIC_INTFLAG_EXTINT14;
   }
 }

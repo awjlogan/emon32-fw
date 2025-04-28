@@ -39,3 +39,8 @@ uint32_t samdCalibration(const Calibration_t cal) {
 
   return (uint32_t)(cal_row >> position) & mask;
 }
+
+void samdSleepIdle(void) {
+  __DSB();
+  __WFI();
+}

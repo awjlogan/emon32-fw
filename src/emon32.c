@@ -8,6 +8,7 @@
 #include "driver_EIC.h"
 #include "driver_EVSYS.h"
 #include "driver_PORT.h"
+#include "driver_SAMD.h"
 #include "driver_SERCOM.h"
 #include "driver_TIME.h"
 #include "driver_USB.h"
@@ -663,7 +664,6 @@ int main(void) {
       }
     }
 
-    /* Enter WFI until woken by an interrupt */
-    __WFI();
+    samdSleepIdle();
   };
 }
