@@ -1,10 +1,12 @@
 #pragma once
 
-#define RFM69_MODE_SLEEP   0 // XTAL OFF
-#define RFM69_MODE_STANDBY 1 // XTAL ON
-#define RFM69_MODE_SYNTH   2 // PLL ON
-#define RFM69_MODE_RX      3 // RX MODE
-#define RFM69_MODE_TX      4 // TX MODE
+typedef enum RFMMode_ {
+   RFM69_MODE_SLEEP =    0, // XTAL OFF
+   RFM69_MODE_STANDBY =  1, // XTAL ON
+   RFM69_MODE_SYNTH =    2, // PLL ON
+   RFM69_MODE_RX =       3, // RX MODE
+   RFM69_MODE_TX =       4 // TX MODE
+} RFMMode_t;
 
 // available frequency bands
 #define RFM69_315MHZ 31 // non trivial values to avoid misconfiguration

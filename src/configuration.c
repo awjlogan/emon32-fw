@@ -681,7 +681,7 @@ static void inBufferClear(int n) {
 
 static void printSettings(void) {
   serialPuts("\r\n\r\n==== Settings ====\r\n\r\n");
-  printf_("Mains frequency (Hz)       %d\r\n", config.baseCfg.mainsFreq);
+  printf_("Mains frequency (Hz):      %d\r\n", config.baseCfg.mainsFreq);
   serialPuts("Data log time (s):         ");
   putFloat(config.baseCfg.reportTime, 0);
   printf_("\r\nMinimum accumulation (Wh): %d\r\n", config.baseCfg.whDeltaStore);

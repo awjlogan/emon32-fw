@@ -283,10 +283,7 @@ void uartPutsNonBlocking(unsigned int dma_chan, const char *const s,
   dmacChannelEnable(dma_chan);
 }
 
-char uartGetc(Sercom *sercom) {
-  sercom->USART.INTFLAG.reg = SERCOM_USART_INTFLAG_RXC;
-  return sercom->USART.DATA.reg;
-}
+char uartGetc(Sercom *sercom) { return sercom->USART.DATA.reg; }
 
 bool uartGetcReady(const Sercom *sercom) {
   return (bool)(sercom->USART.INTFLAG.reg & SERCOM_USART_INTFLAG_RXC);
@@ -369,18 +366,19 @@ void spiSendBuffer(Sercom *sercom, const void *pSrc, int n) {
   uint8_t *pData = (uint8_t *)pSrc;
 
   while (n--) {
-    while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_DRE))
-      ;
-    sercom->SPI.DATA.reg = *pData++;
+    spiSendByte(sercom, *pData++);
   }
 }
 
 uint8_t spiSendByte(Sercom *sercom, const uint8_t b) {
   while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_DRE))
     ;
-  sercom->SPI.DATA.reg = b;
+  sercom->SPI.INTFLAG.reg = SERCOM_SPI_INTFLAG_RXC;
+  sercom->SPI.DATA.reg    = b;
 
   while (0 == (sercom->SPI.INTFLAG.reg & SERCOM_SPI_INTFLAG_RXC))
     ;
+
+  /* Reading SPI.DATA clears the RXC interrupt. */
   return (uint8_t)sercom->SPI.DATA.reg;
 }
