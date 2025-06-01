@@ -64,6 +64,11 @@ struct Emon32BuildInfo {
       "stargirl@stargirls-mbp.lan".
   */
   const char *machine;
+
+  /*
+      Version as found in emon32.h. For example: "v1.0.0"
+  */
+  const char *version;
 };
 
 struct Emon32BuildInfo emon32_build_info(void);

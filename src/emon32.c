@@ -366,10 +366,22 @@ void serialPuts(const char *s) {
 
 /*! @brief Setup the SSD1306 display, if present. Display a basic message */
 static void ssd1306Setup(void) {
-  PosXY_t a = {44, 0};
+
   if (SSD1306_SUCCESS == ssd1306Init(SERCOM_I2CM_EXT)) {
-    ssd1306SetPosition(a);
+    VersionInfo_t vInfo  = configVersion();
+    int           offset = 0;
+    for (size_t i = 0; i < strlen(vInfo.revision); i++) {
+      if ('-' == vInfo.revision[i]) {
+        offset = -20;
+      }
+    }
+
+    ssd1306SetPosition((PosXY_t){.x = 44, .y = 0});
     ssd1306DrawString("emonPi3");
+    ssd1306SetPosition((PosXY_t){.x = 46, .y = 1});
+    ssd1306DrawString(vInfo.version);
+    ssd1306SetPosition((PosXY_t){.x = (44 + offset), .y = 2});
+    ssd1306DrawString(vInfo.revision);
     ssd1306DisplayUpdate();
   }
 }
@@ -489,6 +501,9 @@ int main(void) {
     sercomExtIntfDisable();
   }
   ssd1306Setup();
+
+  while (1)
+    ;
 
   /* Load stored values (configuration and accumulated energy) from
    * non-volatile memory (NVM). If the NVM has not been used before then

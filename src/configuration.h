@@ -62,6 +62,11 @@ typedef struct __attribute__((__packed__)) Emon32Config_ {
   uint16_t           crc16_ccitt;
 } Emon32Config_t;
 
+typedef struct VersionInfo_ {
+  const char *version;
+  const char *revision;
+} VersionInfo_t;
+
 _Static_assert((sizeof(BaseCfg_t) == 24), "BaseCfg_t is not 24 bytes wide.");
 _Static_assert((sizeof(DataTxCfg_t) == 4), "DataTxCfg_t is not 4 bytes wide.");
 _Static_assert((sizeof(OpaCfgPacked_t) == 4),
@@ -90,6 +95,11 @@ Emon32Config_t *configLoadFromNVM(void);
 
 /*! @brief Process a pending command from the UART */
 void configProcessCmd(void);
+
+/*! @brief Fetch the version string
+ *  @return Pointer to the version string
+ */
+VersionInfo_t configVersion(void);
 
 /*! @brief Return one word from the SAMD's unique ID
  *  @param[in] idx : index of the word to fetch

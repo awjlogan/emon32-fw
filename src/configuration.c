@@ -1125,6 +1125,11 @@ int configTimeToCycles(const float time, const int mainsFreq) {
   return qfp_float2uint(qfp_fmul(time, qfp_int2float(mainsFreq)));
 }
 
+VersionInfo_t configVersion(void) {
+  struct Emon32BuildInfo binfo = emon32_build_info();
+  return (VersionInfo_t){.version = binfo.version, .revision = binfo.revision};
+}
+
 /* =======================
  * UART Interrupt handler
  * ======================= */
