@@ -13,14 +13,12 @@ static void commonSetup(uint32_t delay);
 static volatile uint32_t timeMillisCounter  = 0;
 static volatile uint32_t timeSecondsCounter = 0;
 
-/* Function pointer for non-blocking timer callback */
-void (*tc2_cb)();
 static bool TIMER_DELAYInUse = false;
 
 static void commonSetup(uint32_t delay) {
   /* Unmask match interrrupt, zero counter, set compare value */
-  TIMER_DELAY->COUNT32.INTENSET.reg |= TC_INTENSET_MC0;
-  TIMER_DELAY->COUNT32.COUNT.reg = 0u;
+  TIMER_DELAY->COUNT32.INTENSET.reg = TC_INTENSET_MC0;
+  TIMER_DELAY->COUNT32.COUNT.reg    = 0u;
   while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
     ;
   TIMER_DELAY->COUNT32.CC[0].reg = delay;
@@ -69,9 +67,10 @@ bool timerElapsedStart(void) {
   }
 
   TIMER_DELAYInUse = true;
+
   /* Mask match interrupt, zero counter, and start */
-  TIMER_DELAY->COUNT32.INTENCLR.reg |= TC_INTENCLR_MC0;
-  TIMER_DELAY->COUNT32.COUNT.reg = 0u;
+  TIMER_DELAY->COUNT32.INTENCLR.reg = TC_INTENCLR_MC0;
+  TIMER_DELAY->COUNT32.COUNT.reg    = 0u;
   while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
     ;
   TIMER_DELAY->COUNT32.CTRLA.reg |= TC_CTRLA_ENABLE;
@@ -191,8 +190,8 @@ void timerSetup(void) {
                                   TC_CTRLA_PRESCSYNC_PRESC;
 
   /* Setup match interrupt for 1 ms  */
-  TIMER_TICK->COUNT32.INTENSET.reg |= TC_INTENSET_MC0;
-  TIMER_TICK->COUNT32.CC[0].reg = 1000u;
+  TIMER_TICK->COUNT32.INTENSET.reg = TC_INTENSET_MC0;
+  TIMER_TICK->COUNT32.CC[0].reg    = 1000u;
   while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
     ;
 
@@ -205,14 +204,6 @@ void timerSetup(void) {
 uint32_t timerUptime(void) { return timeSecondsCounter; }
 
 void timerUptimeIncr(void) { timeSecondsCounter++; }
-
-/*! @brief On delay timer (TIMER_DELAY) expiration, call the callback function
- */
-void IRQ_TIMER_DELAY(void) {
-  if (0 != tc2_cb) {
-    tc2_cb();
-  }
-}
 
 /*! @brief 1 ms timer overflow. Update for the next ms / s match, set the event
  *         and handle any immediate priority actions:

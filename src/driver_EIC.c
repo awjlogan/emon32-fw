@@ -19,8 +19,8 @@ void eicConfigureRfmIrq(void) {
   while (EIC->STATUS.reg & EIC_STATUS_SYNCBUSY)
     ;
   EIC->CONFIG[1].reg = EIC_CONFIG_FILTEN7 | EIC_CONFIG_SENSE7_RISE;
-  EIC->INTENSET.reg |= EIC_INTENSET_EXTINT14;
-  EIC->CTRL.reg = EIC_CTRL_ENABLE;
+  EIC->INTENSET.reg  = EIC_INTENSET_EXTINT14;
+  EIC->CTRL.reg      = EIC_CTRL_ENABLE;
   while (EIC->STATUS.reg & EIC_STATUS_SYNCBUSY)
     ;
 
@@ -28,7 +28,7 @@ void eicConfigureRfmIrq(void) {
     if (nDisable) {
       sercomExtIntfEnable();
     } else {
-      EIC->INTENCLR.reg |= EIC_INTENSET_EXTINT14;
+      EIC->INTENCLR.reg = EIC_INTENCLR_EXTINT14;
       sercomExtIntfDisable();
     }
   }

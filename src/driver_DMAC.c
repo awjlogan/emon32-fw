@@ -44,13 +44,13 @@ void dmacChannelEnable(unsigned int ch) {
 }
 
 void dmacEnableChannelInterrupt(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHINTENSET.reg |= DMAC_CHINTENSET_TCMPL;
+  DMAC->CHID.reg       = ch;
+  DMAC->CHINTENSET.reg = DMAC_CHINTENSET_TCMPL;
 }
 
 void dmacDisableChannelInterrupt(unsigned int ch) {
-  DMAC->CHID.reg = ch;
-  DMAC->CHINTENCLR.reg |= DMAC_CHINTENCLR_TCMPL;
+  DMAC->CHID.reg       = ch;
+  DMAC->CHINTENCLR.reg = DMAC_CHINTENCLR_TCMPL;
 }
 
 void dmacClearChannelInterrupt(unsigned int ch) {
