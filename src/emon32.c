@@ -502,9 +502,6 @@ int main(void) {
   }
   ssd1306Setup();
 
-  while (1)
-    ;
-
   /* Load stored values (configuration and accumulated energy) from
    * non-volatile memory (NVM). If the NVM has not been used before then
    * store default configuration and 0 energy accumulator area.

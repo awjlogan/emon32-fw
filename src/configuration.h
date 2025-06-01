@@ -96,8 +96,8 @@ Emon32Config_t *configLoadFromNVM(void);
 /*! @brief Process a pending command from the UART */
 void configProcessCmd(void);
 
-/*! @brief Fetch the version string
- *  @return Pointer to the version string
+/*! @brief Fetch the version and revision information
+ *  @return Version and revision struct
  */
 VersionInfo_t configVersion(void);
 
