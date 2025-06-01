@@ -9,6 +9,7 @@
  *  @param [in] delay : delay in us
  */
 static void commonSetup(uint32_t delay);
+static void timerSync(Tc *tc);
 
 static volatile uint32_t timeMillisCounter  = 0;
 static volatile uint32_t timeSecondsCounter = 0;
@@ -19,13 +20,16 @@ static void commonSetup(uint32_t delay) {
   /* Unmask match interrrupt, zero counter, set compare value */
   TIMER_DELAY->COUNT32.INTENSET.reg = TC_INTENSET_MC0;
   TIMER_DELAY->COUNT32.COUNT.reg    = 0u;
-  while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_DELAY);
   TIMER_DELAY->COUNT32.CC[0].reg = delay;
-  while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_DELAY);
   TIMER_DELAY->COUNT32.CTRLA.reg |= TC_CTRLA_ENABLE;
-  while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
+  timerSync(TIMER_DELAY);
+}
+
+static void timerSync(Tc *tc) {
+  /* All STATUS registers are at the same offset, use COUNT32 for access */
+  while (tc->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
     ;
 }
 
@@ -71,11 +75,9 @@ bool timerElapsedStart(void) {
   /* Mask match interrupt, zero counter, and start */
   TIMER_DELAY->COUNT32.INTENCLR.reg = TC_INTENCLR_MC0;
   TIMER_DELAY->COUNT32.COUNT.reg    = 0u;
-  while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_DELAY);
   TIMER_DELAY->COUNT32.CTRLA.reg |= TC_CTRLA_ENABLE;
-  while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_DELAY);
 
   TIMER_DELAYInUse = false;
   return true;
@@ -87,16 +89,14 @@ uint32_t timerElapsedStop(void) {
   const uint32_t elapsed = TIMER_DELAY->COUNT32.COUNT.reg;
   __enable_irq();
   TIMER_DELAY->COUNT32.CTRLA.reg &= ~TC_CTRLA_ENABLE;
-  while (TIMER_DELAY->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_DELAY);
   return elapsed;
 }
 
 uint32_t timerMicros(void) {
   /* Resynchronise COUNT32.COUNT, and then return the result */
   TIMER_TICK->COUNT32.READREQ.reg = TC_READREQ_RREQ | TC_READREQ_ADDR(0x10);
-  while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_TICK);
   return TIMER_TICK->COUNT32.COUNT.reg;
 }
 
@@ -152,14 +152,11 @@ void timerSetup(void) {
    * COUNT is -1 to account for the wrap around
    */
   TIMER_ADC->COUNT16.CC[0].reg = timerADCPeriod() - 1u;
-  while (TIMER_ADC->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_ADC);
   TIMER_ADC->COUNT16.COUNT.reg = 0u;
-  while (TIMER_ADC->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_ADC);
   TIMER_ADC->COUNT16.CTRLA.reg |= TC_CTRLA_ENABLE;
-  while (TIMER_ADC->COUNT16.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_ADC);
 
   /* TIMER_DELAY is used as the delay and elapsed time counter
    * Enable APB clock, set TIMER_DELAY to generator 3 @ F_PERIPH
@@ -192,13 +189,11 @@ void timerSetup(void) {
   /* Setup match interrupt for 1 ms  */
   TIMER_TICK->COUNT32.INTENSET.reg = TC_INTENSET_MC0;
   TIMER_TICK->COUNT32.CC[0].reg    = 1000u;
-  while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_TICK);
 
   NVIC_EnableIRQ(TIMER_TICK_IRQn);
   TIMER_TICK->COUNT32.CTRLA.reg |= TC_CTRLA_ENABLE;
-  while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-    ;
+  timerSync(TIMER_TICK);
 }
 
 uint32_t timerUptime(void) { return timeSecondsCounter; }
@@ -213,8 +208,7 @@ void IRQ_TIMER_TICK(void) {
   if (TIMER_TICK->COUNT32.INTFLAG.reg & TC_INTFLAG_MC0) {
     TIMER_TICK->COUNT32.INTFLAG.reg = TC_INTFLAG_MC0;
     TIMER_TICK->COUNT32.CC[0].reg += 1000u;
-    while (TIMER_TICK->COUNT32.STATUS.reg & TC_STATUS_SYNCBUSY)
-      ;
+    timerSync(TIMER_TICK);
     timeMillisCounter++;
 
     tud_task();
