@@ -9,7 +9,6 @@
 #include "driver_TIME.h"
 #include "driver_USB.h"
 
-#include "bist.h"
 #include "configuration.h"
 #include "eeprom.h"
 #include "emon32.h"
@@ -903,7 +902,6 @@ Emon32Config_t *configLoadFromNVM(void) {
   eepromRead(0, &config, cfgSize);
 
   if (CONFIG_NVM_KEY != config.key) {
-    bistRun();
     configInitialiseNVM();
     NVIC_SystemReset();
   } else {
