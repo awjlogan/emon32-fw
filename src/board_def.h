@@ -192,7 +192,7 @@
 #define PIN_UART_TX     21u
 #define UART_PAD_RX     1u
 #define UART_PAD_TX     0u
-#define UART_BAUD       38400u
+#define UART_BAUD       115200u
 
 /* RFM related defines */
 #define RFM_PALEVEL_DEF 0x19 /* Safe level if no antenna installed. */

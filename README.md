@@ -72,7 +72,7 @@ The emonPi3 will enumerate as a normal serial device and show as **emonPi3**.
 
 A dedicated UART is used for debug, configuration, and data transmission. It has the following UART configuration:
 
-- 38400 baud
+- 115200 baud
 - 8N1
 
 It is available on:
