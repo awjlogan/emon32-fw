@@ -18,7 +18,8 @@ _Static_assert((sizeof(bool) == 1), "bool must be 1 byte");
 #define GROUP_ID_DEF       210u /* Group ID default for OEM */
 #define MAINS_FREQ_DEF     50u  /* Mains frequency */
 #define REPORT_TIME_DEF    9.8f /* Report time, in seconds */
-#define PERF_ENABLED       0u /* Performance tracing enabled (1) or disabled (0) */
+#define ASSUMED_VRMS_DEF   240  /* Assumed voltage, used if no AC sense */
+#define PERF_ENABLED       0u   /* Performance tracing */
 #define TX_INDICATE_T      250u /* Transmission indication time (ms) */
 
 /*********************************
