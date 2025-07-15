@@ -82,6 +82,7 @@ static void configDefault(void) {
   config.baseCfg.nodeID       = NODE_ID_DEF;
   config.baseCfg.mainsFreq    = MAINS_FREQ_DEF;
   config.baseCfg.reportTime   = REPORT_TIME_DEF;
+  config.baseCfg.assumedVrms  = ASSUMED_VRMS_DEF;
   config.baseCfg.whDeltaStore = DELTA_WH_STORE_DEF;
   config.baseCfg.dataGrp      = GROUP_ID_DEF;
   config.baseCfg.logToSerial  = true;
@@ -295,7 +296,7 @@ static bool configureAssumed(void) {
   ConvInt_t convI = utilAtoi(inBuffer + 1, ITOA_BASE10);
   if (convI.valid) {
     ECMCfg_t *pEcmCfg          = ecmConfigGet();
-    pEcmCfg->assumedVrms       = convI.val;
+    pEcmCfg->assumedVrms       = qfp_uint2float(convI.val);
     config.baseCfg.assumedVrms = convI.val;
     return true;
   }

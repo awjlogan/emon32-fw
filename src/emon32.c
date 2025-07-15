@@ -28,6 +28,7 @@
 #include "util.h"
 
 #include "printf.h"
+#include "qfplib-m0-full.h"
 
 typedef struct TransmitOpt_ {
   bool    json;
@@ -195,11 +196,13 @@ void ecmConfigure(void) {
 
   ECMCfg_t *ecmCfg = ecmConfigGet();
 
-  ecmCfg->downsample      = DOWNSAMPLE_DSP;
-  ecmCfg->reportCycles    = pConfig->baseCfg.reportCycles;
-  ecmCfg->mainsFreq       = pConfig->baseCfg.mainsFreq;
-  ecmCfg->samplePeriod    = timerADCPeriod();
-  ecmCfg->timeMicros      = &timerMicros;
+  ecmCfg->downsample    = DOWNSAMPLE_DSP;
+  ecmCfg->reportCycles  = pConfig->baseCfg.reportCycles;
+  ecmCfg->mainsFreq     = pConfig->baseCfg.mainsFreq;
+  ecmCfg->samplePeriod  = timerADCPeriod();
+  ecmCfg->reportTime_us = (1000000 / ecmCfg->mainsFreq) * ecmCfg->reportCycles;
+  ecmCfg->assumedVrms   = qfp_uint2float(pConfig->baseCfg.assumedVrms);
+  ecmCfg->timeMicros    = &timerMicros;
   ecmCfg->timeMicrosDelta = &timerMicrosDelta;
 
   if (adcCorrectionValid()) {
