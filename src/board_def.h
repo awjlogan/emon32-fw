@@ -196,7 +196,7 @@
 
 /* RFM related defines */
 #define RFM_PALEVEL_DEF 0x19 /* Safe level if no antenna installed. */
-#define RFM_FREQ_DEF    2    /* 433 MHz in frequency enum */
+#define RFM_FREQ_DEF    3    /* 433.92 MHz in frequency enum */
 #define GRP_SERCOM_SPI  GRP_PINA
 #define PIN_SPI_MISO    12u
 #define PIN_SPI_SCK     13u

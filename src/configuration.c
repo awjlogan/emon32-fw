@@ -49,6 +49,7 @@ static bool     configureLineFrequency(void);
 static bool     configureOPA(void);
 static bool     configureNodeID(void);
 static bool     configureRFEnable(void);
+static bool     configureRF433(void);
 static bool     configureRFPower(void);
 static bool     configureSerialLog(void);
 static void     enterBootloader(void);
@@ -572,6 +573,28 @@ static bool configureRFEnable(void) {
   return true;
 }
 
+static bool configureRF433(void) {
+  int val = inBuffer[1] - '0';
+
+  if (!((0 == val) || (1 == val))) {
+    return false;
+  }
+
+  /* Only applies to 433 MHz ISM band */
+  if (!((config.dataTxCfg.rfmFreq == 2) || (config.dataTxCfg.rfmFreq == 3))) {
+    return false;
+  }
+
+  if (val) {
+    config.dataTxCfg.rfmFreq = 2;
+    serialPuts("> 433.00 MHz (backwards compatible, illegal).\r\n");
+  } else {
+    config.dataTxCfg.rfmFreq = 3;
+    serialPuts("> 433.92 MHz (check Rx frequency).\r\n");
+  }
+  return true;
+}
+
 static bool configureRFPower(void) {
   /* p<n>
    * n is in range: 0-31
@@ -695,7 +718,10 @@ static void printSettings(void) {
       serialPuts("915");
       break;
     case 2:
-      serialPuts("433");
+      serialPuts("433.00");
+      break;
+    case 3:
+      serialPuts("433.92");
       break;
     }
     printf_(" MHz @ %ddb\r\n", (-18 + config.dataTxCfg.rfmPwr));
@@ -958,7 +984,7 @@ void configProcessCmd(void) {
       "     - w : channel active. a = 0: DISABLED, a = 1: ENABLED\r\n"
       "     - x : function select. w = [b,f,r]: pulse, w = o: OneWire.\r\n"
       "     - y : pull-up. y = 0: OFF, y = 1: ON\r\n"
-      "     - z : minimum period (ms). Ignored if w = o\r\n"
+      "     - z : minimum period (ms). Ignored if w = 0\r\n"
       " - n<n>        : set node ID [1..60]\r\n"
       " - p<n>        : set the RF power level\r\n"
       " - r           : restore defaults\r\n"
@@ -966,6 +992,8 @@ void configProcessCmd(void) {
       " - t           : trigger report on next cycle\r\n"
       " - v           : firmware and board information\r\n"
       " - w<n>        : RF active. n = 0: OFF, n = 1: ON\r\n"
+      " - x<n>        : 433 MHz compatibility. n = 0: 433.92 MHz, n = 1: "
+      "433.00 MHz\r\n"
       " - z           : zero energy accumulators\r\n\r\n";
 
   /* Convert \r or \n to 0, and get the length until then. */
@@ -1105,6 +1133,14 @@ void configProcessCmd(void) {
   case 'w':
     if (configureRFEnable()) {
       unsavedChange = true;
+      emon32EventSet(EVT_CONFIG_CHANGED);
+    }
+    break;
+
+  case 'x':
+    if (configureRF433()) {
+      unsavedChange = true;
+      resetReq      = true;
       emon32EventSet(EVT_CONFIG_CHANGED);
     }
     break;

@@ -1,18 +1,19 @@
 #pragma once
 
 typedef enum RFMMode_ {
-   RFM69_MODE_SLEEP =    0, // XTAL OFF
-   RFM69_MODE_STANDBY =  1, // XTAL ON
-   RFM69_MODE_SYNTH =    2, // PLL ON
-   RFM69_MODE_RX =       3, // RX MODE
-   RFM69_MODE_TX =       4 // TX MODE
+  RFM69_MODE_SLEEP   = 0, // XTAL OFF
+  RFM69_MODE_STANDBY = 1, // XTAL ON
+  RFM69_MODE_SYNTH   = 2, // PLL ON
+  RFM69_MODE_RX      = 3, // RX MODE
+  RFM69_MODE_TX      = 4  // TX MODE
 } RFMMode_t;
 
-// available frequency bands
-#define RFM69_315MHZ 31 // non trivial values to avoid misconfiguration
-#define RFM69_433MHZ 43
-#define RFM69_868MHZ 86
-#define RFM69_915MHZ 91
+typedef enum RFMFreq_ {
+  RFM69_315MHZ,
+  RFM69_433MHZ,
+  RFM69_868MHZ,
+  RFM69_915MHZ
+} RFMFreq_t;
 
 #define COURSE_TEMP_COEF                                                       \
   -90 // puts the temperature reading in the ballpark, user can fine tune the
@@ -287,133 +288,135 @@ typedef enum RFMMode_ {
 #define RFM_FDEVLSB_300000 0x33
 
 // RegFrf (MHz) - carrier frequency
-// 315Mhz band
-#define RFM_FRFMSB_314 0x4E
-#define RFM_FRFMID_314 0x80
-#define RFM_FRFLSB_314 0x00
-#define RFM_FRFMSB_315 0x4E
-#define RFM_FRFMID_315 0xC0
-#define RFM_FRFLSB_315 0x00
-#define RFM_FRFMSB_316 0x4F
-#define RFM_FRFMID_316 0x00
-#define RFM_FRFLSB_316 0x00
-// 433mhz band
-#define RFM_FRFMSB_433 0x6C
-#define RFM_FRFMID_433 0x40
-#define RFM_FRFLSB_433 0x00
-#define RFM_FRFMSB_434 0x6C
-#define RFM_FRFMID_434 0x80
-#define RFM_FRFLSB_434 0x00
-#define RFM_FRFMSB_435 0x6C
-#define RFM_FRFMID_435 0xC0
-#define RFM_FRFLSB_435 0x00
-// 868Mhz band
-#define RFM_FRFMSB_863 0xD7
-#define RFM_FRFMID_863 0xC0
-#define RFM_FRFLSB_863 0x00
-#define RFM_FRFMSB_864 0xD8
-#define RFM_FRFMID_864 0x00
-#define RFM_FRFLSB_864 0x00
-#define RFM_FRFMSB_865 0xD8
-#define RFM_FRFMID_865 0x40
-#define RFM_FRFLSB_865 0x00
-#define RFM_FRFMSB_866 0xD8
-#define RFM_FRFMID_866 0x80
-#define RFM_FRFLSB_866 0x00
-#define RFM_FRFMSB_867 0xD8
-#define RFM_FRFMID_867 0xC0
-#define RFM_FRFLSB_867 0x00
-#define RFM_FRFMSB_868 0xD9
-#define RFM_FRFMID_868 0x00
-#define RFM_FRFLSB_868 0x00
-#define RFM_FRFMSB_869 0xD9
-#define RFM_FRFMID_869 0x40
-#define RFM_FRFLSB_869 0x00
-#define RFM_FRFMSB_870 0xD9
-#define RFM_FRFMID_870 0x80
-#define RFM_FRFLSB_870 0x00
-// 915Mhz band
-#define RFM_FRFMSB_902 0xE1
-#define RFM_FRFMID_902 0x80
-#define RFM_FRFLSB_902 0x00
-#define RFM_FRFMSB_903 0xE1
-#define RFM_FRFMID_903 0xC0
-#define RFM_FRFLSB_903 0x00
-#define RFM_FRFMSB_904 0xE2
-#define RFM_FRFMID_904 0x00
-#define RFM_FRFLSB_904 0x00
-#define RFM_FRFMSB_905 0xE2
-#define RFM_FRFMID_905 0x40
-#define RFM_FRFLSB_905 0x00
-#define RFM_FRFMSB_906 0xE2
-#define RFM_FRFMID_906 0x80
-#define RFM_FRFLSB_906 0x00
-#define RFM_FRFMSB_907 0xE2
-#define RFM_FRFMID_907 0xC0
-#define RFM_FRFLSB_907 0x00
-#define RFM_FRFMSB_908 0xE3
-#define RFM_FRFMID_908 0x00
-#define RFM_FRFLSB_908 0x00
-#define RFM_FRFMSB_909 0xE3
-#define RFM_FRFMID_909 0x40
-#define RFM_FRFLSB_909 0x00
-#define RFM_FRFMSB_910 0xE3
-#define RFM_FRFMID_910 0x80
-#define RFM_FRFLSB_910 0x00
-#define RFM_FRFMSB_911 0xE3
-#define RFM_FRFMID_911 0xC0
-#define RFM_FRFLSB_911 0x00
-#define RFM_FRFMSB_912 0xE4
-#define RFM_FRFMID_912 0x00
-#define RFM_FRFLSB_912 0x00
-#define RFM_FRFMSB_913 0xE4
-#define RFM_FRFMID_913 0x40
-#define RFM_FRFLSB_913 0x00
-#define RFM_FRFMSB_914 0xE4
-#define RFM_FRFMID_914 0x80
-#define RFM_FRFLSB_914 0x00
-#define RFM_FRFMSB_915 0xE4 // Default
-#define RFM_FRFMID_915 0xC0 // Default
-#define RFM_FRFLSB_915 0x00 // Default
-#define RFM_FRFMSB_916 0xE5
-#define RFM_FRFMID_916 0x00
-#define RFM_FRFLSB_916 0x00
-#define RFM_FRFMSB_917 0xE5
-#define RFM_FRFMID_917 0x40
-#define RFM_FRFLSB_917 0x00
-#define RFM_FRFMSB_918 0xE5
-#define RFM_FRFMID_918 0x80
-#define RFM_FRFLSB_918 0x00
-#define RFM_FRFMSB_919 0xE5
-#define RFM_FRFMID_919 0xC0
-#define RFM_FRFLSB_919 0x00
-#define RFM_FRFMSB_920 0xE6
-#define RFM_FRFMID_920 0x00
-#define RFM_FRFLSB_920 0x00
-#define RFM_FRFMSB_921 0xE6
-#define RFM_FRFMID_921 0x40
-#define RFM_FRFLSB_921 0x00
-#define RFM_FRFMSB_922 0xE6
-#define RFM_FRFMID_922 0x80
-#define RFM_FRFLSB_922 0x00
-#define RFM_FRFMSB_923 0xE6
-#define RFM_FRFMID_923 0xC0
-#define RFM_FRFLSB_923 0x00
-#define RFM_FRFMSB_924 0xE7
-#define RFM_FRFMID_924 0x00
-#define RFM_FRFLSB_924 0x00
-#define RFM_FRFMSB_925 0xE7
-#define RFM_FRFMID_925 0x40
-#define RFM_FRFLSB_925 0x00
-#define RFM_FRFMSB_926 0xE7
-#define RFM_FRFMID_926 0x80
-#define RFM_FRFLSB_926 0x00
-#define RFM_FRFMSB_927 0xE7
-#define RFM_FRFMID_927 0xC0
-#define RFM_FRFLSB_927 0x00
-#define RFM_FRFMSB_928 0xE8
-#define RFM_FRFMID_928 0x00
-#define RFM_FRFLSB_928 0x00
+// 315 MHz band
+#define RFM_FRFMSB_314    0x4E
+#define RFM_FRFMID_314    0x80
+#define RFM_FRFLSB_314    0x00
+#define RFM_FRFMSB_315    0x4E
+#define RFM_FRFMID_315    0xC0
+#define RFM_FRFLSB_315    0x00
+#define RFM_FRFMSB_316    0x4F
+#define RFM_FRFMID_316    0x00
+#define RFM_FRFLSB_316    0x00
+// 433 MHz band (433.92 MHz centre frequency)
+#define RFM_FRFMSB_433    0x6C
+#define RFM_FRFMID_433_00 0x80
+#define RFM_FRFMID_433_92 0x7A
+#define RFM_FRFLSB_433_00 0x00
+#define RFM_FRFLSB_433_92 0xE1
+#define RFM_FRFMSB_434    0x6C
+#define RFM_FRFMID_434    0x80
+#define RFM_FRFLSB_434    0x00
+#define RFM_FRFMSB_435    0x6C
+#define RFM_FRFMID_435    0xC0
+#define RFM_FRFLSB_435    0x00
+// 868 MHz band
+#define RFM_FRFMSB_863    0xD7
+#define RFM_FRFMID_863    0xC0
+#define RFM_FRFLSB_863    0x00
+#define RFM_FRFMSB_864    0xD8
+#define RFM_FRFMID_864    0x00
+#define RFM_FRFLSB_864    0x00
+#define RFM_FRFMSB_865    0xD8
+#define RFM_FRFMID_865    0x40
+#define RFM_FRFLSB_865    0x00
+#define RFM_FRFMSB_866    0xD8
+#define RFM_FRFMID_866    0x80
+#define RFM_FRFLSB_866    0x00
+#define RFM_FRFMSB_867    0xD8
+#define RFM_FRFMID_867    0xC0
+#define RFM_FRFLSB_867    0x00
+#define RFM_FRFMSB_868    0xD9
+#define RFM_FRFMID_868    0x00
+#define RFM_FRFLSB_868    0x00
+#define RFM_FRFMSB_869    0xD9
+#define RFM_FRFMID_869    0x40
+#define RFM_FRFLSB_869    0x00
+#define RFM_FRFMSB_870    0xD9
+#define RFM_FRFMID_870    0x80
+#define RFM_FRFLSB_870    0x00
+// 915 MHz band
+#define RFM_FRFMSB_902    0xE1
+#define RFM_FRFMID_902    0x80
+#define RFM_FRFLSB_902    0x00
+#define RFM_FRFMSB_903    0xE1
+#define RFM_FRFMID_903    0xC0
+#define RFM_FRFLSB_903    0x00
+#define RFM_FRFMSB_904    0xE2
+#define RFM_FRFMID_904    0x00
+#define RFM_FRFLSB_904    0x00
+#define RFM_FRFMSB_905    0xE2
+#define RFM_FRFMID_905    0x40
+#define RFM_FRFLSB_905    0x00
+#define RFM_FRFMSB_906    0xE2
+#define RFM_FRFMID_906    0x80
+#define RFM_FRFLSB_906    0x00
+#define RFM_FRFMSB_907    0xE2
+#define RFM_FRFMID_907    0xC0
+#define RFM_FRFLSB_907    0x00
+#define RFM_FRFMSB_908    0xE3
+#define RFM_FRFMID_908    0x00
+#define RFM_FRFLSB_908    0x00
+#define RFM_FRFMSB_909    0xE3
+#define RFM_FRFMID_909    0x40
+#define RFM_FRFLSB_909    0x00
+#define RFM_FRFMSB_910    0xE3
+#define RFM_FRFMID_910    0x80
+#define RFM_FRFLSB_910    0x00
+#define RFM_FRFMSB_911    0xE3
+#define RFM_FRFMID_911    0xC0
+#define RFM_FRFLSB_911    0x00
+#define RFM_FRFMSB_912    0xE4
+#define RFM_FRFMID_912    0x00
+#define RFM_FRFLSB_912    0x00
+#define RFM_FRFMSB_913    0xE4
+#define RFM_FRFMID_913    0x40
+#define RFM_FRFLSB_913    0x00
+#define RFM_FRFMSB_914    0xE4
+#define RFM_FRFMID_914    0x80
+#define RFM_FRFLSB_914    0x00
+#define RFM_FRFMSB_915    0xE4 // Default
+#define RFM_FRFMID_915    0xC0 // Default
+#define RFM_FRFLSB_915    0x00 // Default
+#define RFM_FRFMSB_916    0xE5
+#define RFM_FRFMID_916    0x00
+#define RFM_FRFLSB_916    0x00
+#define RFM_FRFMSB_917    0xE5
+#define RFM_FRFMID_917    0x40
+#define RFM_FRFLSB_917    0x00
+#define RFM_FRFMSB_918    0xE5
+#define RFM_FRFMID_918    0x80
+#define RFM_FRFLSB_918    0x00
+#define RFM_FRFMSB_919    0xE5
+#define RFM_FRFMID_919    0xC0
+#define RFM_FRFLSB_919    0x00
+#define RFM_FRFMSB_920    0xE6
+#define RFM_FRFMID_920    0x00
+#define RFM_FRFLSB_920    0x00
+#define RFM_FRFMSB_921    0xE6
+#define RFM_FRFMID_921    0x40
+#define RFM_FRFLSB_921    0x00
+#define RFM_FRFMSB_922    0xE6
+#define RFM_FRFMID_922    0x80
+#define RFM_FRFLSB_922    0x00
+#define RFM_FRFMSB_923    0xE6
+#define RFM_FRFMID_923    0xC0
+#define RFM_FRFLSB_923    0x00
+#define RFM_FRFMSB_924    0xE7
+#define RFM_FRFMID_924    0x00
+#define RFM_FRFLSB_924    0x00
+#define RFM_FRFMSB_925    0xE7
+#define RFM_FRFMID_925    0x40
+#define RFM_FRFLSB_925    0x00
+#define RFM_FRFMSB_926    0xE7
+#define RFM_FRFMID_926    0x80
+#define RFM_FRFLSB_926    0x00
+#define RFM_FRFMSB_927    0xE7
+#define RFM_FRFMID_927    0xC0
+#define RFM_FRFLSB_927    0x00
+#define RFM_FRFMSB_928    0xE8
+#define RFM_FRFMID_928    0x00
+#define RFM_FRFLSB_928    0x00
 
 // RegOsc1
 #define RFM_OSC1_RCCAL_START 0x80

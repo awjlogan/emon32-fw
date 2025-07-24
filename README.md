@@ -95,6 +95,7 @@ The following options are added:
 |o&lt;_x_&gt; |Auto calibrate CT lead for channel _x_                 |
 |t            |Trigger a data set processing event                    |
 |v            |Print firmware and board information                   |
+|x&lt;_n_&gt; |Set 433.00 MHz compatibility, _n_ = 1                  |
 
 ### Data acquisition
 

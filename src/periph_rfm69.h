@@ -3,7 +3,8 @@
 typedef enum RFM_Freq_ {
   RFM_FREQ_868MHz,
   RFM_FREQ_915MHz,
-  RFM_FREQ_433MHz
+  RFM_FREQ_433MHz,
+  RFM_FREQ_433_92MHz
 } RFM_Freq_t;
 
 typedef struct RFMOpt_ {

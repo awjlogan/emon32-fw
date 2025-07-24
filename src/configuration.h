@@ -24,7 +24,7 @@ typedef struct __attribute__((__packed__)) BaseCfg_ {
 
 typedef struct __attribute__((__packed__)) DataTxCfg_ {
   bool    useRFM;
-  uint8_t rfmFreq; /* 0: 868 MHz, 1: 915 MHz, 2: 433 MHz. */
+  uint8_t rfmFreq; /* 0: 868 MHz, 1: 915 MHz, 2: 433.00 MHz, 3: 433.92 MHz */
   uint8_t rfmPwr;
   uint8_t res0;
 } DataTxCfg_t;

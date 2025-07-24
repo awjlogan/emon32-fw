@@ -302,18 +302,25 @@ bool rfmInit(const RFMOpt_t *pOpt) {
       {REG_BITRATELSB, RFM_BITRATELSB_55555},
       {REG_FDEVMSB, RFM_FDEVMSB_50000},
       {REG_FDEVLSB, RFM_FDEVLSB_50000},
-      {REG_FRFMSB, (RFM_FREQ_868MHz == pOpt->freq)
-                       ? RFM_FRFMSB_868
-                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFMSB_915
-                                                          : RFM_FRFMSB_433)},
-      {REG_FRFMID, (RFM_FREQ_868MHz == pOpt->freq)
-                       ? RFM_FRFMID_868
-                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFMID_915
-                                                          : RFM_FRFMID_433)},
-      {REG_FRFLSB, (RFM_FREQ_868MHz == pOpt->freq)
-                       ? RFM_FRFLSB_868
-                       : ((RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFLSB_915
-                                                          : RFM_FRFLSB_433)},
+      {REG_FRFMSB, (RFM_FREQ_868MHz == pOpt->freq)   ? RFM_FRFMSB_868
+                   : (RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFMSB_915
+                                                     : RFM_FRFMSB_433},
+      {REG_FRFMID,
+       (RFM_FREQ_868MHz == pOpt->freq)
+           ? RFM_FRFMID_868
+           : ((RFM_FREQ_915MHz == pOpt->freq)
+                  ? RFM_FRFMID_915
+                  : ((RFM_FREQ_433MHz == pOpt->freq) ? RFM_FRFMID_433_00
+                                                     : RFM_FRFMID_433_92))},
+
+      {REG_FRFLSB,
+       (RFM_FREQ_868MHz == pOpt->freq)
+           ? RFM_FRFLSB_868
+           : ((RFM_FREQ_915MHz == pOpt->freq)
+                  ? RFM_FRFLSB_915
+                  : ((RFM_FREQ_433MHz == pOpt->freq) ? RFM_FRFLSB_433_00
+                                                     : RFM_FRFLSB_433_92))},
+
       {REG_RXBW, (RFM_RXBW_DCCFREQ_010 | RFM_RXBW_MANT_16 | RFM_RXBW_EXP_2)},
       {REG_DIOMAPPING1, RFM_DIOMAPPING1_DIO0_01},
       {REG_DIOMAPPING2, RFM_DIOMAPPING2_CLKOUT_OFF},
