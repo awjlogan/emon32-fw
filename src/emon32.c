@@ -497,10 +497,10 @@ int main(void) {
 
   /* If the system is booted while it is connected to an active Pi, then make
    * sure the external I2C and SPI interfaces are disabled. */
+  ssd1306Setup();
   if (!portPinValue(GRP_nDISABLE_EXT, PIN_nDISABLE_EXT)) {
     sercomExtIntfDisable();
   }
-  ssd1306Setup();
 
   /* Load stored values (configuration and accumulated energy) from
    * non-volatile memory (NVM). If the NVM has not been used before then
