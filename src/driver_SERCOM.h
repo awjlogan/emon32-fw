@@ -20,7 +20,8 @@ typedef enum I2CM_Status_ {
   I2CM_SUCCESS,
   I2CM_ERROR,
   I2CM_TIMEOUT,
-  I2CM_NOACK
+  I2CM_NOACK,
+  I2CM_DISABLED
 } I2CM_Status_t;
 
 typedef struct Sercom_Cfg_ {

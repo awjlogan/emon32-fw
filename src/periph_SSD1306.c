@@ -87,6 +87,7 @@
 
 static SSD1306_Status_t bufUpdatePos();
 static SSD1306_Status_t drawChar(const char c);
+static bool             ssd1306I2CActivate(void);
 
 static int displayFound;
 
@@ -228,10 +229,26 @@ static SSD1306_Status_t drawChar(const char c) {
   return SSD1306_SUCCESS;
 }
 
+static bool ssd1306I2CActivate(void) {
+  I2CM_Status_t s = i2cActivate(pSercom, (SSD1306_ADDR << 1));
+
+  if (I2CM_SUCCESS != s) {
+    if (I2CM_DISABLED != s) {
+      i2cAck(pSercom, I2CM_ACK, I2CM_ACK_CMD_STOP);
+    }
+    return false;
+  }
+  return true;
+}
+
 void ssd1306ClearBuffer(void) { memset(lineBuffer, 0, LINE_MEM_SIZE); }
 
 SSD1306_Status_t ssd1306DisplayOff(void) {
-  i2cActivate(pSercom, (SSD1306_ADDR << 1));
+
+  if (!ssd1306I2CActivate()) {
+    return SSD1306_FAIL;
+  }
+
   i2cDataWrite(pSercom, SSD1306_COMMAND);
   i2cDataWrite(pSercom, SSD1306_DISPLAY_OFF);
   i2cAck(pSercom, I2CM_ACK, I2CM_ACK_CMD_STOP);
@@ -240,7 +257,11 @@ SSD1306_Status_t ssd1306DisplayOff(void) {
 }
 
 SSD1306_Status_t ssd1306DisplayUpdate(void) {
-  i2cActivate(pSercom, SSD1306_ADDR << 1);
+
+  if (!ssd1306I2CActivate()) {
+    return SSD1306_FAIL;
+  }
+
   i2cDataWrite(pSercom, SSD1306_DATA_STREAM);
   for (unsigned int i = 0; i < LINE_MEM_SIZE; i++) {
     i2cDataWrite(pSercom, lineBuffer[i]);
@@ -298,15 +319,12 @@ SSD1306_Status_t ssd1306Init(Sercom *pSercomI2C) {
       SSD1306_DEACT_SCROLL,
       SSD1306_DISPLAY_ON};
 
-  I2CM_Status_t i2cm_s;
-
   pSercom = pSercomI2C;
 
-  i2cm_s = i2cActivate(pSercom, SSD1306_ADDR << 1);
-  if (i2cm_s != I2CM_SUCCESS) {
-    i2cAck(pSercom, I2CM_NACK, I2CM_ACK_CMD_STOP);
+  if (!ssd1306I2CActivate()) {
     return SSD1306_FAIL;
   }
+
   for (unsigned int i = 0; i < SSD1306_NUM_INIT_CMDS; i++) {
     i2cDataWrite(pSercom, SSD1306_COMMAND);
     i2cDataWrite(pSercom, initCmds[i]);

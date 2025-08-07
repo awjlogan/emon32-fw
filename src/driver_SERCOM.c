@@ -314,6 +314,10 @@ I2CM_Status_t i2cActivate(Sercom *sercom, uint8_t addr) {
   unsigned int  t = timerMicros();
   I2CM_Status_t s = I2CM_SUCCESS;
 
+  if (!(sercom->I2CM.CTRLA.reg & SERCOM_I2CM_CTRLA_ENABLE)) {
+    return I2CM_DISABLED;
+  }
+
   sercom->I2CM.ADDR.reg = SERCOM_I2CM_ADDR_ADDR(addr);
 
   /* MB: master on bus, SB: slave on bus */
