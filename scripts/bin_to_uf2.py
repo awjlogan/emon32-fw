@@ -84,12 +84,12 @@ def with_buf(input_buf, start_address, family_id):
 
 
 def check_linker(linker):
-    with open(linker, 'r') as f:
+    with open(linker, "r") as f:
         # Find the flash line and check the origin value
         for ln in f:
             if re.match(" +flash", ln):
                 origin = ln.split("ORIGIN = ")[1].strip()
-                offset = int(origin.split(',')[0], 0)
+                offset = int(origin.split(",")[0], 0)
                 if offset == 0:
                     return False
                 else:
@@ -119,7 +119,7 @@ def main():
         "--linker",
         type=pathlib.Path,
         default="./linker/samd21j17.ld",
-        help="Path to the linker script"
+        help="Path to the linker script",
     )
     parser.add_argument(
         "input",
