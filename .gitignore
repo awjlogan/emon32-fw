@@ -16,3 +16,4 @@ hb*.png
 venv/
 scripts/*.h
 avrdb_firmware/
+RFM69.cpp

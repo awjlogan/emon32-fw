@@ -92,6 +92,7 @@ The following options are added:
 
 |Command      |Definition                                             |
 |-------------|-------------------------------------------------------|
+|b            |Print the configuration as JSON on serial              |
 |o&lt;_x_&gt; |Auto calibrate CT lead for channel _x_                 |
 |t            |Trigger a data set processing event                    |
 |v            |Print firmware and board information                   |

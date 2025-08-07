@@ -321,8 +321,8 @@ static void configureBackup(void) {
 
   /* {board_config} dict */
   utilFtoa(strBuf, config.baseCfg.reportTime);
-  printf_("\"board_config\":{\"f_mains\":%d,\"t_report\":%s},",
-          config.baseCfg.mainsFreq, strBuf);
+  printf_("\"board_config\":{\"rfmFreq\":%d,\"f_mains\":%d,\"t_report\":%s},",
+          config.dataTxCfg.rfmFreq, config.baseCfg.mainsFreq, strBuf);
 
   /* {v_config} list of dicts */
   serialPuts("\"v_config\":[");
