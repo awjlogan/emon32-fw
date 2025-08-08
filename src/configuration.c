@@ -882,7 +882,7 @@ void configCmdChar(const uint8_t c) {
       inBufferIdx--;
       inBuffer[inBufferIdx] = 0;
     }
-  } else if ((inBufferIdx < IN_BUFFER_W) && utilCharPrintable(c)) {
+  } else if ((inBufferIdx < (IN_BUFFER_W - 1)) && utilCharPrintable(c)) {
     inBuffer[inBufferIdx++] = c;
   } else {
     inBufferClear(IN_BUFFER_W);
