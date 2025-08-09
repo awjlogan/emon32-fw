@@ -430,39 +430,28 @@ static void transmitData(const Emon32Dataset_t *pSrc, const TransmitOpt_t *pOpt,
   int nSerial = dataPackSerial(pSrc, txBuffer, TX_BUFFER_W, pOpt->json);
 
   if (pOpt->useRFM) {
+
+    if (pOpt->logSerial) {
+      serialPutsNonBlocking(txBuffer, nSerial);
+    }
+
     if (sercomExtIntfEnabled()) {
       int         retryCount = 0;
       RFMSend_t   rfmResult;
       int_fast8_t nPacked = dataPackPacked(pSrc, rfmGetBuffer(), PACKED_LOWER);
-      bool        timeout = false;
 
       rfmSetAddress(pOpt->node);
 
-      debugPuts("RFM sending packet 1.\r\n");
       rfmResult = rfmSendBuffer(nPacked, RFM_RETRIES, &retryCount);
 
       if (RFM_SUCCESS == rfmResult) {
         nPacked = dataPackPacked(pSrc, rfmGetBuffer(), PACKED_UPPER);
         rfmSetAddress(pOpt->node + 1);
-        debugPuts("RFM sending packet 2.\r\n");
+
         rfmResult = rfmSendBuffer(nPacked, RFM_RETRIES, &retryCount);
-        if (RFM_TIMED_OUT == rfmResult) {
-          timeout = true;
-        }
-      } else if (RFM_TIMED_OUT == rfmResult) {
-        timeout = true;
-      }
-
-      if (!timeout) {
-        debugPuts("RFM complete.\r\n");
-      } else {
-        debugPuts("RFM timed out.\r\n");
       }
     }
 
-    if (pOpt->logSerial) {
-      serialPutsNonBlocking(txBuffer, nSerial);
-    }
   } else {
     serialPutsNonBlocking(txBuffer, nSerial);
   }

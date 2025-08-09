@@ -69,8 +69,9 @@ TempStatus_t tempStartSample(const TEMP_INTF_t intf, const uint32_t dev) {
     tempSampled           = true;
     millisLastSample[dev] = timerMillis();
 
-    if (ds18b20StartSample(dev))
+    if (ds18b20StartSample(dev)) {
       return TEMP_OK;
+    }
   }
 
   /* Default to failure */

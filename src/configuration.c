@@ -836,15 +836,17 @@ static char waitForChar(void) {
                       (1 << ((uint32_t)(SERCOM_UART_INTERACTIVE_IRQn) & 0x1F)))
                          ? 1
                          : 0;
-    if (irqEnabled)
+    if (irqEnabled) {
       NVIC_DisableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+    }
 
     while (0 == (uartInterruptStatus(SERCOM_UART) & SERCOM_USART_INTFLAG_RXC))
       ;
     c = uartGetc(SERCOM_UART);
 
-    if (irqEnabled)
+    if (irqEnabled) {
       NVIC_EnableIRQ(SERCOM_UART_INTERACTIVE_IRQn);
+    }
   }
 
   return c;

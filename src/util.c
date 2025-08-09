@@ -98,8 +98,9 @@ ConvInt_t utilAtoi(char *pBuf, ITOA_BASE_t base) {
 
   if (ITOA_BASE10 == base) {
     while (*pBuf) {
-      if (!isnumeric(*pBuf))
+      if (!isnumeric(*pBuf)) {
         return conv;
+      }
       conv.val += ((*pBuf++) - '0') * mulCnt;
       mulCnt *= 10;
     }

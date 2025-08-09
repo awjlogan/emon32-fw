@@ -23,12 +23,12 @@ typedef struct RFMRx_ {
 } RFMRx_t;
 
 static bool      rfmAckRecv(uint16_t fromId);
-static void      rfmPacketHandler(void); /* LPL: interruptHandler*/
+static void      rfmPacketHandler(void); /* LPL: interruptHandler */
 static uint8_t   rfmReadReg(const unsigned int addr);
 static int16_t   rfmReadRSSI(void);
 static void      rfmReset(void);
 static void      rfmRxBegin(void); /* LPL: receiveBegin */
-static bool      rfmRxDone(void);  /* LPL: receiveDone*/
+static bool      rfmRxDone(void);  /* LPL: receiveDone */
 static RFMSend_t rfmSendWithRetry(uint8_t n, const uint8_t retries,
                                   int *pRetryCount);
 static void      rfmSetMode(RFMMode_t mode);
@@ -58,7 +58,6 @@ static void rfmPacketHandler(void) {
   if ((RFM69_MODE_RX == rfmMode) &&
       (rfmReadReg(REG_IRQFLAGS2) & RFM_IRQFLAGS2_PAYLOADREADY)) {
 
-    uint16_t ctl = 0;
     rfmSetMode(RFM69_MODE_STANDBY);
     spiSelect(sel);
     spiTx(REG_FIFO & 0x7F);
@@ -69,7 +68,7 @@ static void rfmPacketHandler(void) {
     }
     rfmRx.targetID = spiRx();
     rfmRx.senderID = spiRx();
-    ctl            = (uint16_t)spiRx();
+    uint16_t ctl   = (uint16_t)spiRx();
 
     rfmRx.targetID |= (ctl & 0x0C) << 6;
     rfmRx.senderID |= (ctl & 0x03) << 8;
@@ -90,8 +89,8 @@ static void rfmPacketHandler(void) {
     for (int i = 0; i < rfmRx.dataLen; i++) {
       rxData[i] = spiRx();
     }
-    rxData[rfmRx.dataLen] = 0;
     spiDeSelect(sel);
+    rxData[rfmRx.dataLen] = 0;
     rfmSetMode(RFM69_MODE_RX);
   }
   rfmRx.rxRSSI = rfmReadRSSI();
@@ -176,20 +175,14 @@ static void rfmRxBegin(void) {
 }
 
 static bool rfmRxDone(void) {
-  if (rxRdy) {
-    rxRdy = false;
-    rfmPacketHandler();
+
+  rfmPacketHandler();
+
+  if ((RFM69_MODE_RX == rfmMode) && (rfmRx.payloadLen > 0)) {
+    rfmSetMode(RFM69_MODE_STANDBY);
+    return true;
   }
 
-  if (RFM69_MODE_RX == rfmMode) {
-    if (rfmRx.payloadLen > 0) {
-      rfmSetMode(RFM69_MODE_STANDBY);
-      return true;
-    } else {
-      /* Already in Rx, waiting for packet(s) */
-      return false;
-    }
-  }
   rfmRxBegin();
   return false;
 }
@@ -206,6 +199,7 @@ static RFMSend_t rfmSendWithRetry(uint8_t n, const uint8_t retries,
   for (int r = 0; r < retries; r++) {
     uint32_t tNow;
     uint32_t tSent;
+
     *pRetryCount = *pRetryCount + 1;
 
     /* LPL send */
@@ -294,6 +288,33 @@ bool rfmInit(const RFMOpt_t *pOpt) {
     return false;
   }
 
+  uint8_t frf_msb = 0;
+  uint8_t frf_mid = 0;
+  uint8_t frf_lsb = 0;
+
+  switch (pOpt->freq) {
+  case 0:
+    frf_msb = RFM_FRFMSB_868;
+    frf_mid = RFM_FRFMID_868;
+    frf_lsb = RFM_FRFLSB_868;
+    break;
+  case 1:
+    frf_msb = RFM_FRFMSB_915;
+    frf_mid = RFM_FRFMID_915;
+    frf_lsb = RFM_FRFLSB_915;
+    break;
+  case 2:
+    frf_msb = RFM_FRFMSB_433;
+    frf_mid = RFM_FRFMID_433_00;
+    frf_lsb = RFM_FRFLSB_433_00;
+    break;
+  case 3:
+    frf_msb = RFM_FRFMSB_433;
+    frf_mid = RFM_FRFMID_433_92;
+    frf_lsb = RFM_FRFLSB_433_92;
+    break;
+  }
+
   /* Configuration parameters */
   const uint8_t config[][2] = {
       {REG_OPMODE, 0x04},    /* OPMODE: Sequencer, standby, listen off */
@@ -302,25 +323,9 @@ bool rfmInit(const RFMOpt_t *pOpt) {
       {REG_BITRATELSB, RFM_BITRATELSB_55555},
       {REG_FDEVMSB, RFM_FDEVMSB_50000},
       {REG_FDEVLSB, RFM_FDEVLSB_50000},
-      {REG_FRFMSB, (RFM_FREQ_868MHz == pOpt->freq)   ? RFM_FRFMSB_868
-                   : (RFM_FREQ_915MHz == pOpt->freq) ? RFM_FRFMSB_915
-                                                     : RFM_FRFMSB_433},
-      {REG_FRFMID,
-       (RFM_FREQ_868MHz == pOpt->freq)
-           ? RFM_FRFMID_868
-           : ((RFM_FREQ_915MHz == pOpt->freq)
-                  ? RFM_FRFMID_915
-                  : ((RFM_FREQ_433MHz == pOpt->freq) ? RFM_FRFMID_433_00
-                                                     : RFM_FRFMID_433_92))},
-
-      {REG_FRFLSB,
-       (RFM_FREQ_868MHz == pOpt->freq)
-           ? RFM_FRFLSB_868
-           : ((RFM_FREQ_915MHz == pOpt->freq)
-                  ? RFM_FRFLSB_915
-                  : ((RFM_FREQ_433MHz == pOpt->freq) ? RFM_FRFLSB_433_00
-                                                     : RFM_FRFLSB_433_92))},
-
+      {REG_FRFMSB, frf_msb},
+      {REG_FRFMID, frf_mid},
+      {REG_FRFLSB, frf_lsb},
       {REG_RXBW, (RFM_RXBW_DCCFREQ_010 | RFM_RXBW_MANT_16 | RFM_RXBW_EXP_2)},
       {REG_DIOMAPPING1, RFM_DIOMAPPING1_DIO0_01},
       {REG_DIOMAPPING2, RFM_DIOMAPPING2_CLKOUT_OFF},
