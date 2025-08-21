@@ -50,7 +50,7 @@ fp_format = 32768.0  # Q1.15
 # ~~[Filter Design with Parks-McClellan Remez]~~
 # Filter symetric around 0.25 (where .5 is pi or Fs/2)
 bands = numpy.array([0.0, 0.22, 0.28, 0.5])
-h = signal.remez(N + 1, bands, [1, 0], [1, 1])
+h = signal.remez(N + 1, bands, [1, 0], weight=[1, 1])
 h[abs(h) <= 1e-4] = 0.0
 (w, H) = signal.freqz(h)
 
