@@ -386,7 +386,7 @@ TempRead_t ds18b20ReadSample(const unsigned int dev) {
   }
 
   /* Flag values < -55°C and > +125°C as out of range  */
-  if ((DS_TNEG55DEG > tempRes.temp) || (DS_T125DEG < tempRes.temp)) {
+  if ((DS_TNEG55DEG > scratch.temp) || (DS_T125DEG < scratch.temp)) {
     tempRes.status = TEMP_OUT_OF_RANGE;
     return tempRes;
   }
