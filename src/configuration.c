@@ -106,15 +106,13 @@ static void configDefault(void) {
 
   /* OneWire/Pulse configuration:
    * OPA1
-   *   - Pulse input
-   *   - Period: 100 ms
-   *   - Rising edge trigger
-   *   - Pull up disabled
+   *   - OneWire input
+   *   - Enabled
    */
-  config.opaCfg[0].func      = 'r';
-  config.opaCfg[0].opaActive = false;
-  config.opaCfg[0].period    = 100u;
-  config.opaCfg[0].puEn      = false;
+  config.opaCfg[0].func      = 'o';
+  config.opaCfg[0].opaActive = true;
+  config.opaCfg[0].period    = 0;
+  config.opaCfg[0].puEn      = true;
 
   /* OPA2
    *   - OneWire input
