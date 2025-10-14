@@ -21,6 +21,7 @@
 
 #define PROC_DEPTH   16 /* Voltage sample buffer depth. Must be power of 2. */
 #define ZC_HYST      2  /* Zero crossing hysteresis */
+#define ZC_HYST_AV   8  /* Zero crossing hysteresis when using assumd voltage */
 #define EQUIL_CYCLES 8  /* Number of cycles to discard at startup */
 
 _Static_assert(!(PROC_DEPTH & (PROC_DEPTH - 1)),
@@ -178,8 +179,7 @@ static RAMFUNC float calcRMS(CalcRMS_t *pSrc) {
   return rms;
 }
 
-/*! @brief Swap pointers to buffers
- */
+/*! @brief Swap pointers to buffers */
 static void swapPtr(void **pIn1, void **pIn2) {
   void *tmp = *pIn1;
   *pIn1     = *pIn2;
@@ -324,6 +324,8 @@ RAMFUNC bool zeroCrossingSW(q15_t smpV) {
         return true;
       }
     }
+  } else {
+    hystCnt = useAssumedV ? ZC_HYST_AV : ZC_HYST;
   }
   return false;
 }
@@ -504,12 +506,12 @@ RAMFUNC void ecmFilterSample(SampleSet_t *pDst) {
 }
 
 RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
+  bool            pend1s      = false;
   bool            reportReady = false;
-  bool            pend_1s     = false;
   SampleSet_t     smpSet      = {0};
-  uint32_t        t_start     = 0;
   static uint32_t t_RepLast   = 0;
-  bool            zc_flag     = false;
+  uint32_t        t_start     = 0;
+  bool            zcFlag      = false;
 
   static int_fast8_t idxInject;
 
@@ -581,7 +583,7 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
    */
   if (zeroCrossingSW(smpSet.smpV[0])) {
 
-    zc_flag  = true;
+    zcFlag   = true;
     t_ZClast = (*ecmCfg.timeMicros)();
 
     if (0 == discardCycles) {
@@ -597,24 +599,32 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
 
   /* If no zero-crossing has been detected in 100 ms, fall back to assumed
    * Vrms */
-  useAssumedV = ((*ecmCfg.timeMicrosDelta)(t_ZClast) > 100000);
+  if ((*ecmCfg.timeMicrosDelta)(t_ZClast) > 100000) {
+    useAssumedV = true;
+  } else {
+    useAssumedV = false;
+  }
+
+  uint32_t tRepLastDelta = (*ecmCfg.timeMicrosDelta)(t_RepLast);
 
   /* Flag one second before the report is due to allow slow sensors to
    * sample. For example, DS18B20 requires 750 ms to sample.
    */
-  if (accumCollecting->cycles == (ecmCfg.reportCycles - ecmCfg.mainsFreq)) {
-    pend_1s = true;
-  }
+  bool pend1sNoVAC =
+      useAssumedV && (tRepLastDelta > ecmCfg.reportTime_us - 1E6);
+  bool pend1sCycles =
+      accumCollecting->cycles == (ecmCfg.reportCycles - ecmCfg.mainsFreq);
+
+  pend1s = pend1sNoVAC || pend1sCycles;
 
   /* Trigger conditions
    *   - Number of detected cycles
    *   - Report time if no V AC sensed
    *   - A manual trigger (sync'd to cycle if VAC present)
    */
-  bool repCycles = (accumCollecting->cycles >= ecmCfg.reportCycles);
-  bool repTime   = useAssumedV &&
-                 ((*ecmCfg.timeMicrosDelta)(t_RepLast) > ecmCfg.reportTime_us);
-  bool repTrigger = processTrigger && (useAssumedV || zc_flag);
+  bool repCycles  = (accumCollecting->cycles >= ecmCfg.reportCycles);
+  bool repTime    = useAssumedV && (tRepLastDelta > ecmCfg.reportTime_us);
+  bool repTrigger = processTrigger && (useAssumedV || zcFlag);
 
   if (repCycles || repTime || repTrigger) {
     accumSwapClear();
@@ -635,7 +645,7 @@ RAMFUNC ECM_STATUS_t ecmInjectSample(void) {
   idxInject = (idxInject + 1u) & (PROC_DEPTH - 1u);
 
   return reportReady ? ECM_REPORT_COMPLETE
-                     : (pend_1s ? ECM_PEND_1S : ECM_CYCLE_ONGOING);
+                     : (pend1s ? ECM_PEND_1S : ECM_CYCLE_ONGOING);
 }
 
 ECMPerformance_t *ecmPerformance(void) {
@@ -737,22 +747,27 @@ RAMFUNC ECMDataset_t *ecmProcessSet(void) {
 
       // Power factor
       float rmsV;
-      if (idxV1 == idxV2) {
-        rmsV = datasetProc.rmsV[idxV1];
+      if (useAssumedV) {
+        rmsV = ecmCfg.assumedVrms;
       } else {
-        if (0 == idxV1) {
-          if (1 == idxV2) {
-            /* V1-V2 */
-            rmsV = datasetProc.rmsV[3];
-          } else {
-            /* V1-V3 */
-            rmsV = datasetProc.rmsV[4];
-          }
+        if (idxV1 == idxV2) {
+          rmsV = datasetProc.rmsV[idxV1];
         } else {
-          /* V2-V3 */
-          rmsV = datasetProc.rmsV[5];
+          if (0 == idxV1) {
+            if (1 == idxV2) {
+              /* V1-V2 */
+              rmsV = datasetProc.rmsV[3];
+            } else {
+              /* V1-V3 */
+              rmsV = datasetProc.rmsV[4];
+            }
+          } else {
+            /* V2-V3 */
+            rmsV = datasetProc.rmsV[5];
+          }
         }
       }
+
       float VA   = qfp_fmul(datasetProc.CT[idxCT].rmsI, rmsV);
       float pf   = qfp_fdiv(powerNow, VA);
       bool  pf_b = ((pf > 1.05f) || (pf < -1.05f) || (pf != pf));

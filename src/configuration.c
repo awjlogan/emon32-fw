@@ -323,6 +323,7 @@ static void configureBackup(void) {
   printf_("\"board_config\":{\"rfmFreq\":%d,\"f_mains\":%d,\"t_report\":%s},",
           config.dataTxCfg.rfmFreq, config.baseCfg.mainsFreq, strBuf);
 
+  printf_("\"assumedV\":%d,", config.baseCfg.assumedVrms);
   /* {v_config} list of dicts */
   serialPuts("\"v_config\":[");
   for (int i = 0; i < NUM_V; i++) {
@@ -761,6 +762,8 @@ static void printSettings(void) {
     }
     serialPuts("\r\n");
   }
+
+  printf_("Assumed RMS voltage: %d V\r\n\r\n", config.baseCfg.assumedVrms);
 
   serialPuts(
       "| Ref | Channel | Active | Calibration | Phase  | In 1 | In 2 |\r\n");
