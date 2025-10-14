@@ -180,7 +180,9 @@ int main(int argc, char *argv[]) {
   srandom(time(NULL));
   /* Copy and fold the half band coefficients */
   const int lutDepth = (numCoeffUnique - 1) * 2;
-  int16_t   coeffLut[lutDepth];
+  int16_t  *coeffLut = malloc(lutDepth * sizeof(int16_t));
+  assert(coeffLut);
+
   for (int i = 0; i < (lutDepth / 2); i++) {
     coeffLut[i]                  = firCoeffs[i];
     coeffLut[(lutDepth - 1 - i)] = firCoeffs[i];
@@ -272,6 +274,7 @@ int main(int argc, char *argv[]) {
   printf("    - DSP enabled     : %s\n", pEcmCfg->downsample ? "Yes" : "No");
   printf("    - Report time     : %.2f s\n", REPORT_TIME);
   printf("    - Sample tick     : %d us\n", SMP_TICK);
+  printf("    - Assumed voltage : %.2f V\n", pEcmCfg->assumedVrms);
   printf("    - Noise           : %s\n", noise.en ? "Yes" : "No");
   if (noise.en) {
     printf("                        mu    : %f\n", noise.mu);
