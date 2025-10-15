@@ -186,20 +186,28 @@ int dataPackSerial(const Emon32Dataset_t *pData, char *pDst, int m, bool json) {
 
   catMsg(&strn, pData->msgNum, json);
 
-  /* V channels */
-  for (int i = 0; i < NUM_V; i++) {
+  /* V channels; only print V2/V3 if either active */
+  int numV = (pData->pECM->activeCh & 0x6) ? NUM_V : 1;
+
+  for (int i = 0; i < numV; i++) {
     catId(&strn, (i + 1), STR_V, json);
     (void)strnFtoa(&strConv, pData->pECM->rmsV[i]);
     strn.n += strnCat(&strn, &strConv);
   }
 
-  /* CT channels (power and energy) */
-  for (int i = 0; i < NUM_CT; i++) {
+  /* CT channels (power and energy)
+   * Only print onboard CTs 7-12 if any are present
+   */
+  int numCT = (pData->pECM->activeCh & (0x3f << (NUM_V + (NUM_CT / 2))))
+                  ? NUM_CT
+                  : (NUM_CT / 2);
+
+  for (int i = 0; i < numCT; i++) {
     catId(&strn, (i + 1), STR_P, json);
     (void)strnItoa(&strConv, pData->pECM->CT[i].realPower);
     strn.n += strnCat(&strn, &strConv);
   }
-  for (int i = 0; i < NUM_CT; i++) {
+  for (int i = 0; i < numCT; i++) {
     catId(&strn, (i + 1), STR_E, json);
     (void)strnItoa(&strConv, pData->pECM->CT[i].wattHour);
     strn.n += strnCat(&strn, &strConv);
