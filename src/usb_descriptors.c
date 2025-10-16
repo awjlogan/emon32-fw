@@ -180,7 +180,7 @@ enum {
 char const *string_desc_arr[] = {
     (const char[]){0x09, 0x04}, // 0: is supported language is English (0x0409)
     "OpenEnergyMonitor",        // 1: Manufacturer
-    "emonPi3",                  // 2: Product
+    "OEM_Tx6_Pi3",              // 2: Product
     NULL,                       // 3: Serials will use unique ID if possible
     "OEM CDC",                  // 4: CDC Interface
 };
