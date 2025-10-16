@@ -60,7 +60,7 @@ def generate_build_info_c(configuration):
 
     try:
         revision = subprocess.run(
-            ["git", "describe", "--always", "--tags", "--dirty"],
+            ["git", "describe", "--always", "--dirty"],
             capture_output=True,
             check=True,
             text=True,

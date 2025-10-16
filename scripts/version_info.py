@@ -4,7 +4,7 @@ import subprocess
 def extract_commit():
     try:
         commit = subprocess.run(
-            ["git", "describe", "--always", "--tags", "--dirty"],
+            ["git", "describe", "--always", "--dirty"],
             capture_output=True,
             check=True,
             text=True,
@@ -33,6 +33,8 @@ def extract_version():
 
             if found == 3:
                 return (maj, min, rev)
+
+    return (0, 0, 0)
 
 
 def main():
