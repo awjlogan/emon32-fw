@@ -56,10 +56,7 @@ def generate_build_info_c(configuration):
     except subprocess.CalledProcessError:
         release = "None"
 
-    if "." in release:
-        year, month, day = [x.lstrip("0") for x in release.split(".", 3)]
-    else:
-        year, month, day = 0, 0, 0
+    day, month, year = datetime.now(timezone.utc).strftime("%m.%d.%Y").split(".")
 
     try:
         revision = subprocess.run(
