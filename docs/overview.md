@@ -8,6 +8,8 @@ Throughout the documentation, if there are steps and options specific to the emo
 
 When combined with an emonVs voltage sensor and CT sensors it provides a fully integrated system for monitoring home energy consumption, solar generation, EV charging, heat pumps, battery storage, and other applications.
 
+The emonPi3 and emonTx6 are fully open source, and you can find the hardware files [here](https://github.com/awjlogan/emon32).
+
 ## Key features
 
 - 6x clip-on CT current sensor inputs (333 mV voltage output or, optionally, current output)

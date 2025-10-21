@@ -6,23 +6,42 @@ Most users do not need to compile their own firmware. Pre-built firmware can be 
 
 ## Updating firmware
 
+### emonPi3
+
+#### Web Interface
+
+The easiest way to update the emonPi3's firmware is to use the firmware upload tool.
+
+1. In your local emonPi3 web interface, navigate to `Setup > Admin > Update > Firmware`.
+2. Select serial port `ttyAMA0` and then select `emonPi3` from hardware.
+
+#### Command Line
+
+<!-- REVISIT bossac steps -->
+
 ### emonTx6
 
 To update the emonTx6's firmware, the following steps are taken:
 
+<!-- REVISIT script this -->
+
 - Connect a USB cable to the emonTx6's USB-C socket.
-- Open a serial connection using (revisit: steps for screen or similar here, rather than Arduino)
+- Open a serial connection using, for example, `screen` or the Arduino serial monitor.
 - Enter 'e' and then press Enter.
-- You will be prompted to reboot to enter the bootloader. Any unsaved configuration changes at this point will ne lost. Press 'y' to continue, or any other key to cancel.
+- You will be prompted to reboot to enter the bootloader. Any unsaved configuration changes at this point will be lost. Press 'y' to continue, or any other key to cancel.
 - The emonTx6's LED will slowly pulse red (revisit: check colour!) and a drive called `EMONBOOT` will appear in the file manager.
 - Drag and drop the firmware image ending `.uf2` to the `EMONBOOT` folder.
 - The emonTx6 will reboot and enter the application.
 
-### emonPi3
+## Development
 
-revisit: steps with serial bootloader
+Contributions are welcome. Small PRs can be accepted at any time. Please get in touch before making large changes to see if it's going to fit. This is an open source project, so PRs and issues may not be addressed quickly. This is not a comment on the quality of the contribution, and you are free to fork the project at any point.
 
-## How to compile firmware
+```{tip}
+Run the install-hooks.sh script to enable the pre-commit hooks, which include autoformatting. A clang-format pattern is included. You may need to install clang-format and ruff using your OS's package manager.
+```
+
+### How to compile firmware
 
 There is a single unified firmware for the emonPi3 and emonTx6. The firmware is self contained, with no external libraries required and does not require any frameworks like Arduino or Platform.io.
 
@@ -42,4 +61,8 @@ cd emon32-fw
 make -j
 ```
 
-Images in `.bin`, `.hex`, `.elf`, and `.uf2` formats will be in the `bin/`. The image names include the version and the git commit hash for traceability.
+Images in `.bin`, `.hex`, `.elf`, and `.uf2` formats will be in the `bin/` folder. The image names include the version and the git commit hash for traceability.
+
+### Flash and debug
+
+The emonPi3/Tx6 exposes a standard Arm Cortex-M 10-pin SWD connector. You can flash and debug the microcontroller using a CMSIS-DAP compatible debugger using `openocd` and `arm-none-eabi-gdb`. There is no requirement to use the vendor IDE and tools.

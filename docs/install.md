@@ -1,6 +1,6 @@
 # emonPi3 and emonTx6 Install Guide
 
-The following guide covers installation of the [emonPi3 or emonTx6 6x input energy monitor](overview.md).
+The following guide covers installation of the [emonPi3 and emonTx6 6x input energy monitor](overview.md).
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/XAJV5zDJF_4?si=5aG4XxaeXYWK0_xQ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -40,7 +40,7 @@ The following guide covers installation of the [emonPi3 or emonTx6 6x input ener
 
 9. (emonPi3 only)  If using Ethernet, continue with *Connecting via Ethernet*. If using WiFi, continue with *Connecting via WiFi*.
 
-![emonPi3_complete_kit.jpg](img/emonPi3_complete_kit.jpg)
+![emonPi3 Complete Kit](img/emonPi3_complete_kit.jpg)
 
 ---
 
@@ -60,7 +60,7 @@ The emonVs unit can be wall mounted using the brackets on the enclosure.
 
 If in North America, you likely want the [3-phase version of the emonVS](https://shop.openenergymonitor.com/emonvs-3-phase-no-plug/). The split phase firmware enables the most accurate power measurements.
 
-If you plan on using an [emonTx6 with your emonPi3](../emontx6/install.md), you will likely want an [emonVs RJ45 duplicator](https://shop.openenergymonitor.com/emonvs-rj45-duplicator/) to use a single emonVs with both devices.
+If you plan on using an additional emonTx6 along with your emonPi3, you will likely want an [emonVs RJ45 duplicator](https://shop.openenergymonitor.com/emonvs-rj45-duplicator/) to use a single emonVs with both devices.
 
 ## CT sensor installation
 
@@ -74,13 +74,11 @@ If you plan on using an [emonTx6 with your emonPi3](../emontx6/install.md), you 
 
 - The new range of CT sensors used with the emonPi3/emonTx6 are all voltage output CT sensors with integrated burden resistors and so are safe to clip on to the circuits that you wish to measure before plugging into the emonPi3/emonTx6 if that makes installation easier.
 
-- Note the CT sensor used on each circuit, as well as the channel number on the emonPi3/emonTx6 that the CT is connected to, as this may be required to calibrate the emonPi3/emonTx6 if you are using non standard CT ratings. It's worth making a physical note of this on a label next to the emonPi3/emonTx6 for future reference.
-
-```{note}
 The emonPi3/emonTx6 requires voltage output CT sensors by default. There are 6.8Ω burden resistors included for use with current output sensors, for example the YHDC (blue) 100 A CTs. To use these burden resistors, users can bridge the solder pads next to the 3.5 mm jack. Each CT input channel is independent, so you can have a mix of current and voltage output CTs in use.
 
-<!-- REVISIT picture? -->
-```
+![Bridge with solder to use burden resistors](img/emonpi3_ct_burden.jpg)
+
+- Note the CT sensor used on each circuit, as well as the channel number on the emonPi3/emonTx6 that the CT is connected to, as this may be required to calibrate the emonPi3/emonTx6 if you are using non standard CT ratings. It's worth making a physical note of this on a label next to the emonPi3/emonTx6 for future reference.
 
 ```{tip}
 With 6 CT sensor cables and often more cable than you need, it's easy for an installation to look like a hive of wires! A little electrical trunking can go a long way to tidying it all up, allowing for excess cable to be looped back on itself.
@@ -98,9 +96,9 @@ With 6 CT sensor cables and often more cable than you need, it's easy for an ins
 
 ### Startup and display menu
 
-With the emonPi3 powered up a simple `emonPi3, v1.x.x` message will be printed on the display. The Raspberry Pi is booting at this point which usually takes around 40 seconds:
+With the emonPi3 powered up a simple `emonPi3 v1.x.x <commit>` message will be printed on the display. `<commit>` will have the exact version of the firmware. The Raspberry Pi is booting at this point which usually takes around 40 seconds:
 
-![emonPi3_starting.JPG](img/emonPi3_starting.JPG)
+![emonPi3 startup](img/emonPi3_starting.JPG)
 
 Once booted the display will print the SD card image version and emonPi3 serial number:
 

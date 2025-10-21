@@ -1,18 +1,18 @@
 # Configuration
 
 ```{note}
-The emonPi2 and emonTx6, by default, use 433.92 MHz for RF communication, rather than 433.00 MHz, to stay within the ISM regulated band. If you are using OpenEnergyMonitor emonTH2, emonPi2, emonTx4, or emonTx5 units you may need to enable 433.00 MHz compatibility mode.
+The emonPi3 and emonTx6, by default, use 433.92 MHz for RF communication, rather than 433.00 MHz, to stay within the ISM regulated band. If you are using OpenEnergyMonitor emonTH2, emonPi2, emonTx4, or emonTx5 units you may need to enable 433.00 MHz compatibility mode.
 ```
 
 ## Through EmonCMS
 
-CT calibration is usually pre-configured in the shop as part of the order process but can be re-configured at any point using the Serial Config tool available from the emonPi3 local EmonCMS interface.
+The emonPi3 is usually pre-configured in the shop as part of the order process but can be re-configured at any point using the Serial Config tool available from the emonPi3 local EmonCMS interface.
 
 - Navigate to `Setup > Admin > Serial Config`
 - Click on `Stop EmonHub` to temporarily stop the EmonHub service while we perform calibration.
 - Select serial port `/dev/ttyAMA0` and click `Connect`.
 - After a couple of seconds the emonPi3 will print out its current configuration which will populate the interface (if it does not do this type `l` and click `Send` to reload the calibration details from the emonPi3 measurement board).
-- Adjust the  CT rating to match the CT sensor that you have installed on each channel.
+- Adjust any settings you need to change.
 - Click on `Save Changes` to ensure that the new configuration is recorded such that it persists when you power cycle the board.
 - When finished, click on `Stop Serial` to disconnect the serial configuration tool and then `Start EmonHub` to restart the EmonHub service.
 
@@ -20,7 +20,7 @@ CT calibration is usually pre-configured in the shop as part of the order proces
 
 ## Directly via serial
 
-It is possible to configure the emonPi3/Tx6 directly through the USB serial using the Arduino serial monitor or other similar tool.
+It is possible to configure the emonPi3/Tx6 directly through the USB serial port or UART using `screen` or other similar tool. When using a UART, the settings are 115200, 8N1, `\r\n` line ending.
 
 The following details the available commands and their function.
 

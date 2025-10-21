@@ -8,5 +8,4 @@ emonPi3 and emonTx6 User Guide
    install.md
    configuration.md
    firmware.md
-   hardware.md
    Temperature, Pulse, and Analog <other_sensors.md>
