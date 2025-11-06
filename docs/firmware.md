@@ -13,17 +13,22 @@ Most users do not need to compile their own firmware. Pre-built firmware can be 
 The easiest way to update the emonPi3's firmware is to use the firmware upload tool.
 
 1. In your local emonPi3 web interface, navigate to `Setup > Admin > Update > Firmware`.
-2. Select serial port `ttyAMA0` and then select `emonPi3` from hardware.
+2. Select serial port `ttyS0` and then select `emonPi3` from hardware.
 
 #### Command Line
 
-<!-- REVISIT bossac steps -->
+To update the emonPi3 using the command line, you can use the [BOSSA](https://github.com/shumatech/BOSSA) application. The following steps are taken:
+
+- Open a serial connection using, for example, `screen` to `/dev/ttyS0`.
+- Enter 'e' and then press Enter.
+- You will be prompted to reboot to enter the bootloader. Any unsaved configuration changes at this point will be lost. Press 'y' to continue, or any other key to cancel.
+- The emonPi3's LED will slowly pulse green indicating it is in the bootloader.
+- To check the bootloader is responsive, run `bossac -p /dev/ttyS0 -i`.
+- To upload the compiled firmare, run `bossac -p /dev/ttyS0 -e -w -v -R --offset=0x2000 path/to/bin`.
 
 ### emonTx6
 
 To update the emonTx6's firmware, the following steps are taken:
-
-<!-- REVISIT script this -->
 
 - Connect a USB cable to the emonTx6's USB-C socket.
 - Open a serial connection using, for example, `screen` or the Arduino serial monitor.
